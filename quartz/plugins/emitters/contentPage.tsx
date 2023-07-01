@@ -1,90 +1,49 @@
-import { JSResourceToScriptElement, StaticResources } from "../../resources"
 import { QuartzEmitterPlugin } from "../types"
-import { render } from "preact-render-to-string"
-import { QuartzComponent } from "../../components/types"
-import { resolveToRoot, trimPathSuffix } from "../../path"
-import HeaderConstructor from "../../components/Header"
 import { QuartzComponentProps } from "../../components/types"
+import HeaderConstructor from "../../components/Header"
 import BodyConstructor from "../../components/Body"
+import { pageResources, renderPage } from "../../components/renderPage"
+import { FullPageLayout } from "../../cfg"
 
-interface Options {
-  head: QuartzComponent
-  header: QuartzComponent[],
-  beforeBody: QuartzComponent[],
-  content: QuartzComponent,
-  left: QuartzComponent[],
-  right: QuartzComponent[],
-  footer: QuartzComponent[],
-}
-
-export const ContentPage: QuartzEmitterPlugin<Options> = (opts) => {
+export const ContentPage: QuartzEmitterPlugin<FullPageLayout> = (opts) => {
   if (!opts) {
     throw new Error("ContentPage must be initialized with options specifiying the components to use")
   }
 
-  const { head: Head, header, beforeBody, left, right, footer } = opts
+  const { head: Head, header, beforeBody, pageBody: Content, left, right, footer: Footer } = opts
   const Header = HeaderConstructor()
   const Body = BodyConstructor()
 
   return {
     name: "ContentPage",
     getQuartzComponents() {
-      return [opts.head, Header, Body, ...opts.header, ...opts.beforeBody, opts.content, ...opts.left, ...opts.right, ...opts.footer]
+      return [Head, Header, Body, ...header, ...beforeBody, Content, ...left, ...right, Footer]
     },
     async emit(_contentDir, cfg, content, resources, emit): Promise<string[]> {
       const fps: string[] = []
       const allFiles = content.map(c => c[1].data)
       for (const [tree, file] of content) {
-        const baseDir = resolveToRoot(file.data.slug!)
-        const pageResources: StaticResources = {
-          css: [baseDir + "/index.css", ...resources.css],
-          js: [
-            { src: baseDir + "/prescript.js", loadTime: "beforeDOMReady", contentType: "external" },
-            ...resources.js,
-            { src: baseDir + "/postscript.js", loadTime: "afterDOMReady", moduleType: 'module', contentType: "external" }
-          ]
-        }
-
+        const slug = file.data.slug!
+        const externalResources = pageResources(slug, resources)
         const componentData: QuartzComponentProps = {
           fileData: file.data,
-          externalResources: pageResources,
+          externalResources,
           cfg,
           children: [],
           tree,
           allFiles
         }
 
-        const Content = opts.content
-        const doc = <html>
-          <Head {...componentData} />
-          <body data-slug={file.data.slug ?? ""}>
-            <div id="quartz-root" class="page">
-              <Header {...componentData} >
-                {header.map(HeaderComponent => <HeaderComponent {...componentData} />)}
-              </Header>
-              <div class="popover-hint">
-                {beforeBody.map(BodyComponent => <BodyComponent {...componentData} />)}
-              </div>
-              <Body {...componentData}>
-                <div class="left">
-                  {left.map(BodyComponent => <BodyComponent {...componentData} />)}
-                </div>
-                <div class="center popover-hint">
-                  <Content {...componentData} />
-                </div>
-                <div class="right">
-                  {right.map(BodyComponent => <BodyComponent {...componentData} />)}
-                </div>
-              </Body>
-
-            </div>
-          </body>
-          {pageResources.js.filter(resource => resource.loadTime === "afterDOMReady").map(res => JSResourceToScriptElement(res))}
-        </html>
+        const content = renderPage(
+          slug,
+          componentData,
+          opts,
+          externalResources
+        )
 
         const fp = file.data.slug + ".html"
         await emit({
-          content: "<!DOCTYPE html>\n" + render(doc),
+          content,
           slug: file.data.slug!,
           ext: ".html",
         })
