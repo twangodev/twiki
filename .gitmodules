@@ -4,3 +4,6 @@
 [submodule "content/fa24-cs300"]
 	path = content/fa24-cs300
 	url = https://github.com/twangodev/fa24-cs300
+[submodule "content/sp25-cs400"]
+	path = content/sp25-cs400
+	url = https://github.com/twangodev/sp25-cs400
