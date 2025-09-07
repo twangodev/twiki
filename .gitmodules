@@ -1,3 +1,6 @@
 [submodule "content/fa25-nutrisci132"]
 	path = content/fa25-nutrisci132
 	url = https://github.com/twangodev/fa25-nutrisci132
+[submodule "content/fa24-cs300"]
+	path = content/fa24-cs300
+	url = https://github.com/twangodev/fa24-cs300
