@@ -19,3 +19,6 @@
 [submodule "content/fa25-cs502"]
 	path = content/fa25-cs502
 	url = https://github.com/twangodev/fa25-cs502
+[submodule "content/fa25-cs300"]
+	path = content/fa25-cs300
+	url = https://github.com/twangodev/fa25-cs300
