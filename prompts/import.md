@@ -19,8 +19,8 @@ Look through the document for references to other materials that might already b
 - If it has external links (Canvas, Google Docs, etc.) → remove the URL but check if that content was already imported
 
 **When you find a match:**
-- Replace with `[text](relative/path/to/file.md)`
-- Use relative paths from current document location
+- Replace with `[[path/to/file]]` (wikilinks format)
+- Use paths relative to the content root
 - Only link if you have high confidence it's the right document
 
 **When no match found:**
@@ -36,20 +36,17 @@ Think about what other documents should reference this one:
 ### LINK SYNTAX EXAMPLES:
 
 ```markdown
-# Same directory:
-[assignment 3](assignment-3.md)
-
-# Subdirectory:
-[neural networks](concepts/neural-networks.md)
-
-# Parent directory:
-[course syllabus](../syllabus.md)
-
-# Sibling directory:
-[lecture slides](../slides/lecture-5.pdf)
+# Wikilinks (preferred format):
+[[assignment-3]]
+[[concepts/neural-networks]]
+[[syllabus]]
+[[slides/lecture-5]]
 
 # With section anchor:
-[backpropagation algorithm](neural-networks.md#backpropagation)
+[[neural-networks#backpropagation]]
+
+# With custom display text:
+[[neural-networks|backpropagation algorithm]]
 ```
 
 ### OUTPUT FORMAT:
@@ -62,9 +59,9 @@ Think about what other documents should reference this one:
 #### LINKING REPORT:
 ```
 LINKS CREATED IN THIS DOCUMENT:
-- "assignment 3" → [assignment 3](../assignments/assignment-3.md)
-- "neural networks" → [neural networks](./concepts/neural-networks.md)
-- "previous lecture" → [previous lecture](lecture-4.md)
+- "assignment 3" → [[assignments/assignment-3]]
+- "neural networks" → [[concepts/neural-networks]]
+- "previous lecture" → [[lecture-4]]
 
 EXTERNAL LINKS REMOVED (content not found):
 - "project guidelines" (was: https://canvas.edu/...)
@@ -81,13 +78,15 @@ This document should be linked from:
 
 **DO:**
 - Keep formatting changes minimal
-- Use relative paths (`./`, `../`) for links
+- Use wikilinks format `[[path/to/file]]`
+- Use paths relative to content root
 - Keep original link text when converting to local links
 - Link only when confident about the match
 - Remove all external URLs (Canvas, Google Docs, etc.)
 - Think about bidirectional connections
 
 **DON'T:**
+- Use markdown-style links `[text](path)` unless necessary
 - Use absolute paths starting with `/`
 - Create complex directory structures
 - Leave broken external links
@@ -104,7 +103,7 @@ See the [lecture slides](https://docs.google.com/presentation/abc) for details.
 
 **Output (if hw3.md exists locally but slides don't):**
 ```markdown
-Complete the [homework](../assignments/hw3.md) on [neural networks](./concepts/neural-networks.md).
+Complete the [[assignments/hw3|homework]] on [[concepts/neural-networks|neural networks]].
 See the lecture slides for details.
 ```
 
