@@ -7,3 +7,15 @@
 [submodule "content/fa25-anthro105"]
 	path = content/fa25-anthro105
 	url = https://github.com/twangodev/fa25-anthro105
+[submodule "content/fa25-stat324"]
+	path = content/fa25-stat324
+	url = https://github.com/twangodev/fa25-stat324
+[submodule "content/fa25-cs540"]
+	path = content/fa25-cs540
+	url = https://github.com/twangodev/fa25-cs540
+[submodule "content/fa25-music113"]
+	path = content/fa25-music113
+	url = https://github.com/twangodev/fa25-music113
+[submodule "content/fa25-cs502"]
+	path = content/fa25-cs502
+	url = https://github.com/twangodev/fa25-cs502
