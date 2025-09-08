@@ -4,3 +4,6 @@
 [submodule "content/fa25-cs354"]
 	path = content/fa25-cs354
 	url = https://github.com/twangodev/fa25-cs354
+[submodule "content/fa25-anthro105"]
+	path = content/fa25-anthro105
+	url = https://github.com/twangodev/fa25-anthro105
