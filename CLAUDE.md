@@ -50,6 +50,7 @@ npm run test
 ## Key Configuration
 
 Main configuration is in `quartz.config.ts` which controls:
+
 - Site metadata (title, base URL)
 - Theme settings (fonts, colors)
 - Plugin configuration (markdown processors, page generators)

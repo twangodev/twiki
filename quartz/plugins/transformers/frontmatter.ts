@@ -83,9 +83,10 @@ export const FrontMatter: QuartzTransformerPlugin<Partial<Options>> = (userOpts)
                   h1Title = toString(node)
                 }
               })
-              
+
               // Use H1 if found, otherwise fallback to filename
-              data.title = h1Title ?? file.stem ?? i18n(cfg.configuration.locale).propertyDefaults.title
+              data.title =
+                h1Title ?? file.stem ?? i18n(cfg.configuration.locale).propertyDefaults.title
             }
 
             const tags = coerceToArray(coalesceAliases(data, ["tags", "tag"]))
