@@ -76,7 +76,7 @@ export const FrontMatter: QuartzTransformerPlugin<Partial<Options>> = (userOpts)
             if (data.title != null && data.title.toString() !== "") {
               data.title = data.title.toString()
             } else {
-              // Try to extract H1 heading first
+              // Extract H1 heading if present
               let h1Title: string | null = null
               visit(tree, "heading", (node: any) => {
                 if (node.depth === 1 && !h1Title) {
@@ -84,9 +84,12 @@ export const FrontMatter: QuartzTransformerPlugin<Partial<Options>> = (userOpts)
                 }
               })
 
-              // Use H1 if found, otherwise fallback to filename
+              // For certain files, prioritize filename over H1
+              const keepFilename = file.stem?.toLowerCase().includes("readme")
               data.title =
-                h1Title ?? file.stem ?? i18n(cfg.configuration.locale).propertyDefaults.title
+                (keepFilename ? file.stem : h1Title) ??
+                file.stem ??
+                i18n(cfg.configuration.locale).propertyDefaults.title
             }
 
             const tags = coerceToArray(coalesceAliases(data, ["tags", "tag"]))
