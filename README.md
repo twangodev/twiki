@@ -12,7 +12,6 @@ The setup is **Obsidian-compatible**, allowing you to edit notes locally in Obsi
 through Git and automated deployments for web access. This creates a seamless workflow for note-taking, version control,
 and sharing.
 
-
 > [!WARNING]
 > **Academic Compliance**: All course materials remain in private submodules to comply with academic policies. This
 > public repository contains only the site framework—no assignments, solutions, or proprietary content are exposed. The
