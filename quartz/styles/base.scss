@@ -627,6 +627,11 @@ ol.overflow {
   overflow-y: hidden;
 }
 
+// Center paragraphs containing only KaTeX equations (display math)
+p:has(> .katex:only-child) {
+  text-align: center;
+}
+
 .external-embed.youtube,
 iframe.pdf {
   aspect-ratio: 16 / 9;
