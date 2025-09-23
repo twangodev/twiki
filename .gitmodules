@@ -28,3 +28,6 @@
 [submodule "content/fa24-asianam160"]
 	path = content/fa24-asianam160
 	url = https://github.com/twangodev/fa24-asianam160
+[submodule "content/sp25-music113"]
+	path = content/sp25-music113
+	url = https://github.com/twangodev/sp25-music113
