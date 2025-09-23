@@ -25,3 +25,6 @@
 [submodule "content/fa24-cs300"]
 	path = content/fa24-cs300
 	url = https://github.com/twangodev/fa24-cs300
+[submodule "content/fa24-asianam160"]
+	path = content/fa24-asianam160
+	url = https://github.com/twangodev/fa24-asianam160
