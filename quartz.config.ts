@@ -59,8 +59,7 @@ const config: QuartzConfig = {
       Plugin.AutoTag({
         enabled: true,
         excludePaths: ["assets", "templates"],
-        customMapping: {
-        }
+        customMapping: {},
       }),
       Plugin.CreatedModifiedDate({
         priority: ["frontmatter", "git", "filesystem"],
