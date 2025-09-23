@@ -28,6 +28,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
+      - name: Cache Quartz build
+        uses: actions/cache@v4
+        with:
+          path: quartz/.quartz-cache
+          key: ${{ runner.os }}-quartz-${{ hashFiles('quartz/**', 'package-lock.json', 'quartz.config.ts') }}
+          restore-keys: |
+            ${{ runner.os }}-quartz-
+
       - run: npm ci
 
       - name: Check types and style
