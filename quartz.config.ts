@@ -58,7 +58,7 @@ const config: QuartzConfig = {
       Plugin.FrontMatter(),
       Plugin.AutoTag({
         enabled: true,
-        excludePaths: ["assets", "templates"],
+        excludePaths: ["assets", "des-inv"],
         customMapping: {},
       }),
       Plugin.CreatedModifiedDate({
