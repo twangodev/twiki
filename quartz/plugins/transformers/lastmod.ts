@@ -28,7 +28,7 @@ function parseGitmodules(gitmodulesPath: string): SubmoduleInfo[] {
         if (currentPath) {
           submodules.push({
             path: currentPath,
-            fullPath: path.resolve(path.dirname(gitmodulesPath), currentPath)
+            fullPath: path.resolve(path.dirname(gitmodulesPath), currentPath),
           })
         }
       }
@@ -44,7 +44,10 @@ function parseGitmodules(gitmodulesPath: string): SubmoduleInfo[] {
 function findSubmoduleForFile(filePath: string, submodules: SubmoduleInfo[]): string | null {
   const resolvedPath = path.resolve(filePath)
   for (const submodule of submodules) {
-    if (resolvedPath.startsWith(submodule.fullPath + path.sep) || resolvedPath === submodule.fullPath) {
+    if (
+      resolvedPath.startsWith(submodule.fullPath + path.sep) ||
+      resolvedPath === submodule.fullPath
+    ) {
       return submodule.fullPath
     }
   }
@@ -59,7 +62,7 @@ function getRepositoryForFile(
   filePath: string,
   contentDir: string,
   submodules: SubmoduleInfo[],
-  repositoryCache: Map<string, RepositoryCache>
+  repositoryCache: Map<string, RepositoryCache>,
 ): RepositoryCache | null {
   try {
     const submoduleRoot = findSubmoduleForFile(filePath, submodules)
@@ -165,7 +168,12 @@ export const CreatedModifiedDate: QuartzTransformerPlugin<Partial<Options>> = (u
                 modified ||= file.data.frontmatter.modified as MaybeDate
                 published ||= file.data.frontmatter.published as MaybeDate
               } else if (source === "git" && opts.priority.includes("git")) {
-                const repoInfo = getRepositoryForFile(fullFp, ctx.argv.directory, submodules, repositoryCache)
+                const repoInfo = getRepositoryForFile(
+                  fullFp,
+                  ctx.argv.directory,
+                  submodules,
+                  repositoryCache,
+                )
                 if (repoInfo) {
                   try {
                     const relativePath = path.relative(repoInfo.workdir, fullFp)
