@@ -31,3 +31,6 @@
 [submodule "content/sp25-music113"]
 	path = content/sp25-music113
 	url = https://github.com/twangodev/sp25-music113
+[submodule "content/des-inv"]
+	path = content/des-inv
+	url = https://github.com/twangodev/des-inv
