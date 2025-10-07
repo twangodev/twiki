@@ -14,6 +14,7 @@ import { QuartzLogger } from "../util/log"
 import { trace } from "../util/trace"
 import { BuildCtx, WorkerSerializableBuildCtx } from "../util/ctx"
 import { styleText } from "util"
+import os from "os"
 
 export type QuartzMdProcessor = Processor<MDRoot, MDRoot, MDRoot>
 export type QuartzHtmlProcessor = Processor<undefined, MDRoot, HTMLRoot>
@@ -142,9 +143,6 @@ export function createMarkdownParser(ctx: BuildCtx, mdContent: MarkdownContent[]
   }
 }
 
-const clamp = (num: number, min: number, max: number) =>
-  Math.min(Math.max(Math.round(num), min), max)
-
 export async function parseMarkdown(ctx: BuildCtx, fps: FilePath[]): Promise<ProcessedContent[]> {
   const { argv } = ctx
   const perf = new PerfTimer()
@@ -152,7 +150,13 @@ export async function parseMarkdown(ctx: BuildCtx, fps: FilePath[]): Promise<Pro
 
   // rough heuristics: 128 gives enough time for v8 to JIT and optimize parsing code paths
   const CHUNK_SIZE = 128
-  const concurrency = ctx.argv.concurrency ?? clamp(fps.length / CHUNK_SIZE, 1, 4)
+
+  // Use all available CPU cores if concurrency not specified
+  const cpuCores = os.cpus().length
+  // Ensure at least 10 files per worker to avoid overhead, but use all cores when possible
+  const minFilesPerWorker = 10
+  const maxWorkersBasedOnFiles = Math.max(1, Math.floor(fps.length / minFilesPerWorker))
+  const concurrency = ctx.argv.concurrency ?? Math.min(cpuCores, maxWorkersBasedOnFiles)
 
   let res: ProcessedContent[] = []
   log.start(`Parsing input files using ${concurrency} threads`)
