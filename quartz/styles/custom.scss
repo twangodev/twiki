@@ -9,3 +9,12 @@ article img {
   width: 60%;
   height: auto;
 }
+
+// Override for badge images
+article .badges img {
+  display: inline-block;
+  margin-left: 0;
+  margin-right: 4px;
+  width: auto;
+  height: 20px;
+}
