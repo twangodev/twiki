@@ -34,3 +34,6 @@
 [submodule "content/des-inv"]
 	path = content/des-inv
 	url = https://github.com/twangodev/des-inv
+[submodule "content/sp26-cs537"]
+	path = content/sp26-cs537
+	url = https://github.com/twangodev/sp26-cs537
