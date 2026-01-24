@@ -37,3 +37,6 @@
 [submodule "content/sp26-cs537"]
 	path = content/sp26-cs537
 	url = https://github.com/twangodev/sp26-cs537
+[submodule "content/sp26-cs571"]
+	path = content/sp26-cs571
+	url = https://github.com/twangodev/sp26-cs571
