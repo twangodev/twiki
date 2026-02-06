@@ -1,0 +1,7 @@
+# -*- mode: toml -*-
+# vim: set ft=toml:
+[settings]
+extra_remotes = "ignore"
+
+[remotes.origin]
+url = "https://github.com/twangodev/wisconsin.git"
