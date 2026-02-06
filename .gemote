@@ -5,3 +5,111 @@ extra_remotes = "ignore"
 
 [remotes.origin]
 url = "https://github.com/twangodev/wisconsin.git"
+
+[submodules."content/des-inv".settings]
+extra_remotes = "ignore"
+
+[submodules."content/des-inv".remotes.origin]
+url = "https://github.com/twangodev/des-inv"
+
+[submodules."content/fa24-asianam160".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa24-asianam160".remotes.origin]
+url = "https://github.com/twangodev/fa24-asianam160"
+
+[submodules."content/fa24-cs300".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa24-cs300".remotes.origin]
+url = "https://github.com/twangodev/fa24-cs300"
+
+[submodules."content/fa25-anthro105".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa25-anthro105".remotes.origin]
+url = "https://github.com/twangodev/fa25-anthro105"
+
+[submodules."content/fa25-cs300".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa25-cs300".remotes.origin]
+url = "https://github.com/twangodev/fa25-cs300"
+
+[submodules."content/fa25-cs354".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa25-cs354".remotes.origin]
+url = "https://github.com/twangodev/fa25-cs354"
+
+[submodules."content/fa25-cs502".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa25-cs502".remotes.origin]
+url = "https://github.com/twangodev/fa25-cs502"
+
+[submodules."content/fa25-cs540".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa25-cs540".remotes.origin]
+url = "https://github.com/twangodev/fa25-cs540"
+
+[submodules."content/fa25-music113".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa25-music113".remotes.origin]
+url = "https://github.com/twangodev/fa25-music113"
+
+[submodules."content/fa25-nutrisci132".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa25-nutrisci132".remotes.origin]
+url = "https://github.com/twangodev/fa25-nutrisci132"
+
+[submodules."content/sp25-cs400".settings]
+extra_remotes = "ignore"
+
+[submodules."content/sp25-cs400".remotes.origin]
+url = "https://github.com/twangodev/sp25-cs400"
+
+[submodules."content/sp25-music113".settings]
+extra_remotes = "ignore"
+
+[submodules."content/sp25-music113".remotes.origin]
+url = "https://github.com/twangodev/sp25-music113"
+
+[submodules."content/sp26-cs537".settings]
+extra_remotes = "ignore"
+
+[submodules."content/sp26-cs537".remotes.origin]
+url = "https://github.com/twangodev/sp26-cs537"
+
+[submodules."content/sp26-cs537".remotes.p1]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs537/spring26/p1/students/p1-JDING96"
+
+[submodules."content/sp26-cs537".remotes.p2]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs537/spring26/p2/students/p2-JDING96"
+
+[submodules."content/sp26-cs544".settings]
+extra_remotes = "ignore"
+
+[submodules."content/sp26-cs544".remotes.autobadger]
+url = "https://oauth2:glpat-JbpjuwYwgD4O0a5mmYvd6m86MQp1OmNqeQk.01.0z1jzxwzu@git.doit.wisc.edu/cdis/cs/courses/cs544/tools/autobadger"
+
+[submodules."content/sp26-cs544".remotes.classroom]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/s26/main"
+
+[submodules."content/sp26-cs544".remotes.origin]
+url = "https://github.com/twangodev/sp26-cs544"
+
+[submodules."content/sp26-cs571".settings]
+extra_remotes = "ignore"
+
+[submodules."content/sp26-cs571".remotes.hw0-classroom]
+url = "https://github.com/CS571-S26/hw0-twangodev"
+
+[submodules."content/sp26-cs571".remotes.hw1-classroom]
+url = "https://github.com/CS571-S26/hw1-twangodev"
+
+[submodules."content/sp26-cs571".remotes.origin]
+url = "https://github.com/twangodev/sp26-cs571"
