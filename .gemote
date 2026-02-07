@@ -1,5 +1,9 @@
+# Gemote configuration file
+# See: https://github.com/twangodev/gemote
+#
 # -*- mode: toml -*-
 # vim: set ft=toml:
+
 [settings]
 extra_remotes = "ignore"
 
