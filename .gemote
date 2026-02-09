@@ -94,6 +94,9 @@ url = "https://git.doit.wisc.edu/cdis/cs/courses/cs537/spring26/p1/students/p1-J
 [submodules."content/sp26-cs537".remotes.p2]
 url = "https://git.doit.wisc.edu/cdis/cs/courses/cs537/spring26/p2/students/p2-JDING96"
 
+[submodules."content/sp26-cs537".remotes.p3]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs537/spring26/p3/students/p3-JDING96"
+
 [submodules."content/sp26-cs544".settings]
 extra_remotes = "ignore"
 
