@@ -115,5 +115,8 @@ url = "https://github.com/CS571-S26/hw0-twangodev"
 [submodules."content/sp26-cs571".remotes.hw1-classroom]
 url = "https://github.com/CS571-S26/hw1-twangodev"
 
+[submodules."content/sp26-cs571".remotes.hw2-classroom]
+url = "https://github.com/CS571-S26/hw2-twangodev"
+
 [submodules."content/sp26-cs571".remotes.origin]
 url = "https://github.com/twangodev/sp26-cs571"
