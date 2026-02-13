@@ -103,11 +103,17 @@ extra_remotes = "ignore"
 [submodules."content/sp26-cs544".remotes.autobadger]
 url = "https://oauth2:glpat-JbpjuwYwgD4O0a5mmYvd6m86MQp1OmNqeQk.01.0z1jzxwzu@git.doit.wisc.edu/cdis/cs/courses/cs544/tools/autobadger"
 
+[submodules."content/sp26-cs544".remotes.calculator]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/misc/calculator"
+
 [submodules."content/sp26-cs544".remotes.classroom]
 url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/s26/main"
 
 [submodules."content/sp26-cs544".remotes.origin]
 url = "https://github.com/twangodev/sp26-cs544"
+
+[submodules."content/sp26-cs544".remotes.p1]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/s26/p1/p1_jding96"
 
 [submodules."content/sp26-cs571".settings]
 extra_remotes = "ignore"
