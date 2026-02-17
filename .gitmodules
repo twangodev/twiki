@@ -43,3 +43,6 @@
 [submodule "content/sp26-cs544"]
 	path = content/sp26-cs544
 	url = https://github.com/twangodev/sp26-cs544
+[submodule "content/sp26-cs639"]
+	path = content/sp26-cs639
+	url = https://github.com/twangodev/sp26-cs639
