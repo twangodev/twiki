@@ -127,5 +127,17 @@ url = "https://github.com/CS571-S26/hw1-twangodev"
 [submodules."content/sp26-cs571".remotes.hw2-classroom]
 url = "https://github.com/CS571-S26/hw2-twangodev"
 
+[submodules."content/sp26-cs571".remotes.hw3-classroom]
+url = "https://github.com/CS571-S26/hw3-twangodev"
+
+[submodules."content/sp26-cs571".remotes.hw4-classroom]
+url = "https://github.com/CS571-S26/hw4-twangodev"
+
 [submodules."content/sp26-cs571".remotes.origin]
 url = "https://github.com/twangodev/sp26-cs571"
+
+[submodules."content/sp26-cs639".settings]
+extra_remotes = "ignore"
+
+[submodules."content/sp26-cs639".remotes.origin]
+url = "https://github.com/twangodev/sp26-cs639"
