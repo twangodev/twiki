@@ -1,6 +1,7 @@
 import argparse
 import os
 
+import torch
 from click import style
 from qwen_asr import Qwen3ASRModel
 from qwen_asr.inference.utils import SUPPORTED_LANGUAGES
@@ -73,14 +74,23 @@ def main():
             return
 
     print(f"\n{style('Loading model...', dim=True)}")
-    model = Qwen3ASRModel.from_pretrained(args.model, device_map="auto")
+    model = Qwen3ASRModel.from_pretrained(
+        args.model,
+        dtype=torch.bfloat16,
+        device_map="auto",
+        max_new_tokens=4096,
+    )
     print(f"{style('Model loaded.', fg='green')}\n")
 
     for path in tqdm(recordings, desc=style("Transcribing", fg="cyan"), unit="file"):
         tqdm.write(style(path, fg="cyan"))
         results = model.transcribe(audio=path, language=language)
         text = results[0].text.strip()
-        tqdm.write(f"  {style(text, fg='green')}\n")
+        out_path = os.path.join(os.path.dirname(path), "recording.txt")
+        with open(out_path, "w") as f:
+            f.write(text + "\n")
+        tqdm.write(f"  {style('wrote', dim=True)} {out_path}")
+        tqdm.write(f"  {style(text[:200], fg='green')}\n")
 
 
 if __name__ == "__main__":
