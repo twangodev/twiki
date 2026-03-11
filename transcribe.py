@@ -3,6 +3,7 @@ import os
 
 from click import style
 from qwen_asr import Qwen3ASRModel
+from qwen_asr.inference.utils import SUPPORTED_LANGUAGES
 from tqdm import tqdm
 
 AUDIO_EXTENSIONS = {".mp3", ".opus", ".wav", ".flac", ".ogg", ".m4a", ".aac", ".wma"}
@@ -36,9 +37,29 @@ def main():
     for path in recordings:
         print(f"  {style('•', dim=True)} {path}")
 
+    language = args.language
+    if not language and not args.yes:
+        print(f"\n{style('Available languages:', dim=True)}")
+        for i, lang in enumerate(SUPPORTED_LANGUAGES, 1):
+            print(f"  {style(f'{i:2d}', dim=True)} {lang}")
+        print(f"  {style(' 0', dim=True)} Auto-detect")
+        try:
+            choice = input(style("\nSelect language [0 for auto]: ", fg="yellow")).strip()
+        except (EOFError, KeyboardInterrupt):
+            print(f"\n{style('Aborted.', fg='red')}")
+            return
+        if choice and choice != "0":
+            try:
+                language = SUPPORTED_LANGUAGES[int(choice) - 1]
+            except (ValueError, IndexError):
+                print(style(f"Invalid choice: {choice}", fg="red"))
+                return
+
     print(f"\n{style('Model:', dim=True)} {args.model}")
-    if args.language:
-        print(f"{style('Language:', dim=True)} {args.language}")
+    if language:
+        print(f"{style('Language:', dim=True)} {language}")
+    else:
+        print(f"{style('Language:', dim=True)} auto-detect")
     print()
 
     if not args.yes:
@@ -57,7 +78,7 @@ def main():
 
     for path in tqdm(recordings, desc=style("Transcribing", fg="cyan"), unit="file"):
         tqdm.write(style(path, fg="cyan"))
-        results = model.transcribe(audio=path, language=args.language)
+        results = model.transcribe(audio=path, language=language)
         text = results[0].text.strip()
         tqdm.write(f"  {style(text, fg='green')}\n")
 
