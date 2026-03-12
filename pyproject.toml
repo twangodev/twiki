@@ -13,6 +13,12 @@ dependencies = [
 [tool.poe.tasks]
 transcribe = "uv run python transcribe.py"
 
+[tool.uv.workspace]
+members = [
+    "content/sp26-cs544/p2",
+    "content/sp26-cs544/p3",
+]
+
 [dependency-groups]
 dev = [
     "poethepoet>=0.42.1",
