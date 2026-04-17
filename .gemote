@@ -97,6 +97,15 @@ url = "https://git.doit.wisc.edu/cdis/cs/courses/cs537/spring26/p2/students/p2-J
 [submodules."content/sp26-cs537".remotes.p3]
 url = "https://git.doit.wisc.edu/cdis/cs/courses/cs537/spring26/p3/students/p3-JDING96"
 
+[submodules."content/sp26-cs537".remotes.p4]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs537/spring26/p4/students/p4-JDING96"
+
+[submodules."content/sp26-cs537".remotes.p5]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs537/spring26/p5/students/p5-JDING96"
+
+[submodules."content/sp26-cs537".remotes.p6]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs537/spring26/p6/students/p6-jding96"
+
 [submodules."content/sp26-cs544".settings]
 extra_remotes = "ignore"
 
@@ -115,23 +124,53 @@ url = "https://github.com/twangodev/sp26-cs544"
 [submodules."content/sp26-cs544".remotes.p1]
 url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/s26/p1/p1_jding96"
 
+[submodules."content/sp26-cs544".remotes.p2]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/s26/p2/p2_jding96"
+
+[submodules."content/sp26-cs544".remotes.p3]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/s26/p3/p3_jding96"
+
+[submodules."content/sp26-cs544".remotes.p4]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/s26/p4/p4_jding96"
+
+[submodules."content/sp26-cs544".remotes.p5]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/s26/p5/p5_jding96"
+
+[submodules."content/sp26-cs544".remotes.p6]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/s26/p6/p6_jding96"
+
 [submodules."content/sp26-cs571".settings]
 extra_remotes = "ignore"
 
-[submodules."content/sp26-cs571".remotes.hw0-classroom]
+[submodules."content/sp26-cs571".remotes.hw0]
 url = "https://github.com/CS571-S26/hw0-twangodev"
 
-[submodules."content/sp26-cs571".remotes.hw1-classroom]
+[submodules."content/sp26-cs571".remotes.hw1]
 url = "https://github.com/CS571-S26/hw1-twangodev"
 
-[submodules."content/sp26-cs571".remotes.hw2-classroom]
+[submodules."content/sp26-cs571".remotes.hw2]
 url = "https://github.com/CS571-S26/hw2-twangodev"
 
-[submodules."content/sp26-cs571".remotes.hw3-classroom]
+[submodules."content/sp26-cs571".remotes.hw3]
 url = "https://github.com/CS571-S26/hw3-twangodev"
 
-[submodules."content/sp26-cs571".remotes.hw4-classroom]
+[submodules."content/sp26-cs571".remotes.hw4]
 url = "https://github.com/CS571-S26/hw4-twangodev"
+
+[submodules."content/sp26-cs571".remotes.hw5]
+url = "https://github.com/CS571-S26/hw5-twangodev"
+
+[submodules."content/sp26-cs571".remotes.hw6]
+url = "https://github.com/CS571-S26/hw6-twangodev"
+
+[submodules."content/sp26-cs571".remotes.hw7]
+url = "https://github.com/CS571-S26/hw7-twangodev"
+
+[submodules."content/sp26-cs571".remotes.hw8]
+url = "https://github.com/CS571-S26/hw8-twangodev"
+
+[submodules."content/sp26-cs571".remotes.hw9]
+url = "https://github.com/CS571-S26/hw9-twangodev"
 
 [submodules."content/sp26-cs571".remotes.origin]
 url = "https://github.com/twangodev/sp26-cs571"
