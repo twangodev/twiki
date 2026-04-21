@@ -6,6 +6,7 @@
 
 [settings]
 extra_remotes = "ignore"
+recursive = true
 
 [remotes.origin]
 url = "https://github.com/twangodev/wisconsin.git"
@@ -143,37 +144,40 @@ url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/s26/p6/p6_jding96"
 extra_remotes = "ignore"
 
 [submodules."content/sp26-cs571".remotes.hw0]
-url = "https://github.com/CS571-S26/hw0-twangodev"
+url = "git@github.com:CS571-S26/hw0-twangodev.git"
 
 [submodules."content/sp26-cs571".remotes.hw1]
-url = "https://github.com/CS571-S26/hw1-twangodev"
+url = "git@github.com:CS571-S26/hw1-twangodev.git"
+
+[submodules."content/sp26-cs571".remotes.hw10]
+url = "git@github.com:CS571-S26/hw10-twangodev-1.git"
 
 [submodules."content/sp26-cs571".remotes.hw2]
-url = "https://github.com/CS571-S26/hw2-twangodev"
+url = "git@github.com:CS571-S26/hw2-twangodev.git"
 
 [submodules."content/sp26-cs571".remotes.hw3]
-url = "https://github.com/CS571-S26/hw3-twangodev"
+url = "git@github.com:CS571-S26/hw3-twangodev.git"
 
 [submodules."content/sp26-cs571".remotes.hw4]
-url = "https://github.com/CS571-S26/hw4-twangodev"
+url = "git@github.com:CS571-S26/hw4-twangodev.git"
 
 [submodules."content/sp26-cs571".remotes.hw5]
-url = "https://github.com/CS571-S26/hw5-twangodev"
+url = "git@github.com:CS571-S26/hw5-twangodev.git"
 
 [submodules."content/sp26-cs571".remotes.hw6]
-url = "https://github.com/CS571-S26/hw6-twangodev"
+url = "git@github.com:CS571-S26/hw6-twangodev.git"
 
 [submodules."content/sp26-cs571".remotes.hw7]
-url = "https://github.com/CS571-S26/hw7-twangodev"
+url = "git@github.com:CS571-S26/hw7-twangodev.git"
 
 [submodules."content/sp26-cs571".remotes.hw8]
-url = "https://github.com/CS571-S26/hw8-twangodev"
+url = "git@github.com:CS571-S26/hw8-twangodev.git"
 
 [submodules."content/sp26-cs571".remotes.hw9]
-url = "https://github.com/CS571-S26/hw9-twangodev"
+url = "git@github.com:CS571-S26/hw9-twangodev.git"
 
 [submodules."content/sp26-cs571".remotes.origin]
-url = "https://github.com/twangodev/sp26-cs571"
+url = "git@github.com:twangodev/sp26-cs571.git"
 
 [submodules."content/sp26-cs639".settings]
 extra_remotes = "ignore"
