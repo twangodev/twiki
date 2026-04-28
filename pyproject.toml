@@ -15,9 +15,10 @@ transcribe = "uv run python transcribe.py"
 
 [tool.uv.workspace]
 members = [
+    "content/sp26-cs639",
     "content/sp26-cs544/p2",
     "content/sp26-cs544/p3",
-    "content/sp26-cs639",
+    "content/sp26-cs544/p5",
 ]
 
 [dependency-groups]
