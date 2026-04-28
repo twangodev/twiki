@@ -140,6 +140,9 @@ url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/s26/p5/p5_jding96"
 [submodules."content/sp26-cs544".remotes.p6]
 url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/s26/p6/p6_jding96"
 
+[submodules."content/sp26-cs544".remotes.p7]
+url = "https://git.doit.wisc.edu/cdis/cs/courses/cs544/s26/p7/p7_jding96"
+
 [submodules."content/sp26-cs571".settings]
 extra_remotes = "ignore"
 
