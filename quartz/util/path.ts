@@ -249,6 +249,28 @@ export function transformLink(src: FullSlug, target: string, opts: TransformOpti
         const targetSlug = matchingFileNames[0]
         return (resolveRelative(src, targetSlug) + targetAnchor) as RelativeURL
       }
+
+      // multiple matches: mirror Obsidian's "nearest" resolution.
+      // Prefer the candidate with the longest shared directory prefix to src;
+      // break ties by shallowest path, then lexicographically for stability.
+      if (matchingFileNames.length > 1) {
+        const srcDir = src.split("/").slice(0, -1)
+        const best = matchingFileNames
+          .map((slug) => {
+            const dir = slug.split("/").slice(0, -1)
+            let shared = 0
+            while (
+              shared < srcDir.length &&
+              shared < dir.length &&
+              srcDir[shared] === dir[shared]
+            ) {
+              shared++
+            }
+            return { slug, shared, depth: dir.length }
+          })
+          .sort((a, b) => b.shared - a.shared || a.depth - b.depth || a.slug.localeCompare(b.slug))[0]
+        return (resolveRelative(src, best.slug) + targetAnchor) as RelativeURL
+      }
     }
 
     // if it's not unique, then it's the absolute path from the vault root
