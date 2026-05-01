@@ -268,7 +268,9 @@ export function transformLink(src: FullSlug, target: string, opts: TransformOpti
             }
             return { slug, shared, depth: dir.length }
           })
-          .sort((a, b) => b.shared - a.shared || a.depth - b.depth || a.slug.localeCompare(b.slug))[0]
+          .sort(
+            (a, b) => b.shared - a.shared || a.depth - b.depth || a.slug.localeCompare(b.slug),
+          )[0]
         return (resolveRelative(src, best.slug) + targetAnchor) as RelativeURL
       }
     }
