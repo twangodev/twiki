@@ -146,6 +146,18 @@ async function startWatching(
     persistent: true,
     cwd: argv.directory,
     ignoreInitial: true,
+    // Prune at the watcher level so chokidar/fsevents never opens handles
+    // for gitignored subtrees (node_modules, .venv, __pycache__, etc.).
+    // Without this, the watcher tries to subscribe to every file under
+    // content/ and hits EMFILE on macOS when the tree is large.
+    // Chokidar's path here is relative to argv.directory; prefix it so the
+    // gitignore matcher (rooted at process.cwd() = repo root) can resolve
+    // nested .gitignore files correctly.
+    ignored: (fp) => {
+      if (!fp) return false
+      const rel = toPosixPath(path.join(argv.directory, fp))
+      return buildData.ignored(rel as FilePath)
+    },
   })
 
   const changes: ChangeEvent[] = []
