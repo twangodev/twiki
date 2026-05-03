@@ -232,12 +232,15 @@ a {
       display: flex;
       height: 100vh;
       position: sticky;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      scrollbar-width: thin;
 
-      & > * {
-        min-height: 0;
+      @media all and not ($mobile) {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+
+        & > * {
+          min-height: 0;
+        }
       }
     }
 
