@@ -497,10 +497,6 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
   }
 
   if (enableZoom) {
-    // The local graph lives inside a sticky sidebar, so a bare wheel over the
-    // canvas would otherwise trap page/sidebar scroll. Require ctrl/cmd to
-    // zoom; the global graph (full-screen modal) skips this gate since there
-    // is no surrounding scroll context to preserve.
     const isGlobalGraph = graph.classList.contains("global-graph-container")
     select<HTMLCanvasElement, NodeData>(app.canvas).call(
       zoom<HTMLCanvasElement, NodeData>()
@@ -510,7 +506,6 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
             const we = event as WheelEvent
             return we.ctrlKey || we.metaKey
           }
-          // Default d3-zoom filter for non-wheel events: ignore secondary buttons.
           return !(event as MouseEvent).button
         })
         .extent([

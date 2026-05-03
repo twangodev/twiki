@@ -232,17 +232,10 @@ a {
       display: flex;
       height: 100vh;
       position: sticky;
-      // Fallback scroll container so wheel events landing in dead zones
-      // (padding, gaps between sections, header buttons) actually scroll.
-      // Inner scrollers (.explorer-content, ul.overflow) keep their own
-      // overflow:auto and overscroll-behavior:contain, so per-section scroll
-      // still works without chaining out.
       overflow-y: auto;
       overscroll-behavior: contain;
       scrollbar-width: thin;
 
-      // Allow flex children to shrink past their content height so the inner
-      // overflow:auto regions actually activate.
       & > * {
         min-height: 0;
       }
