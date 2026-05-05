@@ -237,11 +237,12 @@ export function transformLink(src: FullSlug, target: string, opts: TransformOpti
     let [targetCanonical, targetAnchor] = splitAnchor(canonicalSlug)
 
     if (opts.strategy === "shortest") {
-      // if the file name is unique, then it's just the filename
+      // match by full path suffix on a "/" boundary; for basename-only targets
+      // this is equivalent to matching the last path segment, and for
+      // path-prefix wikilinks like [[folder/file]] it finds slugs whose path
+      // ends in folder/file (mirrors Obsidian's shortest-path resolution).
       const matchingFileNames = opts.allSlugs.filter((slug) => {
-        const parts = slug.split("/")
-        const fileName = parts.at(-1)
-        return targetCanonical === fileName
+        return slug === targetCanonical || slug.endsWith("/" + targetCanonical)
       })
 
       // only match, just use it

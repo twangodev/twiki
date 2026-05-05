@@ -274,6 +274,26 @@ describe("link strategies", () => {
       assert.strictEqual(path.transformLink(cur, "a/b/index", opts), "./a/b/")
       assert.strictEqual(path.transformLink(cur, "index", opts), "./")
     })
+
+    test("path-prefix wikilinks resolve by suffix in nested vaults", () => {
+      const nestedSlugs = [
+        "course/flashcards",
+        "course/decks/01-foundations",
+        "course/decks/02-networking",
+        "other/decks/01-foundations",
+      ] as FullSlug[]
+      const nestedOpts: TransformOptions = { strategy: "shortest", allSlugs: nestedSlugs }
+      const cur = "course/flashcards" as FullSlug
+      assert.strictEqual(
+        path.transformLink(cur, "decks/02-networking", nestedOpts),
+        "../course/decks/02-networking",
+      )
+      // ambiguous: prefer nearest by shared directory prefix
+      assert.strictEqual(
+        path.transformLink(cur, "decks/01-foundations", nestedOpts),
+        "../course/decks/01-foundations",
+      )
+    })
   })
 
   describe("relative", () => {
