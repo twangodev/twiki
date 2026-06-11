@@ -5,6 +5,7 @@
 	import Breadcrumbs from '$lib/components/doc/Breadcrumbs.svelte';
 	import ContentMeta from '$lib/components/doc/ContentMeta.svelte';
 	import { calloutFold, copyButtons } from '$lib/components/doc/enhancements';
+	import { linkPopovers } from '$lib/components/popover';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -41,6 +42,7 @@
 		data-pagefind-body
 		{@attach copyButtons(data.route)}
 		{@attach calloutFold(data.route)}
+		{@attach linkPopovers(data.route)}
 	>
 		{#if data.route !== ''}
 			<ContentMeta modified={data.page.dates?.modified} readingTime={data.page.readingTime} />
