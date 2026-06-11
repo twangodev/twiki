@@ -146,6 +146,11 @@ async function startWatching(
     persistent: true,
     cwd: argv.directory,
     ignoreInitial: true,
+    ignored: (fp) => {
+      if (!fp) return false
+      const rel = toPosixPath(path.join(argv.directory, fp))
+      return buildData.ignored(rel as FilePath)
+    },
   })
 
   const changes: ChangeEvent[] = []

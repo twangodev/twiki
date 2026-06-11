@@ -237,17 +237,42 @@ export function transformLink(src: FullSlug, target: string, opts: TransformOpti
     let [targetCanonical, targetAnchor] = splitAnchor(canonicalSlug)
 
     if (opts.strategy === "shortest") {
-      // if the file name is unique, then it's just the filename
+      // match by full path suffix on a "/" boundary; for basename-only targets
+      // this is equivalent to matching the last path segment, and for
+      // path-prefix wikilinks like [[folder/file]] it finds slugs whose path
+      // ends in folder/file (mirrors Obsidian's shortest-path resolution).
       const matchingFileNames = opts.allSlugs.filter((slug) => {
-        const parts = slug.split("/")
-        const fileName = parts.at(-1)
-        return targetCanonical === fileName
+        return slug === targetCanonical || slug.endsWith("/" + targetCanonical)
       })
 
       // only match, just use it
       if (matchingFileNames.length === 1) {
         const targetSlug = matchingFileNames[0]
         return (resolveRelative(src, targetSlug) + targetAnchor) as RelativeURL
+      }
+
+      // multiple matches: mirror Obsidian's "nearest" resolution.
+      // Prefer the candidate with the longest shared directory prefix to src;
+      // break ties by shallowest path, then lexicographically for stability.
+      if (matchingFileNames.length > 1) {
+        const srcDir = src.split("/").slice(0, -1)
+        const best = matchingFileNames
+          .map((slug) => {
+            const dir = slug.split("/").slice(0, -1)
+            let shared = 0
+            while (
+              shared < srcDir.length &&
+              shared < dir.length &&
+              srcDir[shared] === dir[shared]
+            ) {
+              shared++
+            }
+            return { slug, shared, depth: dir.length }
+          })
+          .sort(
+            (a, b) => b.shared - a.shared || a.depth - b.depth || a.slug.localeCompare(b.slug),
+          )[0]
+        return (resolveRelative(src, best.slug) + targetAnchor) as RelativeURL
       }
     }
 

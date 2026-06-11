@@ -19,11 +19,21 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Cache .git directory
+        uses: actions/cache@v4
+        with:
+          path: .git
+          key: git-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            git-${{ github.ref }}-
+            git-
+
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           submodules: "recursive"
           token: ${{ secrets.PAT_TOKEN }}
+          clean: false
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -53,6 +63,9 @@ jobs:
 
       - name: Build Quartz
         run: npm run build
+
+      - name: Compact .git before caching
+        run: git gc --auto
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

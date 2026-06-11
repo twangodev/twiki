@@ -166,7 +166,7 @@ a {
 }
 
 .page {
-  max-width: calc(#{map.get($breakpoints, desktop)} + 300px);
+  max-width: calc(#{map.get($breakpoints, desktop)} + 420px);
   margin: 0 auto;
   & article {
     & > h1 {
@@ -232,6 +232,16 @@ a {
       display: flex;
       height: 100vh;
       position: sticky;
+
+      @media all and not ($mobile) {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+
+        & > * {
+          min-height: 0;
+        }
+      }
     }
 
     & .sidebar.left {
