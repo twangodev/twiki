@@ -59,3 +59,42 @@ export function copyButtons(_dep: unknown): Attachment<HTMLElement> {
 		return () => cleanups.forEach((fn) => fn());
 	};
 }
+
+/**
+ * Collapsible Obsidian callouts ([!type]- / [!type]+). The prebuild emits the
+ * Quartz fork's structure (blockquote.callout.is-collapsible[.is-collapsed] >
+ * .callout-title + .callout-content); collapse/expand is pure CSS
+ * (grid-template-rows keyed on .is-collapsed) so this only toggles the class.
+ * Ported from quartz/components/scripts/callout.inline.ts.
+ */
+export function calloutFold(_dep: unknown): Attachment<HTMLElement> {
+	return (node) => {
+		const titles = Array.from(
+			node.querySelectorAll<HTMLElement>('.callout.is-collapsible > .callout-title')
+		);
+		const cleanups = titles.map((title) => {
+			const callout = title.parentElement!;
+			const onClick = () => {
+				const collapsed = callout.classList.toggle('is-collapsed');
+				title.setAttribute('aria-expanded', String(!collapsed));
+			};
+			title.setAttribute('role', 'button');
+			title.setAttribute('tabindex', '0');
+			title.setAttribute('aria-expanded', String(!callout.classList.contains('is-collapsed')));
+			const onKey = (e: KeyboardEvent) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					onClick();
+				}
+			};
+			title.addEventListener('click', onClick);
+			title.addEventListener('keydown', onKey);
+			return () => {
+				title.removeEventListener('click', onClick);
+				title.removeEventListener('keydown', onKey);
+			};
+		});
+
+		return () => cleanups.forEach((fn) => fn());
+	};
+}

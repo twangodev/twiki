@@ -1,4 +1,5 @@
 <script lang="ts">
+	import 'katex/dist/katex.min.css';
 	import './layout.css';
 	import type { Snippet } from 'svelte';
 	import { ModeWatcher } from 'mode-watcher';

@@ -4,7 +4,7 @@
 	import Backlinks from '$lib/components/doc/Backlinks.svelte';
 	import Breadcrumbs from '$lib/components/doc/Breadcrumbs.svelte';
 	import ContentMeta from '$lib/components/doc/ContentMeta.svelte';
-	import { copyButtons } from '$lib/components/doc/enhancements';
+	import { calloutFold, copyButtons } from '$lib/components/doc/enhancements';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -40,6 +40,7 @@
 		class="prose dark:prose-invert max-w-none"
 		data-pagefind-body
 		{@attach copyButtons(data.route)}
+		{@attach calloutFold(data.route)}
 	>
 		{#if data.route !== ''}
 			<ContentMeta modified={data.page.dates?.modified} readingTime={data.page.readingTime} />
