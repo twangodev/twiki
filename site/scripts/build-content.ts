@@ -118,6 +118,11 @@ interface SourceFile {
 	abs: string;
 	slug: FullSlug;
 	kind: 'page' | 'asset' | 'other';
+	/** in Quartz's RESOLUTION slug set (build.ts globs "**\/*.*": basename must
+	 * contain a dot). The Assets emitter globs "**" (everything non-md), so
+	 * extensionless files (Makefile, LICENSE, gradlew…) are SERVED by Quartz but
+	 * never participate in link resolution. We mirror both sets exactly. */
+	inResolution: boolean;
 }
 
 function gitLsFiles(repoDir: string, pathspec?: string[]): string[] {
@@ -129,15 +134,19 @@ function gitLsFiles(repoDir: string, pathspec?: string[]): string[] {
 }
 
 /**
- * Quartz's discovery was globby("**\/*.*", { gitignore: true }) — i.e. visible
- * files whose basename contains a dot and with no dot-leading path segment.
- * We use git ls-files (authoritative, kills untracked junk) and apply the same
- * visibility rule so the resolution slug set matches Quartz's allSlugs.
+ * Quartz's resolution discovery was globby("**\/*.*", { gitignore: true }) —
+ * i.e. visible files whose basename contains a dot and with no dot-leading
+ * path segment. We use git ls-files (authoritative, kills untracked junk) and
+ * apply the same visibility rule so the resolution slug set matches Quartz's
+ * allSlugs. The served set is wider: Quartz's Assets emitter globs "**", which
+ * additionally picks up extensionless basenames (see SourceFile.inResolution).
  */
+function dotLed(rel: string): boolean {
+	return rel.split('/').some((s) => s.startsWith('.'));
+}
 function globVisible(rel: string): boolean {
-	const segments = rel.split('/');
-	if (segments.some((s) => s.startsWith('.'))) return false;
-	const base = segments[segments.length - 1];
+	if (dotLed(rel)) return false;
+	const base = rel.split('/').pop()!;
 	return base.slice(1).includes('.');
 }
 
@@ -162,7 +171,8 @@ function discover(): { files: SourceFile[]; submoduleNames: string[] } {
 	const files: SourceFile[] = [];
 	for (const rel of rels) {
 		if (rel.split('/').some((seg) => IGNORE_SEGMENTS.has(seg))) continue;
-		if (!globVisible(rel)) continue;
+		// dot-led paths are invisible to every Quartz glob (globby dot:false)
+		if (dotLed(rel)) continue;
 		const ext = (getFileExtension(rel) ?? '').toLowerCase();
 		const kind: SourceFile['kind'] =
 			ext === '.md' ? 'page' : ASSET_EXTS.has(ext) ? 'asset' : 'other';
@@ -170,7 +180,8 @@ function discover(): { files: SourceFile[]; submoduleNames: string[] } {
 			rel,
 			abs: path.join(CONTENT_DIR, rel),
 			slug: slugifyFilePath(rel as FilePath),
-			kind
+			kind,
+			inResolution: globVisible(rel)
 		});
 	}
 	files.sort((a, b) => a.rel.localeCompare(b.rel));
@@ -848,8 +859,9 @@ async function main() {
 		`discover: ${files.length} tracked+visible files — ${pagesSrc.length} md, ${assetsSrc.length} whitelisted assets, ${otherSrc.length} dropped`
 	);
 
-	// resolution slug set = ALL visible files (matches quartz ctx.allSlugs)
-	const allSlugs = files.map((f) => f.slug);
+	// resolution slug set = "**/*.*"-visible files only (matches quartz ctx.allSlugs;
+	// extensionless served files are deliberately NOT in it, same as quartz)
+	const allSlugs = files.filter((f) => f.inResolution).map((f) => f.slug);
 
 	// git dates (one batched walk per submodule, HEAD-keyed cache)
 	const tDates = performance.now();
