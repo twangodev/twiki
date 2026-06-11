@@ -26,7 +26,7 @@
 	});
 
 	// Knowledge-graph card (right rail): lazy-imported after hydration so
-	// layerchart/d3-force and /graph.json never touch the initial bundle.
+	// the graph stack (pixi.js/d3) and /graph.json never touch the initial bundle.
 	let GraphPanel = $state<Component | null>(null);
 	onMount(async () => {
 		GraphPanel = (await import('$lib/components/graph/GraphPanel.svelte')).default;

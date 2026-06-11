@@ -1,26 +1,29 @@
 <script lang="ts">
 	/**
-	 * Global graph view: the full corpus (~660 nodes) in a modal dialog,
-	 * zoomable/pannable. Mounted only while open — the 200-tick static
-	 * simulation runs on open (~100 ms at this corpus size) and then never
-	 * ticks again.
+	 * Global graph view: the full corpus (~660 pages + tag nodes) in a modal
+	 * dialog. Mounted only while open — the pixi app and live d3-force
+	 * simulation are created on open and fully destroyed on close (no WebGL
+	 * context leaks across repeated opens). Quartz's global graph settings:
+	 * radial force, focus-on-hover, free wheel zoom.
 	 */
 	import { X } from '@lucide/svelte';
-	import { DialogClose, DialogContent, DialogOverlay, DialogRoot, DialogTitle } from '$lib/components/ui';
+	import {
+		DialogClose,
+		DialogContent,
+		DialogOverlay,
+		DialogRoot,
+		DialogTitle
+	} from '$lib/components/ui';
 	import GraphView from './GraphView.svelte';
-	import type { GraphData, GraphIndex } from './graph-data';
-	import { courseColors } from './graph-data';
+	import { globalGraphConfig, type GraphData } from './graph-data';
 
 	interface Props {
 		open?: boolean;
 		data: GraphData;
-		index: GraphIndex;
 		currentId?: string;
 	}
 
-	let { open = $bindable(false), data, index, currentId }: Props = $props();
-
-	const colors = $derived(courseColors(index));
+	let { open = $bindable(false), data, currentId }: Props = $props();
 </script>
 
 <DialogRoot bind:open>
@@ -36,21 +39,16 @@
 		<div class="min-h-0 flex-1 overflow-hidden rounded-md border border-border bg-surface/40">
 			{#if open}
 				<GraphView
-					nodes={data.nodes}
-					links={data.links}
-					degree={index.degree}
-					{colors}
+					{data}
 					{currentId}
-					zoomable
-					labelLimit={36}
-					linkDistance={36}
-					charge={-55}
+					config={globalGraphConfig}
+					global
 					onnavigate={() => (open = false)}
 				/>
 			{/if}
 		</div>
 		<p class="m-0 text-xs text-muted">
-			Scroll to zoom, drag to pan. Node size = connections; colors = course.
+			Drag nodes to rearrange, scroll to zoom, click to open a page. Node size = connections.
 		</p>
 	</DialogContent>
 </DialogRoot>
