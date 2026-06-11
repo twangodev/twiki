@@ -9,7 +9,9 @@
 	},
 	"assets": {
 		"binding": "ASSETS",
-		"directory": ".svelte-kit/cloudflare"
+		"directory": ".svelte-kit/cloudflare",
+		// Serve the prerendered /404 page from the asset layer for unknown URLs.
+		"not_found_handling": "404-page"
 	},
 	"workers_dev": true,
 	"preview_urls": true

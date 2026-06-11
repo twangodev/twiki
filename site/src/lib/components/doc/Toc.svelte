@@ -1,7 +1,11 @@
 <script lang="ts">
-	import { tocState } from './toc.svelte';
+	import { page } from '$app/state';
+	import type { TocEntry } from '$lib/types';
 
-	const items = $derived(tocState.items);
+	// The catch-all page load returns a normalized `toc: TocEntry[]`; reading it
+	// from page.data (instead of a client-side store) means the TOC rail is in
+	// the prerendered HTML, matching the live Quartz site.
+	const items = $derived((page.data.toc as TocEntry[] | undefined) ?? []);
 	const levelPadding = ['pl-3', 'pl-6', 'pl-9', 'pl-12', 'pl-[3.75rem]'];
 
 	function itemPadding(level: number) {

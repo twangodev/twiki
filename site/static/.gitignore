@@ -1,0 +1,7 @@
+# Everything in static/ except the hand-placed files below is synced from
+# .generated/assets by scripts/prepare-static.ts — never commit synced content.
+*
+!.gitignore
+!favicon.png
+!fonts/
+!fonts/**
