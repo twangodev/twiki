@@ -4,7 +4,7 @@
 	import Backlinks from '$lib/components/doc/Backlinks.svelte';
 	import Breadcrumbs from '$lib/components/doc/Breadcrumbs.svelte';
 	import ContentMeta from '$lib/components/doc/ContentMeta.svelte';
-	import { calloutFold, copyButtons } from '$lib/components/doc/enhancements';
+	import { enhanceArticle } from '$lib/components/doc/enhancements';
 	import { linkPopovers } from '$lib/components/popover';
 	import type { PageData } from './$types';
 
@@ -15,6 +15,16 @@
 	const { data }: Props = $props();
 
 	const canonical = $derived(data.route === '' ? '/' : `/${data.route}`);
+
+	// Pagefind inline filters: course = first route segment, plus page tags.
+	// data-pagefind-filter parses comma-separated `key:value` pairs; corpus tag
+	// values are comma-free (checked against content-manifest.json).
+	const pagefindFilter = $derived.by(() => {
+		if (data.route === '') return undefined;
+		const parts = [`course:${data.route.split('/')[0]}`];
+		if (data.kind === 'page') parts.push(...data.page.tags.map((t) => `tag:${t}`));
+		return parts.join(', ');
+	});
 
 	function shortDate(iso?: string): string {
 		return iso
@@ -40,12 +50,16 @@
 	<article
 		class="prose dark:prose-invert max-w-none"
 		data-pagefind-body
-		{@attach copyButtons(data.route)}
-		{@attach calloutFold(data.route)}
+		data-pagefind-filter={pagefindFilter}
+		{@attach enhanceArticle(data.route)}
 		{@attach linkPopovers(data.route)}
 	>
 		{#if data.route !== ''}
-			<ContentMeta modified={data.page.dates?.modified} readingTime={data.page.readingTime} />
+			<!-- Frontmatter title beats Pagefind's h1-scraping (some pages lack an h1). -->
+			<span class="sr-only" data-pagefind-meta="title">{data.page.title}</span>
+			<div data-pagefind-ignore>
+				<ContentMeta modified={data.page.dates?.modified} readingTime={data.page.readingTime} />
+			</div>
 		{/if}
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -- build-time rendered, trusted corpus -->
 		{@html data.page.html}
@@ -57,7 +71,11 @@
 
 	<Breadcrumbs route={data.route} current={data.listing.name} />
 
-	<article class="prose dark:prose-invert max-w-none" data-pagefind-body>
+	<article
+		class="prose dark:prose-invert max-w-none"
+		data-pagefind-body
+		data-pagefind-filter={pagefindFilter}
+	>
 		<h1>{data.listing.name}</h1>
 		<p class="text-muted">
 			{data.listing.pageCount}

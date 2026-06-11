@@ -503,3 +503,48 @@ pre {
 .prose pre > code.mermaid {
 	background: none;
 }
+
+/* Hydrated mermaid island (embeds/mermaid.ts): rendered SVG container that
+   replaces the raw-source <pre> once the diagram draws; the <pre> dims while
+   the lazy import is in flight and stays visible on render failure. */
+.prose pre:has(> code.mermaid)[data-state='loading'] {
+	opacity: 0.6;
+}
+.prose .mermaid-diagram {
+	margin: 1.25rem 0;
+	display: flex;
+	justify-content: center;
+	overflow-x: auto;
+}
+.prose .mermaid-diagram > svg {
+	max-width: 100%;
+	height: auto;
+}
+.prose .mermaid-diagram > .mermaid-error {
+	margin: 0;
+	width: 100%;
+	border: 1px solid var(--color-border);
+	border-radius: 0.5rem;
+	padding: 0.5rem 0.75rem;
+	font-size: 0.8125rem;
+	color: var(--color-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   View transitions: subtle, quick crossfade between pages (onNavigate +
+   document.startViewTransition in +layout.svelte). Reduced motion is already
+   guarded in JS; the media query here is belt-and-braces.
+--------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: no-preference) {
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation-duration: 120ms;
+		animation-timing-function: ease;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation: none;
+	}
+}

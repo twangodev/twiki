@@ -1,4 +1,5 @@
 import type { Attachment } from 'svelte/attachments';
+import { mermaidDiagrams } from '$lib/components/embeds/mermaid';
 
 /**
  * Client-side enhancements applied to rendered markdown content. Each is an
@@ -6,7 +7,23 @@ import type { Attachment } from 'svelte/attachments';
  * its keyed dependency (the current route key) changes.
  *
  * Ported from cca minus filePreviews/kotlinPlayground (dropped for wisconsin).
+ * `enhanceArticle` below is the single entry point composing all of them
+ * (copy buttons, callout folding, lazy mermaid hydration). External-link
+ * icons need no JS — they are baked in at build time (build-content.ts
+ * CrawlLinks port) and styled by layout.css `.external-icon`.
  */
+
+export { mermaidDiagrams };
+
+/** Single entry point: applies every content enhancement to the article. */
+export function enhanceArticle(dep: unknown): Attachment<HTMLElement> {
+	return (node) => {
+		const cleanups = [copyButtons(dep)(node), calloutFold(dep)(node), mermaidDiagrams(dep)(node)];
+		return () => {
+			for (const cleanup of cleanups) cleanup?.();
+		};
+	};
+}
 
 const COPY_ICON =
 	'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';

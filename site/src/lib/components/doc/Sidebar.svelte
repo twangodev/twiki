@@ -3,6 +3,7 @@
 	import { site } from '$lib/config';
 	import { ThemeToggle } from '$lib/components/ui';
 	import NavTree from './NavTree.svelte';
+	import ReaderModeToggle from './ReaderModeToggle.svelte';
 
 	interface Props {
 		nav: NavNode[];
@@ -23,5 +24,6 @@
 		class="flex items-center justify-between border-t [border-top-color:var(--color-border,#e5e7eb)] pt-3"
 	>
 		<ThemeToggle />
+		<ReaderModeToggle />
 	</div>
 </div>
