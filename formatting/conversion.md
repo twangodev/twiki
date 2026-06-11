@@ -1,8 +1,15 @@
 # Converting binaries
 
 Binaries (PDFs, slides, scans, audio) become markdown, get reviewed, then the
-binary is deleted. Exception: binaries course code uses (jars, datasets,
-sprites, build files) are not content — leave them.
+binary is deleted. Two exceptions:
+
+- **Functional binaries** course code uses (jars, datasets, sprites, build
+  files) are not content — leave them.
+- **Print artifacts**: a PDF that is the printable rendering of a markdown
+  note that already exists (exam cheatsheets, reference sheets meant to be
+  printed) is kept next to its note and linked from it
+  (`Printable version: [[cheatsheet.pdf]]`). The markdown stays the source of
+  truth; never delete the PDF, never treat it as unconverted content.
 
 ## Routing: pick the right path
 

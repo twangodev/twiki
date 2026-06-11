@@ -26,7 +26,9 @@ matches.
   Sections map to lectures (`## Part 1: OS Fundamentals (Lecture 1)`), with
   `###` per concept, tables for comparisons, **bolded key terms**, and
   callouts/blockquotes for common traps ("X is **NOT** a benefit...").
-- **`cheatsheet.md`** — the dense exam-day sheet.
+- **`cheatsheet.md`** — the dense exam-day sheet. If a print-formatted PDF
+  rendering exists, keep it (in `assets/` or beside the note) and link it from
+  the markdown — it's a print artifact, not unconverted content.
 - **`sample-N/`** — real past exams, converted. Keep the source
   `questions.pdf`/`solutions.pdf` until conversion is reviewed, then delete.
 - **`practice-exam-N/`** — study-assistant-generated exams. Header states
