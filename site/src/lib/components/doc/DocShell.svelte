@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { afterNavigate } from '$app/navigation';
 	import { Menu } from '@lucide/svelte';
-	import type { Snippet } from 'svelte';
+	import { onMount, type Component, type Snippet } from 'svelte';
 	import type { NavNode } from '$lib/types';
 	import { site } from '$lib/config';
 	import { ThemeToggle } from '$lib/components/ui';
@@ -23,6 +23,13 @@
 
 	afterNavigate(() => {
 		mobileNavOpen = false;
+	});
+
+	// Knowledge-graph card (right rail): lazy-imported after hydration so
+	// layerchart/d3-force and /graph.json never touch the initial bundle.
+	let GraphPanel = $state<Component | null>(null);
+	onMount(async () => {
+		GraphPanel = (await import('$lib/components/graph/GraphPanel.svelte')).default;
 	});
 </script>
 
@@ -92,7 +99,15 @@
 
 	{#if !readerMode.enabled}
 		<aside class="px-4 py-8 max-[1100px]:hidden">
-			<Toc />
+			<!-- One sticky column so the graph card never collides with the sticky
+			     TOC. top-20 matches Toc's own sticky threshold, so the inner nav
+			     never gets displaced inside this wrapper. -->
+			<div class="sticky top-20 flex flex-col gap-6">
+				<Toc />
+				{#if GraphPanel}
+					<GraphPanel />
+				{/if}
+			</div>
 		</aside>
 	{/if}
 </div>
