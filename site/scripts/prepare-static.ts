@@ -37,7 +37,13 @@ import {
 	writeFileSync
 } from 'node:fs';
 import path from 'node:path';
-import { contentEntries, displayRoute, getManifest, navTree } from '../src/lib/server/content';
+import {
+	contentEntries,
+	displayRoute,
+	getManifest,
+	navTree,
+	pageSlugForRoute
+} from '../src/lib/server/content';
 
 const SITE_DIR = path.resolve(import.meta.dir, '..');
 const GENERATED = path.join(SITE_DIR, '.generated');
@@ -192,6 +198,107 @@ const sorted = [...expected404].sort();
 writeFileSync(path.join(GENERATED, 'expected-404.json'), JSON.stringify(sorted, null, '\t'));
 console.log(
 	`expected-404: ${sorted.length} unique live-broken link targets whitelisted for the crawler`
+);
+
+// ---------------------------------------------------------------------------
+// 3b. Expected-missing-id list for the strict prerender crawler
+//     (handleMissingId: 'fail' otherwise aborts the build). An in-page anchor
+//     target `/<slug>#<id>` is whitelisted ONLY when the same anchor is also
+//     broken on the live Quartz site — i.e. a content authoring error, not a
+//     pipeline regression. Format: `<slug>#<id>`. Verified (Phase 5 analysis):
+//     exactly 2 such anchors corpus-wide, 0 anchors that live resolves but we
+//     drop. If a new entry appears here, confirm it against public/ before
+//     whitelisting; never silently hide an id we failed to emit.
+// ---------------------------------------------------------------------------
+
+const pageIds = new Map<string, Set<string>>();
+const idRe = /id="([^"]*)"/g;
+for (const slug of Object.keys(manifest.pages)) {
+	const doc = JSON.parse(readFileSync(path.join(GENERATED, 'pages', `${slug}.json`), 'utf-8')) as {
+		html: string;
+	};
+	const ids = new Set<string>();
+	for (const m of doc.html.matchAll(idRe)) ids.add(m[1]);
+	pageIds.set(slug, ids);
+}
+
+// path#id → owning page slug (so we can cross-check the live build).
+const missingAnchor = new Map<string, string>();
+const anchorRe = /(?:href|src)="(\/[^"#]*#[^"]+)"/g;
+for (const slug of Object.keys(manifest.pages)) {
+	const doc = JSON.parse(readFileSync(path.join(GENERATED, 'pages', `${slug}.json`), 'utf-8')) as {
+		html: string;
+	};
+	for (const m of doc.html.matchAll(anchorRe)) {
+		const raw = m[1];
+		if (raw.startsWith('//')) continue;
+		const hashIdx = raw.indexOf('#');
+		let target = raw.slice(0, hashIdx);
+		let id = raw.slice(hashIdx + 1);
+		if (id.startsWith('page=')) continue; // PDF page anchors pass raw
+		try {
+			target = decodeURI(target);
+			id = decodeURI(id);
+		} catch {
+			/* keep raw */
+		}
+		if (target.length > 1 && target.endsWith('/')) target = target.slice(0, -1);
+		// Map the URL path the prerenderer renders (`/` → home, `/dir` → folder
+		// index) to the canonical page slug, exactly like the catch-all route.
+		const route = target === '/' ? '' : target.slice(1);
+		const targetSlug = pageSlugForRoute(route);
+		if (!targetSlug) continue; // not a page route (asset/folder-listing/404 elsewhere)
+		const ids = pageIds.get(targetSlug);
+		if (!ids) continue;
+		// The prerenderer keys missing-id errors by the rendered path, not the slug.
+		if (!ids.has(id)) missingAnchor.set(`${target}#${id}`, targetSlug);
+	}
+}
+
+// Cross-check every broken in-page anchor against the live Quartz build: if the
+// live page emits that id but ours does not, it's a pipeline regression and must
+// be fixed, never whitelisted. Quartz emits page slug `s` at `public/<s>.html`
+// (folder-index slugs already end in `/index`).
+const PUBLIC_DIR = path.resolve(SITE_DIR, '..', 'public');
+const liveIdCache = new Map<string, Set<string> | null>();
+function liveIds(slug: string): Set<string> | null {
+	if (liveIdCache.has(slug)) return liveIdCache.get(slug)!;
+	const file = path.join(PUBLIC_DIR, `${slug}.html`);
+	let ids: Set<string> | null = null;
+	if (existsSync(file)) {
+		ids = new Set<string>();
+		for (const m of readFileSync(file, 'utf-8').matchAll(idRe)) ids.add(m[1]);
+	}
+	liveIdCache.set(slug, ids);
+	return ids;
+}
+
+const regressions: string[] = [];
+const expectedMissingId: string[] = [];
+for (const [key, targetSlug] of missingAnchor) {
+	const id = key.slice(key.indexOf('#') + 1);
+	const live = liveIds(targetSlug);
+	if (live && live.has(id)) {
+		regressions.push(`${key} (slug ${targetSlug}: live emits this id, we dropped it)`);
+	} else {
+		expectedMissingId.push(key);
+	}
+}
+if (regressions.length > 0) {
+	console.error(
+		`FAIL: ${regressions.length} broken in-page anchor(s) are REGRESSIONS (live resolves them):`
+	);
+	for (const r of regressions) console.error(`  - ${r}`);
+	process.exit(1);
+}
+
+const sortedIds = expectedMissingId.sort();
+writeFileSync(
+	path.join(GENERATED, 'expected-missing-id.json'),
+	JSON.stringify(sortedIds, null, '\t')
+);
+console.log(
+	`expected-missing-id: ${sortedIds.length} in-page anchors broken on the live site too (0 regressions)`
 );
 console.log(
 	`routes: ${contentEntries().length} content + ${Object.keys(manifest.tags).length + 1} tag + 2 xml + /404`

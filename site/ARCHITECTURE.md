@@ -229,3 +229,98 @@ Largest tracked-and-shipped file is 22.6 MiB (`hdma-wi-2021.sql.gz`) — within 
 
 ### Verified correct (no action)
 16 submodules confirmed; `des-inv` is the 16th content dir (AutoTag-excluded, as configured). Zero `aliases:` frontmatter in content — AliasRedirects is a live no-op, matching the matrix. `enableCheckbox` defaults false and is unset — no checkbox-persistence regression possible. RSS limit 10 confirmed in `public/index.xml`. Output is 3,445 files / 329 MB — fits the 20k-file cap as claimed. Fork's nearest-match resolution patches exist as cited (commits c508392, 8399e6e in `quartz/util/path.ts`, `strategy: "shortest"` wired via `CrawlLinks({ markdownLinkResolution: "shortest" })`). Footer is indeed stock jackyzha0 links. All cited cca paths exist (`doc/DocShell.svelte`, `search/SearchPalette.svelte`, `routes/layout.css`, `static/fonts/{OverusedGrotesk,JetBrainsMono}*`). Wisconsin red `#d35545`/`#e68578` matches `quartz.config.ts` theme exactly.
+
+---
+
+## As built (Phase 5 integration addendum)
+
+State at the end of Phase 5 (integration + verification). The full chain is green:
+`bun install` → `bun run build:content` → `bun run check` → `bun run build`
+(vite + strict prerender) → `bun run build:search` (Pagefind). One command:
+`bun run build:all`.
+
+### Build status
+- **`bun run check`**: 0 errors, 0 warnings (4769 files).
+- **`bun test scripts`**: 31 pass / 0 fail (slug + pagefind-url tests).
+- **Prebuild**: 641 pages, 454 assets (176.6 MiB), 167 tags, 268 folders, 1990
+  tracked files dropped (whitelist), 0 drafts.
+- **Build**: 796 content routes + 168 tag routes + `/index.xml` + `/sitemap.xml`
+  + `/404`, fully prerendered, adapter-cloudflare. Largest shipped asset 22.6 MiB
+  (`hdma-wi-2021.sql.gz`) — under the 25 MiB cap; size guard active.
+- **Pagefind**: 796 pages / 39,367 words indexed, 1 filter (course); bundle at
+  `/pagefind/` in the deployed assets. Search degrades to a "missing index"
+  state in `vite dev` (no index built) — expected; `build:all` or
+  `build:search` after a build makes it live in `preview`.
+
+### Deviations from the plan
+1. **Graph: LayerChart, not `force-graph`.** §1.7 picked vasturiano/`force-graph`;
+   built on **`layerchart@2.0.0-next.65`** (`layerchart/force` → `ForceSimulation`)
+   instead — a first-class Svelte 5 component already in the bits-ui/LayerChart
+   family, so no wrapper around an imperative canvas lib and one fewer dependency
+   style. d3-force is still the engine (`d3-force@3`, the same layout math
+   `force-graph` uses). The `2.0.0-next.x` prerelease is the only line with Svelte
+   5 support; pinned exactly (no `^`) because it is a moving prerelease.
+2. **Graph render = settled SVG, not animated canvas.** The simulation runs to
+   completion synchronously (static mode) and renders once; pan/zoom/hover are
+   pure CSS transforms on the settled SVG. At the corpus size (641 nodes / 2404
+   links) this is smooth — nothing re-layouts after settle, the browser only
+   composites. Escape hatch documented in `GraphView.svelte`: swap the `<svg>`
+   body for a `<canvas>` draw loop (d3-quadtree hit-testing) if a much larger
+   future corpus makes it janky; the data layer and props stay identical. Local
+   graph = client-side depth-2 BFS filter over the same manifest data.
+3. **TOC slugs collected at the hast stage, not from mdast.** Quartz slugged the
+   raw heading *text*; we slug after `rehype-raw` + `rehype-slug` so TOC anchors
+   always equal the rendered heading `id`. Fixes one live-broken self-anchor
+   (`fa24-cs300/p06` heading `public static ArrayList<Partition> …` — the
+   `<Partition>` looks like a tag to a text-slugger). Fix-not-replicate; enforced
+   corpus-wide by `handleMissingId: 'fail'`.
+4. **`handleMissingId` escalated `'warn'` → `'fail'`** (the SvelteKit enum value
+   for hard failure; `'error'` is not a valid value). Broken in-page anchors now
+   fail the build unless whitelisted in `.generated/expected-missing-id.json`.
+   That whitelist is generated in `prepare-static.ts` and **cross-checked against
+   the live `public/` build**: an anchor is only whitelisted if the live Quartz
+   page *also* lacks the id; if live emits an id we dropped, the prebuild fails
+   (0 such regressions found). Exactly 2 irreducible entries (content authoring
+   errors, broken on live too): `fa25-anthro105/lectures/lecture-7#darwins-finches`
+   and `fa24-asianam160/lectures/lecture-05#graph-convolutional-networks-gcns`.
+5. **`favicon.ico` → `favicon.png`.** Quartz shipped `/favicon.ico`; the new site
+   declares `<link rel="icon" href="/favicon.png">`. A bare `GET /favicon.ico`
+   now 404s but the tab icon is unaffected. Drop a `favicon.ico` in `static/` if
+   a bare-path hit is wanted.
+
+### URL parity gate (critique addendum B — the real gate)
+Full report: `.generated/url-diff-report.md`. Diffed all **3,451** files in the
+old `public/` (963 page URLs + 2,488 asset URLs) against the prerendered output.
+**0 unexplained.** matched 1401, equivalent 19 (html_handling: Quartz serves the
+18 whitelisted `.html` assets extensionless, we emit `.html` + Workers strips it),
+dropped-whitelist 1988 (`dropped-urls.txt`), dropped-untracked 34
+(`sp26-cs537/p6/tests/tests-out/*` + `sp26-cs544/p7/q7.out` — gitignored fixtures
+Quartz's `globby` shipped; `git ls-files` correctly excludes them), framework 9
+(`index.css`/`postscript.js`/`prescript.js`/`favicon.ico`/`static/**` → SvelteKit
+equivalents). Re-run the gate any time with the methodology in the report.
+
+### Known gaps / not at Quartz parity
+- **Heading-anchor click icons**: not emitted (cca chrome handles anchors); ids
+  identical. (Carried from Phase 2.)
+- **Copy buttons / callout fold / mermaid** are JS-hydrated (`enhanceArticle`
+  attachment), matching Quartz which also adds them via JS — so no-JS readers get
+  raw `pre`/expanded-callout/raw-mermaid-source fallbacks, not the controls.
+- **KaTeX output is HTML-only** (no MathML) — visually identical, lighter, but
+  screen readers lose the MathML layer. Flip to `htmlAndMathml` for a11y parity.
+- **Highlights `==x==`** are accent-red tinted, not Quartz yellow (identity).
+- **Bug-for-bug broken links**: ~198 internal link targets are broken on the live
+  Quartz site too (e.g. `[[textbook]]` on `sp26-cs537/README` → `/textbook`,
+  cs571 lecture cross-links, cs639 practice exams). Reproduced exactly and
+  whitelisted in `.generated/expected-404.json`; candidates for upstream *content*
+  fixes, not pipeline changes.
+
+### Perf notes
+- Global graph: 641 nodes / 2404 links, settled SVG. Simulation runs once at
+  dialog-open; no animation loop. The graph + LayerChart + d3-force code is
+  dynamically imported (not in the per-page critical path). Largest client JS
+  chunks are the markdown-runtime + graph islands (~138 kB gz each), only loaded
+  on demand.
+- Pages are static HTML served from the asset layer (Worker bypassed); the
+  Worker slot stays free for future redirects/OG/gating.
+- Prebuild ~14 s cold (Shiki highlighter dominates parse), seconds warm via the
+  stage-1 content-hash cache.

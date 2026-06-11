@@ -15,6 +15,22 @@ try {
 	// No prebuild output yet (e.g. fresh checkout running `svelte-kit sync`).
 }
 
+/**
+ * In-page anchor targets (`/<slug>#<id>`) that are broken on the live Quartz
+ * site too — content authoring errors, not pipeline regressions (verified
+ * against public/ in scripts/prepare-static.ts; 0 anchors that live resolves
+ * but we drop). Any missing id NOT in this list fails the build, so this is
+ * free broken-anchor CI for in-content links.
+ */
+let expectedMissingId = new Set();
+try {
+	expectedMissingId = new Set(
+		JSON.parse(readFileSync('.generated/expected-missing-id.json', 'utf-8'))
+	);
+} catch {
+	// No prebuild output yet.
+}
+
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	compilerOptions: {
@@ -37,9 +53,15 @@ const config = {
 				}
 				throw new Error(message);
 			},
-			// TODO(Verify phase): escalate to 'error' once in-content anchor ids
-			// are confirmed clean across the corpus.
-			handleMissingId: 'warn'
+			handleMissingId: ({ path, id, referrers, message }) => {
+				if (expectedMissingId.has(`${path}#${id}`)) {
+					console.warn(
+						`[prerender] expected missing anchor (broken on live site too): ${path}#${id} <- ${referrers.join(', ')}`
+					);
+					return;
+				}
+				throw new Error(message);
+			}
 		}
 	}
 };

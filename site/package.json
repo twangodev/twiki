@@ -6,6 +6,7 @@
 	"scripts": {
 		"build:content": "bun scripts/build-content.ts",
 		"build:search": "pagefind --site .svelte-kit/cloudflare",
+		"build:all": "bun run build:content && bun run build && bun run build:search",
 		"prepare:static": "bun scripts/prepare-static.ts",
 		"test": "bun test scripts",
 		"dev": "bun scripts/prepare-static.ts && vite dev",

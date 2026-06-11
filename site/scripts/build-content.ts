@@ -91,7 +91,7 @@ import { buildGitDateMap, parseGitmodules, resolveDates } from './lib/lastmod';
 // ---------------------------------------------------------------------------
 // config
 // ---------------------------------------------------------------------------
-const PIPELINE_VERSION = '1'; // bump to invalidate the stage-1 cache
+const PIPELINE_VERSION = '2'; // bump to invalidate the stage-1 cache (2: hast-stage TOC)
 const SITE_DIR = path.resolve(import.meta.dir, '..');
 const REPO_ROOT = path.resolve(SITE_DIR, '..');
 const CONTENT_DIR = path.join(REPO_ROOT, 'content');
@@ -430,19 +430,25 @@ async function parsePage(file: SourceFile): Promise<PageParse> {
 	const ofmData: OfmFileData = { slug: file.slug, tags };
 
 	// markdown phase — plugin order mirrors quartz.config.ts transformer order
+	// TOC is collected at the hast stage AFTER rehype-raw + rehype-slug so that
+	// entry slugs always equal the final rendered heading ids. (Quartz slugged
+	// the mdast text instead, which diverges when a heading contains raw-HTML-
+	// looking tokens — e.g. `ArrayList<Partition>` in fa24-cs300/p06 — producing
+	// a TOC anchor broken on the live site. Deliberate fix-not-replicate;
+	// handleMissingId:'fail' enforces it corpus-wide.)
 	const toc: TocEntry[] = [];
-	const collectToc = () => (tree: MdRoot) => {
-		const slugAnchor = new Slugger();
+	const collectToc = () => (tree: HtmlRoot) => {
 		let highestDepth = 3;
 		const entries: TocEntry[] = [];
-		visit(tree, 'heading', (node) => {
-			if (node.depth <= 3) {
-				const text = mdastToString(node);
-				highestDepth = Math.min(highestDepth, node.depth);
-				entries.push({ depth: node.depth, text, slug: slugAnchor.slug(text) });
+		visit(tree, 'element', (node: Element) => {
+			const m = /^h([1-3])$/.exec(node.tagName);
+			if (m && typeof node.properties?.id === 'string') {
+				const depth = Number(m[1]);
+				highestDepth = Math.min(highestDepth, depth);
+				entries.push({ depth, text: hastToString(node), slug: node.properties.id });
 			}
 		});
-		if (entries.length > 0 && entries.length > 1) {
+		if (entries.length > 1) {
 			toc.push(...entries.map((e) => ({ ...e, depth: e.depth - highestDepth })));
 		}
 	};
@@ -464,12 +470,12 @@ async function parsePage(file: SourceFile): Promise<PageParse> {
 		.use(() => ofmCallouts())
 		.use(() => ofmMermaid(ofmData))
 		.use(remarkSmartypants)
-		.use(collectToc)
 		.use(remarkRehype, { allowDangerousHtml: true })
 		.use(rehypeRaw)
 		.use(() => ofmBlockReferences(ofmData))
 		.use(() => ofmYouTubeEmbed())
 		.use(rehypeSlug)
+		.use(collectToc)
 		.use(() => rehypeShiki(hl))
 		.use(captureDescription)
 		.use(rehypeKatex, { output: 'html', macros: {} });

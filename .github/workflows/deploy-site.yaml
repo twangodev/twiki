@@ -1,0 +1,109 @@
+# =============================================================================
+# DRAFT / INACTIVE — SvelteKit site (site/) → Cloudflare Workers static assets.
+#
+# This runs ALONGSIDE the existing `build-and-deploy.yaml` (GitHub Pages /
+# Quartz, the parity baseline) and does NOT replace it. The Quartz site stays
+# the production deploy until cutover.
+#
+# ACTIVATION CHECKLIST (the deploy step is gated off until all are done):
+#   1. Add repo secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
+#      (Workers Scripts:Edit + Workers Assets, or the "Edit Workers" template).
+#   2. Confirm `secrets.PAT_TOKEN` still has read on all 16 content submodules
+#      (it is the same token the Pages workflow already uses).
+#   3. Flip RUN_DEPLOY below to 'true' (and/or enable the `push` trigger).
+# Until then this workflow only builds on manual dispatch and uploads the build
+# as an artifact — it never touches Cloudflare.
+# =============================================================================
+name: Deploy Site (SvelteKit → Cloudflare) [DRAFT]
+
+on:
+  # Manual only while in draft. Add `push: { branches: [svelte] }` at cutover.
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy to Cloudflare (requires CLOUDFLARE_* secrets)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+env:
+  # Master switch. Keep 'false' until the activation checklist above is done.
+  RUN_DEPLOY: "false"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    name: Build & (optionally) Deploy SvelteKit site
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: "recursive"
+          token: ${{ secrets.PAT_TOKEN }}
+          clean: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+
+      - name: Cache Bun store
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('site/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Cache content prebuild
+        uses: actions/cache@v4
+        with:
+          # Stage-1 parse cache + git-date cache; keyed on pipeline inputs.
+          path: site/.generated/cache
+          key: ${{ runner.os }}-content-${{ hashFiles('site/scripts/**', 'content/**/*.md') }}
+          restore-keys: |
+            ${{ runner.os }}-content-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build content (prebuild)
+        run: bun run build:content
+
+      - name: Type & style check
+        run: bun run check
+
+      - name: Build (vite + prerender, strict broken-link/anchor crawl)
+        run: bun run build
+
+      - name: Search index (Pagefind)
+        run: bun run build:search
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-cloudflare-build
+          path: site/.svelte-kit/cloudflare
+          if-no-files-found: error
+          retention-days: 7
+
+      # ----------------------------------------------------------------------
+      # Deploy — gated. Runs only when RUN_DEPLOY=='true' AND the manual
+      # `deploy` input is true. Requires CLOUDFLARE_API_TOKEN + ACCOUNT_ID.
+      # ----------------------------------------------------------------------
+      - name: Deploy to Cloudflare Workers
+        if: ${{ env.RUN_DEPLOY == 'true' && inputs.deploy }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: site
+          # wrangler.jsonc points main at .svelte-kit/cloudflare/_worker.js and
+          # serves the prerendered assets from that directory.
+          command: deploy
