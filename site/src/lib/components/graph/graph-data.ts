@@ -48,9 +48,20 @@ export function loadGraph(fetcher: typeof fetch = fetch): Promise<GraphData> {
 // ---------------------------------------------------------------------------
 // Graph configuration — Quartz parity.
 //
-// Mirrors quartz/components/Graph.tsx `defaultOptions` merged with this
-// site's quartz.layout.ts, which configures
-// `Component.Graph({ localGraph: { depth: 2 } })` (everything else default).
+// Mirrors quartz/components/Graph.tsx `defaultOptions` (everything default).
+//
+// NOTE on depth: Quartz's local-graph default is depth 1, and that is what
+// makes the current note render centered. With `forceCenter()` the simulation
+// pulls the *centroid* of the rendered neighbourhood to the origin (0,0) — and
+// the render loop then offsets the origin to the canvas centre (x + width/2,
+// y + height/2). At depth 1 the neighbourhood is a star whose hub is the
+// current note, so the centroid coincides with the current note and it sits
+// dead-centre. At depth 2 the neighbourhood balloons (e.g. a leaf hanging off a
+// 78-degree course-README hub pulls in that hub and all its siblings), the
+// centroid shifts to the dense hub cluster, and the current note drifts to the
+// periphery — measured up to ~0.5–0.75 of the layout radius off-centre on this
+// corpus. Quartz offers no current-node anchoring beyond forceCenter, so the
+// only reference-faithful way to keep the current note centred is depth 1.
 // ---------------------------------------------------------------------------
 
 export interface GraphConfig {
@@ -72,7 +83,7 @@ export interface GraphConfig {
 export const localGraphConfig: GraphConfig = {
 	drag: true,
 	zoom: true,
-	depth: 2, // quartz.layout.ts override (default is 1)
+	depth: 1, // Quartz default; centres the current note (see NOTE above)
 	scale: 1.1,
 	repelForce: 0.5,
 	centerForce: 0.3,

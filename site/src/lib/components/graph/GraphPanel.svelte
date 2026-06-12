@@ -2,9 +2,10 @@
 	/**
 	 * Sidebar graph card (Quartz "Graph View" parity).
 	 *
-	 * Local mode: depth-2 neighborhood of the current page (incl. tag nodes),
+	 * Local mode: depth-1 neighborhood of the current page (incl. tag nodes),
 	 * rendered by the Quartz pixi.js/d3-force port in a 250px card — same
-	 * height as Quartz's .graph-outer. Global mode: button in the card header
+	 * height as Quartz's .graph-outer, same depth that keeps the current note
+	 * centered. Global mode: button in the card header
 	 * (or ctrl/cmd+g, as in Quartz) opens the full-corpus dialog. Graph data
 	 * is fetched once from the prerendered `/graph.json` endpoint, after
 	 * mount — never part of page payloads.
