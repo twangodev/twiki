@@ -27,7 +27,6 @@ const spotArticles = JSON.parse(
 // representative heavy pages (slug form; baseline file is public/<slug>.html
 // or public/<slug>/index.html)
 const PAGES = [
-	'index', // homepage w/ ![[course-log]] transclusion
 	'course-log',
 	'fa25-cs354/exams/exam-1/practice', // 2,308-style collapsed [!success] + asm fences
 	'fa25-cs354/exams/exam-1/review', // callout+code heavy cheat sheet

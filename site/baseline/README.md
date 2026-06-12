@@ -54,3 +54,9 @@ script that produced them was `scripts/freeze-baseline.ts`, run once against the
 final `public/`; it has been removed along with Quartz. If a future content
 change legitimately diverges from this baseline, update the relevant artifact
 by hand (and document why), don't try to rebuild Quartz.
+
+## Retired entries
+
+| slug | file | retired | reason |
+|---|---|---|---|
+| `index` | `spot-articles.json` | 2026-06-13 | Homepage (`content/index.md`) was intentionally edited post-migration to remove Quartz-era prose (stack description, CI badge, dev command). The Quartz baseline snapshot no longer represents the current homepage content. The other 14 spot pages are unaffected and remain in the baseline. |
