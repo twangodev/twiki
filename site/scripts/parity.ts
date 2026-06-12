@@ -1,8 +1,10 @@
 /**
  * Golden-diff parity harness (ARCHITECTURE.md Phase 1 exit criteria).
  *
- * Compares the Quartz baseline build (repo-root public/, rebuilt via
- * `npx quartz build`) against the SvelteKit prebuild output (site/.generated):
+ * Compares the FROZEN Quartz baseline (site/baseline/, snapshotted from the
+ * final repo-root public/ before Quartz was decommissioned — see
+ * site/baseline/README.md) against the SvelteKit prebuild output
+ * (site/.generated):
  *
  *  1. SLUG PARITY — every baseline *.html path becomes a full slug
  *     (path minus ".html"; includes leaf pages, folder index pages, tag pages,
@@ -41,22 +43,13 @@ import type { Element, Root as HastRoot } from 'hast';
 
 const SITE_DIR = path.resolve(import.meta.dir, '..');
 const REPO_ROOT = path.resolve(SITE_DIR, '..');
-const PUBLIC_DIR = path.join(REPO_ROOT, 'public');
+const BASELINE_DIR = path.join(SITE_DIR, 'baseline');
 const GEN_DIR = path.join(SITE_DIR, '.generated');
 const REPORT = path.join(GEN_DIR, 'parity-report.md');
 
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
-function walk(dir: string, out: string[] = [], base = dir): string[] {
-	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-		const p = path.join(dir, entry.name);
-		if (entry.isDirectory()) walk(p, out, base);
-		else out.push(path.relative(base, p));
-	}
-	return out;
-}
-
 const CONTENT_DIR = path.join(REPO_ROOT, 'content');
 
 /** git evidence for a content/-relative path: is it tracked in its owning
@@ -148,8 +141,8 @@ function multisetDiff(a: string[], b: string[]): [string[], string[]] {
 // ---------------------------------------------------------------------------
 // load both sides
 // ---------------------------------------------------------------------------
-if (!fs.existsSync(PUBLIC_DIR)) {
-	console.error(`baseline not found at ${PUBLIC_DIR} — run \`npx quartz build\` first`);
+if (!fs.existsSync(path.join(BASELINE_DIR, 'served-files.txt'))) {
+	console.error(`frozen baseline not found at ${BASELINE_DIR} — see site/baseline/README.md`);
 	process.exit(2);
 }
 if (!fs.existsSync(path.join(GEN_DIR, 'content-manifest.json'))) {
@@ -175,9 +168,16 @@ const droppedUrls = new Set(
 		.map((l) => l.replace(/^\//, ''))
 );
 
-const allPublicFiles = walk(PUBLIC_DIR);
+const allPublicFiles = fs
+	.readFileSync(path.join(BASELINE_DIR, 'served-files.txt'), 'utf8')
+	.split('\n')
+	.filter(Boolean);
 const baselineHtml = allPublicFiles.filter((f) => f.endsWith('.html')).sort();
 const baselineSlugs = new Set(baselineHtml.map((f) => f.slice(0, -'.html'.length)));
+// frozen per-content-page link records: slug → [dataSlug, normalized-href, hash][]
+const baselineLinkRecords: Record<string, [string, string, string][]> = JSON.parse(
+	fs.readFileSync(path.join(BASELINE_DIR, 'link-records.json'), 'utf8')
+);
 
 // new-side expected slug set
 const pageSlugs = new Set(Object.keys(manifest.pages));
@@ -317,8 +317,8 @@ let comparedPages = 0;
 const skippedPages: string[] = [];
 
 for (const slug of [...pageSlugs].sort()) {
-	const baselineFile = path.join(PUBLIC_DIR, slug + '.html');
-	if (!fs.existsSync(baselineFile)) {
+	const baseRecordTuples = baselineLinkRecords[slug];
+	if (!baseRecordTuples) {
 		skippedPages.push(slug);
 		continue;
 	}
@@ -329,8 +329,11 @@ for (const slug of [...pageSlugs].sort()) {
 	}
 	comparedPages++;
 
-	const baseTree = fromHtml(fs.readFileSync(baselineFile, 'utf8'));
-	const baseRecords = extractLinkRecords(baseTree, slug);
+	const baseRecords: LinkRecord[] = baseRecordTuples.map(([dataSlug, href, hash]) => ({
+		dataSlug,
+		href,
+		hash
+	}));
 
 	const genHtml = JSON.parse(fs.readFileSync(genFile, 'utf8')).html as string;
 	const genTree = fromHtml(genHtml, { fragment: true });
@@ -388,8 +391,9 @@ for (const f of assetOnlyBaseline) {
 	}
 	assetUnexplained.push(f);
 }
+const baselineFileSet = new Set(allPublicFiles);
 const assetOnlyNew = [...newAssetSet]
-	.filter((s) => !fs.existsSync(path.join(PUBLIC_DIR, s)) && !baselineSlugs.has(s))
+	.filter((s) => !baselineFileSet.has(s) && !baselineSlugs.has(s))
 	.sort();
 
 // ---------------------------------------------------------------------------
@@ -413,7 +417,9 @@ const log = (s = '') => lines.push(s);
 log(`# Golden-diff parity report`);
 log();
 log(`Generated: ${new Date().toISOString()}`);
-log(`Baseline: ${PUBLIC_DIR} (${baselineHtml.length} html pages, ${allPublicFiles.length} files)`);
+log(
+	`Baseline: ${BASELINE_DIR} (frozen Quartz snapshot — ${baselineHtml.length} html pages, ${allPublicFiles.length} files)`
+);
 log(
 	`New side: ${GEN_DIR} (${pageSlugs.size} pages, ${folderPageSlugs.size} folder pages, ${tagPageSlugs.size} tag pages)`
 );

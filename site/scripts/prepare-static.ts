@@ -255,20 +255,21 @@ for (const slug of Object.keys(manifest.pages)) {
 	}
 }
 
-// Cross-check every broken in-page anchor against the live Quartz build: if the
-// live page emits that id but ours does not, it's a pipeline regression and must
-// be fixed, never whitelisted. Quartz emits page slug `s` at `public/<s>.html`
-// (folder-index slugs already end in `/index`).
-const PUBLIC_DIR = path.resolve(SITE_DIR, '..', 'public');
+// Cross-check every broken in-page anchor against the FROZEN Quartz baseline: if
+// the live page emitted that id but ours does not, it's a pipeline regression and
+// must be fixed, never whitelisted. site/baseline/page-ids.json is a snapshot of
+// the final Quartz build's per-page element ids (see site/baseline/README.md);
+// a slug absent from the map means the live page did not exist (liveIds → null).
+const BASELINE_DIR = path.resolve(SITE_DIR, 'baseline');
+const baselinePageIds = JSON.parse(
+	readFileSync(path.join(BASELINE_DIR, 'page-ids.json'), 'utf-8')
+) as Record<string, string[]>;
 const liveIdCache = new Map<string, Set<string> | null>();
 function liveIds(slug: string): Set<string> | null {
 	if (liveIdCache.has(slug)) return liveIdCache.get(slug)!;
-	const file = path.join(PUBLIC_DIR, `${slug}.html`);
-	let ids: Set<string> | null = null;
-	if (existsSync(file)) {
-		ids = new Set<string>();
-		for (const m of readFileSync(file, 'utf-8').matchAll(idRe)) ids.add(m[1]);
-	}
+	const ids = Object.prototype.hasOwnProperty.call(baselinePageIds, slug)
+		? new Set<string>(baselinePageIds[slug])
+		: null;
 	liveIdCache.set(slug, ids);
 	return ids;
 }

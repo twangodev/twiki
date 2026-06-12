@@ -1,8 +1,9 @@
 /**
  * Phase 2b spot-diff: content-fidelity comparison of representative heavy pages.
  *
- * Compares the Quartz baseline (repo-root public/<page>.html, <article
- * class="popover-hint"> body) against the new pipeline's rendered HTML
+ * Compares the FROZEN Quartz baseline (site/baseline/spot-articles.json —
+ * chrome-stripped <article> bodies snapshotted from the final Quartz public/
+ * build, see site/baseline/README.md) against the new pipeline's rendered HTML
  * (site/.generated/pages/<slug>.json .html — exactly what gets {@html}-injected
  * into the prerendered page). Structure-level, not pixel-level:
  *   - feature counts (callouts, collapsed callouts, fences, tables, images,
@@ -15,9 +16,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const SITE_DIR = path.resolve(import.meta.dir, '..');
-const REPO_ROOT = path.resolve(SITE_DIR, '..');
-const PUBLIC_DIR = path.join(REPO_ROOT, 'public');
+const BASELINE_DIR = path.join(SITE_DIR, 'baseline');
 const PAGES_DIR = path.join(SITE_DIR, '.generated', 'pages');
+
+// frozen baseline: slug → chrome-stripped <article> body (Quartz side)
+const spotArticles = JSON.parse(
+	fs.readFileSync(path.join(BASELINE_DIR, 'spot-articles.json'), 'utf8')
+) as Record<string, string>;
 
 // representative heavy pages (slug form; baseline file is public/<slug>.html
 // or public/<slug>/index.html)
@@ -38,27 +43,6 @@ const PAGES = [
 	'fa24-asianam160/README', // prose/essay course
 	'fa25-music113/README'
 ] as const;
-
-function baselinePath(slug: string): string | null {
-	for (const p of [path.join(PUBLIC_DIR, slug + '.html'), path.join(PUBLIC_DIR, slug, 'index.html')]) {
-		if (fs.existsSync(p)) return p;
-	}
-	return null;
-}
-
-function extractArticle(html: string): string {
-	// ContentPage emits <article class="popover-hint">; FolderPage (dir with
-	// index.md) emits <article class> with the same content inside.
-	const m = html.match(/<article class(?:="popover-hint")?>([\s\S]*?)<\/article>/);
-	return m ? m[1] : '';
-}
-
-/** Quartz-only chrome inside the article that the new site intentionally renders differently. */
-function stripQuartzChrome(html: string): string {
-	// heading-anchor links (rehype-autolink-headings) — cca chrome handles anchors
-	html = html.replace(/<a role="anchor"[\s\S]*?<\/a>/g, '');
-	return html;
-}
 
 /** New-site-only additions relative to the Quartz article body. */
 function stripNewChrome(html: string): string {
@@ -120,14 +104,14 @@ function firstDiff(a: string, b: string): string | null {
 
 let failures = 0;
 for (const slug of PAGES) {
-	const bp = baselinePath(slug);
+	const baseArticle = spotArticles[slug];
 	const np = path.join(PAGES_DIR, slug + '.json');
-	if (!bp || !fs.existsSync(np)) {
-		console.log(`✗ ${slug}: missing ${!bp ? 'baseline' : 'new page json'}`);
+	if (baseArticle === undefined || !fs.existsSync(np)) {
+		console.log(`✗ ${slug}: missing ${baseArticle === undefined ? 'baseline' : 'new page json'}`);
 		failures++;
 		continue;
 	}
-	const oldHtml = stripQuartzChrome(extractArticle(fs.readFileSync(bp, 'utf8')));
+	const oldHtml = baseArticle;
 	const newHtml = stripNewChrome(JSON.parse(fs.readFileSync(np, 'utf8')).html as string);
 
 	const co = counts(oldHtml);
