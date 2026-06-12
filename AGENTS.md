@@ -1,8 +1,9 @@
 # AGENTS.md
 
-Course notes for UW–Madison classes, compiled by a CS student. Quartz site;
-each course is its own repo, submoduled at `content/<semester>-<course>`.
-Commit in the submodule, then bump the pointer here.
+Course notes for UW–Madison classes, compiled by a CS student. SvelteKit site
+(in `site/`); each course is its own repo, submoduled at
+`content/<semester>-<course>`. Commit in the submodule, then bump the pointer
+here.
 
 ## Your job
 
@@ -53,7 +54,7 @@ datasets, sprites).
 ## Rules
 
 - One course per agent.
-- `npx quartz build` must pass before committing.
+- `cd site && bun run build:all` must pass before committing.
 - Don't touch `.python-version`, course `pyproject.toml`s, or run uv package
   commands inside course dirs — several courses are uv workspace members and
   share the root lockfile.

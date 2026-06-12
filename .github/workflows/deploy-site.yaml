@@ -1,42 +1,55 @@
 # =============================================================================
-# DRAFT / INACTIVE — SvelteKit site (site/) → Cloudflare Workers static assets.
+# SvelteKit site (site/) → Cloudflare Workers static assets.
 #
-# This runs ALONGSIDE the existing `build-and-deploy.yaml` (GitHub Pages /
-# Quartz, the parity baseline) and does NOT replace it. The Quartz site stays
-# the production deploy until cutover.
+# This is now the SINGLE deploy/CI workflow for the repo. Quartz has been
+# decommissioned: the old `build-and-deploy.yaml` (GitHub Pages / Quartz) is
+# gone, and the repo-root `public/` it built no longer exists. The parity and
+# anchor gates run against the frozen Quartz snapshot in `site/baseline/`.
 #
-# ACTIVATION CHECKLIST (the deploy step is gated off until all are done):
+# >>> MERGING THIS BRANCH INTO v4 ENDS GITHUB PAGES UPDATES. <<<
+# The GH Pages deploy no longer runs, so https://wisconsin.twango.dev (still
+# DNS-pointed at GitHub Pages) freezes at its last Pages build until the DNS
+# cutover. This workflow BUILDS + VERIFIES on every push/PR but does NOT deploy
+# anywhere yet (the deploy job is gated off — see below).
+#
+# DNS / CUTOVER CHECKLIST: see `site/ARCHITECTURE.md` (§6 Phase 5 + the
+# "As built" / trailing-slash notes). The GH-Pages trailing-slash behavior
+# described there remains true for the live site until DNS is repointed.
+#
+# DEPLOY ACTIVATION CHECKLIST (the deploy step is gated off until all are done):
 #   1. Add repo secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
 #      (Workers Scripts:Edit + Workers Assets, or the "Edit Workers" template).
 #   2. Confirm `secrets.PAT_TOKEN` still has read on all 16 content submodules
-#      (it is the same token the Pages workflow already uses).
-#   3. Flip RUN_DEPLOY below to 'true' (and/or enable the `push` trigger).
-# Until then this workflow only builds on manual dispatch and uploads the build
-# as an artifact — it never touches Cloudflare.
+#      (the same token the build/checkout below already uses).
+#   3. Flip RUN_DEPLOY below to 'true'.
+# Until then deploy is a no-op; build+verify still runs and uploads an artifact.
 # =============================================================================
-name: Deploy Site (SvelteKit → Cloudflare) [DRAFT]
+name: Build & Deploy Site (SvelteKit → Cloudflare)
 
 on:
-  # Manual only while in draft. Add `push: { branches: [svelte] }` at cutover.
+  push:
+    branches: [v4]
+  pull_request:
   workflow_dispatch:
     inputs:
       deploy:
-        description: "Deploy to Cloudflare (requires CLOUDFLARE_* secrets)"
+        description: "Deploy to Cloudflare (requires CLOUDFLARE_* secrets + RUN_DEPLOY=true)"
         type: boolean
         default: false
 
 concurrency:
-  group: deploy-site
+  group: deploy-site-${{ github.ref }}
   cancel-in-progress: false
 
 env:
-  # Master switch. Keep 'false' until the activation checklist above is done.
+  # Master deploy switch. Keep 'false' until the activation checklist above is
+  # done. Build + verify always run regardless of this flag.
   RUN_DEPLOY: "false"
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    name: Build & (optionally) Deploy SvelteKit site
+    name: Build, verify & (optionally) deploy SvelteKit site
     defaults:
       run:
         working-directory: site
@@ -73,17 +86,23 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build content (prebuild)
-        run: bun run build:content
+      # build:all = build:content (prebuild) → build (vite + strict prerender
+      # crawl: broken-link/anchor gates against site/baseline/) → build:search
+      # (Pagefind). prepare-static runs inside `build` and cross-checks broken
+      # anchors against the frozen baseline.
+      - name: Build (content + vite/prerender + search)
+        run: bun run build:all
 
       - name: Type & style check
         run: bun run check
 
-      - name: Build (vite + prerender, strict broken-link/anchor crawl)
-        run: bun run build
+      - name: Unit tests (slug + pagefind-url)
+        run: bun test scripts
 
-      - name: Search index (Pagefind)
-        run: bun run build:search
+      # Golden-diff parity gate against the frozen Quartz baseline
+      # (site/baseline/). Fails the build on any unexplained slug/link diff.
+      - name: Parity gate (vs frozen Quartz baseline)
+        run: bun scripts/parity.ts
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -94,11 +113,12 @@ jobs:
           retention-days: 7
 
       # ----------------------------------------------------------------------
-      # Deploy — gated. Runs only when RUN_DEPLOY=='true' AND the manual
-      # `deploy` input is true. Requires CLOUDFLARE_API_TOKEN + ACCOUNT_ID.
+      # Deploy — gated. Runs only when RUN_DEPLOY=='true'. On manual dispatch it
+      # additionally requires the `deploy` input. Requires CLOUDFLARE_API_TOKEN
+      # + CLOUDFLARE_ACCOUNT_ID. Inactive until the activation checklist is done.
       # ----------------------------------------------------------------------
       - name: Deploy to Cloudflare Workers
-        if: ${{ env.RUN_DEPLOY == 'true' && inputs.deploy }}
+        if: ${{ env.RUN_DEPLOY == 'true' && (github.event_name != 'workflow_dispatch' || inputs.deploy) }}
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
