@@ -1,5 +1,34 @@
 import { expect, test } from '@playwright/test';
 
+test('outline follow eases toward its target without repeated jumps', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 600 });
+	await page.emulateMedia({ reducedMotion: 'no-preference' });
+	await page.goto('/');
+	await page.locator('.doc-toc').getByRole('button', { name: 'Expand all', exact: true }).click();
+	// Let the manual expansion finish before sampling the independent follow motion.
+	await page.waitForTimeout(300);
+	const positions = await page.evaluate(async () => {
+		const viewport = document.querySelector<HTMLElement>('.doc-toc')!;
+		const heading = document.getElementById('deployment')!;
+		window.scrollTo({
+			top: window.scrollY + heading.getBoundingClientRect().top - 100,
+			behavior: 'instant'
+		});
+		const positions: number[] = [];
+		const start = performance.now();
+		while (performance.now() - start < 1200) {
+			await new Promise(requestAnimationFrame);
+			positions.push(viewport.scrollTop);
+		}
+		return positions;
+	});
+	expect(new Set(positions.map(Math.round)).size).toBeGreaterThan(4);
+	for (let i = 1; i < positions.length; i++)
+		expect(positions[i]).toBeGreaterThanOrEqual(positions[i - 1] - 1);
+	expect(positions.at(-1)).toBeGreaterThan(0);
+	expect(Math.abs(positions.at(-1)! - positions.at(-5)!)).toBeLessThan(1);
+});
+
 test('active outline row follows reading within its own scroll viewport', async ({ page }) => {
 	await page.setViewportSize({ width: 1440, height: 600 });
 	await page.goto('/');

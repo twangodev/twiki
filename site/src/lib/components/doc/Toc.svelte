@@ -62,17 +62,33 @@
 			{ y: box.top - list.getBoundingClientRect().top, height: box.height },
 			{ instant: prefersReducedMotion.current }
 		);
-		// Scroll only the desktop outline, never the article or compact page tools.
-		// Re-measuring during branch slides keeps the active row inside the viewport.
-		const viewport = list.closest<HTMLElement>('.doc-toc');
+	}
+	function followActive() {
+		const viewport = list?.closest<HTMLElement>('.doc-toc');
+		const link = Array.from(
+			list?.querySelectorAll<HTMLAnchorElement>('a[aria-current="location"]') ?? []
+		).find((link) => link.getAttribute('href') === `#${encodeURIComponent(active)}`);
+		if (!link?.getClientRects().length) return;
 		if (viewport && viewport.clientHeight < viewport.scrollHeight) {
+			const box = link.getBoundingClientRect();
 			const bounds = viewport.getBoundingClientRect();
 			const headerHeight =
 				viewport.querySelector('.toc-header')?.getBoundingClientRect().height ?? 0;
 			const top = bounds.top + headerHeight + 24;
 			const bottom = bounds.bottom - 12;
-			if (box.top < top) viewport.scrollTop += box.top - top;
-			else if (box.bottom > bottom) viewport.scrollTop += box.bottom - bottom;
+			// Leave room for nearby headings instead of riding the viewport edge.
+			const cushion = Math.min(48, Math.max(0, (bottom - top - box.height) / 4));
+			const delta =
+				box.top < top
+					? box.top - top - cushion
+					: box.bottom > bottom
+						? box.bottom - bottom + cushion
+						: 0;
+			if (Math.abs(delta) > 1)
+				viewport.scrollTo({
+					top: viewport.scrollTop + delta,
+					behavior: prefersReducedMotion.current ? 'instant' : 'smooth'
+				});
 		}
 	}
 	$effect(() => {
@@ -113,13 +129,22 @@
 		overrides;
 		focused;
 		if (!list) return;
-		const frame = requestAnimationFrame(measureMarker);
-		const observer = new ResizeObserver(measureMarker);
+		let followTimer: ReturnType<typeof setTimeout>;
+		function measure() {
+			measureMarker();
+			// Branch slides resize on every frame. Follow once they settle, rather
+			// than repeatedly restarting a scroll against a moving target.
+			clearTimeout(followTimer);
+			followTimer = setTimeout(followActive, prefersReducedMotion.current ? 0 : 80);
+		}
+		const frame = requestAnimationFrame(measure);
+		const observer = new ResizeObserver(measure);
 		observer.observe(list);
 		const viewport = list.closest('.doc-toc');
 		if (viewport) observer.observe(viewport);
 		return () => {
 			cancelAnimationFrame(frame);
+			clearTimeout(followTimer);
 			observer.disconnect();
 		};
 	});
