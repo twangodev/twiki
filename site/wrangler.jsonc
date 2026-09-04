@@ -18,6 +18,13 @@
 		// Access still authenticates requests before they reach this Worker.
 		"run_worker_first": false
 	},
-	"workers_dev": true,
-	"preview_urls": true
+	// Serve only the custom hostname; configure Cloudflare Access before deploying.
+	"workers_dev": false,
+	"preview_urls": false,
+	"routes": [
+		{
+			"pattern": "wisconsin.twango.dev",
+			"custom_domain": true
+		}
+	]
 }
