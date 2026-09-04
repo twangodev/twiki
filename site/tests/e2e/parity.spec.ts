@@ -46,9 +46,16 @@ test('graph survives the Quartz interaction sequence without browser errors', as
 		);
 	});
 	expect(graphPrecedesToc).toBe(true);
+	const backlinks = page.locator('main [data-island="backlinks"]');
+	await expect(backlinks.getByRole('heading', { name: 'Linked to this page' })).toBeVisible();
+	await expect(page.locator('.doc-sidebar-right [data-island="backlinks"]')).toHaveCount(0);
 
 	const localCanvas = page.locator('[aria-label="Graph view"] canvas');
 	await expect(localCanvas).toBeVisible();
+	const graphView = graph.getByRole('img', { name: 'Knowledge graph' });
+	await expect(graphView).toHaveAttribute('data-graph-ready', 'true');
+	expect(Number(await graphView.getAttribute('data-graph-nodes'))).toBeGreaterThan(1);
+	expect(Number(await graphView.getAttribute('data-graph-links'))).toBeGreaterThan(0);
 	const box = await localCanvas.boundingBox();
 	expect(box?.width ?? 0).toBeGreaterThanOrEqual(313);
 
