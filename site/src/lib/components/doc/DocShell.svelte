@@ -14,6 +14,7 @@
 	import Sidebar from './Sidebar.svelte';
 	import Toc from './Toc.svelte';
 	import { readerMode } from './reader-mode.svelte';
+	import { createHeadingTracker } from './heading-tracker.svelte';
 
 	interface Props {
 		nav: NavNode[];
@@ -26,6 +27,7 @@
 	type RailPageData = { kind?: string };
 	const railPageData = $derived(page.data as RailPageData);
 	const showContentRail = $derived(railPageData.kind === 'page');
+	const heading = createHeadingTracker(() => page.data.toc ?? []);
 
 	afterNavigate(() => {
 		mobileNavOpen = false;
@@ -90,18 +92,16 @@
 
 	{#if !readerMode.enabled && showContentRail}
 		<aside class="doc-sidebar-right" aria-label="Page tools">
-			{#if showContentRail}
-				<div class="doc-sidebar-right-inner">
-					<GraphPanel />
-					{#if (page.data.toc?.length ?? 0) > 0}
-						<details class="doc-compact-outline">
-							<summary class="cursor-pointer text-sm text-muted">On this page</summary>
-							<Toc />
-						</details>
-					{/if}
-					<div class="doc-toc"><Toc /></div>
-				</div>
-			{/if}
+			<div class="doc-sidebar-right-inner">
+				<GraphPanel />
+				{#if (page.data.toc?.length ?? 0) > 0}
+					<details class="doc-compact-outline">
+						<summary class="cursor-pointer text-sm text-muted">On this page</summary>
+						<Toc active={heading.active} />
+					</details>
+				{/if}
+				<div class="doc-toc"><Toc active={heading.active} /></div>
+			</div>
 		</aside>
 	{/if}
 </div>

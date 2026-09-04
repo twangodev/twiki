@@ -7,6 +7,7 @@
 	import type { TocEntry } from '$lib/types';
 
 	const uid = $props.id();
+	const { active }: { active: string } = $props();
 	const items = $derived((page.data.toc as TocEntry[] | undefined) ?? []);
 	type Node = TocEntry & { children: Node[]; ancestors: string[] };
 	const tree = $derived.by(() => {
@@ -31,7 +32,6 @@
 		visit(tree);
 		return result;
 	});
-	let active = $state('');
 	let focused = $state('');
 	let overrides = $state<Record<string, boolean>>({});
 	let expandAll = $state(false);
@@ -92,36 +92,12 @@
 		}
 	}
 	$effect(() => {
-		const entries = items;
+		items;
 		untrack(() => {
 			overrides = {};
 			expandAll = false;
 			focused = '';
 		});
-		const headings = entries
-			.map((item) => document.getElementById(item.id))
-			.filter((el) => el !== null);
-		let frame = 0;
-		function update() {
-			frame = 0;
-			let current = headings[0]?.id ?? '';
-			for (const heading of headings) {
-				if (heading.getBoundingClientRect().top > 120) break;
-				current = heading.id;
-			}
-			active = current;
-		}
-		function schedule() {
-			if (!frame) frame = requestAnimationFrame(update);
-		}
-		update();
-		window.addEventListener('scroll', schedule, { passive: true });
-		window.addEventListener('resize', schedule);
-		return () => {
-			cancelAnimationFrame(frame);
-			window.removeEventListener('scroll', schedule);
-			window.removeEventListener('resize', schedule);
-		};
 	});
 	$effect(() => {
 		active;

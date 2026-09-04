@@ -1,5 +1,28 @@
 import { expect, test } from '@playwright/test';
 
+test('responsive outlines share one heading measurement pass', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 600 });
+	await page.goto('/');
+	await expect(page.locator('.doc-toc a[aria-current="location"]')).toHaveCount(1);
+	const reads = await page.evaluate(async () => {
+		await new Promise(requestAnimationFrame);
+		const counts: number[] = [];
+		const headings = document.querySelectorAll<HTMLElement>('article :is(h1,h2,h3,h4,h5,h6)[id]');
+		for (const [index, heading] of [...headings].entries()) {
+			counts[index] = 0;
+			const measure = heading.getBoundingClientRect.bind(heading);
+			heading.getBoundingClientRect = () => {
+				counts[index]++;
+				return measure();
+			};
+		}
+		window.dispatchEvent(new Event('scroll'));
+		await new Promise(requestAnimationFrame);
+		return counts;
+	});
+	expect(Math.max(...reads)).toBe(1);
+});
+
 test('outline follows with one smooth scroll and reaches its target', async ({ page }) => {
 	await page.setViewportSize({ width: 1440, height: 600 });
 	await page.emulateMedia({ reducedMotion: 'no-preference' });
