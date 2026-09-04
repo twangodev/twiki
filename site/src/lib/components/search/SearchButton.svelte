@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Search } from '@lucide/svelte';
+	import { Command, Search } from '@lucide/svelte';
 	import type { ClassValue } from 'svelte/elements';
 	import { cn } from '$lib/utils';
 	import { openSearch } from './search-state.svelte';
@@ -13,9 +13,9 @@
 	const { variant = 'sidebar', class: className }: Props = $props();
 
 	// Resolved after mount so SSR output is deterministic (no hydration mismatch).
-	let shortcut = $state('Ctrl K');
+	let isMac = $state(false);
 	onMount(() => {
-		if (/Mac|iP(hone|ad|od)/.test(navigator.platform)) shortcut = '⌘K';
+		isMac = /Mac|iP(hone|ad|od)/.test(navigator.platform);
 	});
 </script>
 
@@ -46,7 +46,11 @@
 		<kbd
 			class="ml-auto rounded border border-border px-1.5 py-0.5 font-sans text-[0.65rem] text-text/60"
 		>
-			{shortcut}
+			<span class="sr-only">{isMac ? 'Command K' : 'Ctrl K'}</span>
+			<span class="flex items-center gap-0.5" aria-hidden="true">
+				{#if isMac}<Command class="size-3" />{:else}Ctrl{/if}
+				<span>K</span>
+			</span>
 		</kbd>
 	</button>
 {/if}
