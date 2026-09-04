@@ -12,6 +12,7 @@
 		type GraphData
 	} from './graph-data';
 	import GraphView from './GraphView.svelte';
+	import IconButton from '../ui/IconButton.svelte';
 
 	let data = $state<GraphData | null>(null);
 	let failed = $state(false);
@@ -172,16 +173,15 @@
 					>
 				</div>
 			{/if}
-			<button
-				type="button"
-				class="graph-expand absolute top-1 right-1 inline-flex size-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface hover:text-text focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+			<IconButton
+				class="graph-expand absolute top-1 right-1 size-6 rounded"
 				aria-label={expanded ? 'Close' : 'Expand graph'}
 				title={expanded ? 'Close graph (Escape)' : 'Expand graph'}
 				disabled={!data || closing}
 				onclick={() => (expanded ? closeGraph() : openGraph())}
 			>
 				{#if expanded}<X size={16} />{:else}<Maximize2 size={14} />{/if}
-			</button>
+			</IconButton>
 		</dialog>
 	</div>
 </section>

@@ -6,6 +6,7 @@
 	import type { NavNode } from '$lib/types';
 	import { site } from '$lib/config';
 	import { ThemeToggle } from '$lib/components/ui';
+	import IconButton from '../ui/IconButton.svelte';
 	import { SearchButton, SearchPalette } from '$lib/components/search';
 	import GraphPanel from '$lib/components/graph/GraphPanel.svelte';
 	import DocPager from './DocPager.svelte';
@@ -41,15 +42,14 @@
 	<header
 		class="doc-mobile-header sticky top-0 z-30 items-center gap-3 border-b border-border bg-bg px-4 py-2"
 	>
-		<button
-			class="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent text-text transition-colors hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
-			type="button"
+		<IconButton
+			class="size-8 rounded-md border border-border bg-transparent text-text"
 			aria-label="Toggle navigation"
 			aria-expanded={mobileNavOpen}
 			onclick={() => (mobileNavOpen = !mobileNavOpen)}
 		>
 			<Menu class="size-5" />
-		</button>
+		</IconButton>
 		<a class="font-bold text-text no-underline" href="/">{site.name}</a>
 		<div class="ml-auto flex items-center gap-1">
 			<SearchButton variant="icon" class="size-8" />

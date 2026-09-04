@@ -3,6 +3,7 @@
 	import { Command, Search } from '@lucide/svelte';
 	import type { ClassValue } from 'svelte/elements';
 	import { cn } from '$lib/utils';
+	import IconButton from '../ui/IconButton.svelte';
 	import { openSearch } from './search-state.svelte';
 
 	interface Props {
@@ -20,18 +21,14 @@
 </script>
 
 {#if variant === 'icon'}
-	<button
-		type="button"
+	<IconButton
 		aria-label="Search"
 		title="Search"
-		class={cn(
-			'inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent text-text transition-colors hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
-			className
-		)}
+		class={cn('size-8 rounded-md border border-border bg-transparent text-text', className)}
 		onclick={openSearch}
 	>
 		<Search class="size-4" />
-	</button>
+	</IconButton>
 {:else}
 	<button
 		type="button"
