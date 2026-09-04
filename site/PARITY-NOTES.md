@@ -91,6 +91,8 @@ mystery-fossil-RED.html`) so Workers `html_handling` serves the extensionless li
   while the same Pixi/D3/Tween stack loads concurrently; the stable WebGL backend and
   immediate first frame prevent a blank preview. Global graph is 80vw × 80vh.
 - Backlinks retain the Svelte card treatment below the article instead of moving into the rail.
+- The capped desktop shell is left-anchored so its navigation sidebar stays flush with the
+  viewport edge on screens wider than 1620px; reader mode remains centered.
 - Search retains `/` and ⌘K, adds Quartz-style `#tag` shorthand, and indexes distinct course
   and tag filters instead of a malformed composite value.
 - Mermaid now has copy, fullscreen, pan, zoom, reset, Escape, and backdrop-close behavior.

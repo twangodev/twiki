@@ -31,7 +31,7 @@
 	});
 </script>
 
-<div class={['doc-shell mx-auto min-h-screen', readerMode.enabled && 'doc-shell-reader']}>
+<div class={['doc-shell min-h-screen', readerMode.enabled && 'doc-shell-reader']}>
 	<header
 		class="doc-mobile-header sticky top-0 z-30 hidden items-center gap-3 border-b border-border bg-bg px-4 py-2 max-[800px]:flex"
 	>

@@ -143,6 +143,8 @@ pre {
 	display: grid;
 	width: 100%;
 	max-width: 101.25rem;
+	margin-right: auto;
+	margin-left: 0;
 	grid-template-columns: 23.75rem minmax(0, 1fr) 23.75rem;
 	grid-template-areas: 'left main right';
 	column-gap: 5px;
@@ -185,6 +187,8 @@ pre {
 
 .doc-shell-reader {
 	max-width: 90rem;
+	margin-right: auto;
+	margin-left: auto;
 	grid-template-columns: minmax(0, 1fr);
 	grid-template-areas: 'main';
 }
