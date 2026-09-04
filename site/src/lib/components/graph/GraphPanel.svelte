@@ -85,9 +85,8 @@
 	Open global graph
 </button>
 <section class="graph-panel min-w-0 shrink-0" aria-label="Graph view">
-	<h3 class="m-0 text-base font-semibold text-text">Graph View</h3>
 	<div
-		class="relative mt-2 h-[250px] overflow-hidden"
+		class="relative h-[250px] overflow-hidden"
 		data-graph-outer
 		aria-busy={!failed && (!data || (Boolean(currentId) && !renderReady))}
 	>
@@ -121,6 +120,11 @@
 			</div>
 		{/if}
 
+		<h3
+			class="pointer-events-none absolute top-1 left-1 m-0 rounded bg-bg/80 px-1.5 py-1 text-xs font-medium text-muted"
+		>
+			Graph View
+		</h3>
 		<button
 			type="button"
 			class="absolute top-1 right-1 inline-flex size-6 cursor-pointer items-center justify-center rounded text-muted transition-colors hover:bg-surface hover:text-text focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none disabled:cursor-wait"
