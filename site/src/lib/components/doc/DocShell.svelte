@@ -31,7 +31,13 @@
 	});
 </script>
 
-<div class={['doc-shell min-h-screen', !showContentRail && 'doc-shell-listing', readerMode.enabled && 'doc-shell-reader']}>
+<div
+	class={[
+		'doc-shell min-h-screen',
+		!showContentRail && 'doc-shell-listing',
+		readerMode.enabled && 'doc-shell-reader'
+	]}
+>
 	<header
 		class="doc-mobile-header sticky top-0 z-30 items-center gap-3 border-b border-border bg-bg px-4 py-2"
 	>
@@ -46,18 +52,13 @@
 		</button>
 		<a class="font-bold text-text no-underline" href="/">{site.name}</a>
 		<div class="ml-auto flex items-center gap-1">
-			<SearchButton variant="icon" class="size-8" /><SearchPalette />
+			<SearchButton variant="icon" class="size-8" />
 			<ReaderModeToggle class="size-8" />
 			<ThemeToggle class="size-8" />
 		</div>
 	</header>
 
-	<aside
-		class={[
-			'doc-sidebar-left border-r border-border bg-bg',
-			mobileNavOpen && 'doc-nav-open'
-		]}
-	>
+	<aside class={['doc-sidebar-left border-r border-border bg-bg', mobileNavOpen && 'doc-nav-open']}>
 		<Sidebar {nav} />
 	</aside>
 
@@ -92,9 +93,16 @@
 			{#if showContentRail}
 				<div class="doc-sidebar-right-inner">
 					<GraphPanel />
+					{#if (page.data.toc?.length ?? 0) > 0}
+						<details class="doc-compact-outline">
+							<summary class="cursor-pointer text-sm text-muted">On this page</summary>
+							<Toc />
+						</details>
+					{/if}
 					<div class="doc-toc"><Toc /></div>
 				</div>
 			{/if}
 		</aside>
 	{/if}
 </div>
+<SearchPalette />

@@ -4,6 +4,7 @@
 	import { ThemeToggle } from '$lib/components/ui';
 	import NavTree from './NavTree.svelte';
 	import ReaderModeToggle from './ReaderModeToggle.svelte';
+	import { SearchButton } from '$lib/components/search';
 
 	interface Props {
 		nav: NavNode[];
@@ -12,12 +13,13 @@
 	const { nav }: Props = $props();
 </script>
 
-<div class="doc-sidebar-content flex h-full flex-col gap-4 overflow-y-auto px-4 py-5">
+<div class="doc-sidebar-content flex h-full flex-col gap-3 overflow-y-auto">
 	<a
 		class="text-[1.05rem] font-bold tracking-[-0.01em] text-[color:var(--color-fg,#111827)] no-underline"
 		href="/">{site.name}</a
 	>
-	<nav class="flex-1" aria-label="Documentation">
+	<SearchButton />
+	<nav class="min-h-0 flex-1 overflow-y-auto" aria-label="Documentation">
 		<NavTree nodes={nav} />
 	</nav>
 	<div

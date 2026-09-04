@@ -240,6 +240,14 @@ State at the end of Phase 5 (integration + verification). The full chain is gree
 `bun run build:all`.
 
 ### Build status
+
+Current shell geometry (compact UI audit): 352px desktop rails at widths >=1440px,
+288px navigation with inline page tools at 1024–1439px, and a navigation drawer
+below 1024px. The content rail is omitted on listings; smaller screens use the
+existing global graph dialog and a collapsible TOC above the article. Global CSS
+owns shell padding and breakpoints; document chrome uses a separate metadata
+class to avoid inheriting prose margins.
+
 - **`bun run check`**: 0 errors, 0 warnings (4769 files).
 - **`bun test scripts`**: 37 pass / 0 fail (slug, Pagefind query/URL, graph config/model tests).
 - **Prebuild**: 641 pages, 454 assets (176.6 MiB), 167 tags, 268 folders, 1990

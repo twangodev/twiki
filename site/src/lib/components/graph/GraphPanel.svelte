@@ -32,8 +32,13 @@
 	let failed = $state(false);
 	let renderReady = $state(false);
 	let globalOpen = $state(false);
+	let wide = $state(false);
 
 	onMount(() => {
+		const media = window.matchMedia('(width >= 1440px)');
+		const updateWidth = () => (wide = media.matches);
+		updateWidth();
+		media.addEventListener('change', updateWidth);
 		let cancelled = false;
 		void Promise.all([loadGraph(), import('./render-graph')]).then(
 			([graph]) => {
@@ -45,6 +50,7 @@
 		);
 		return () => {
 			cancelled = true;
+			media.removeEventListener('change', updateWidth);
 		};
 	});
 
@@ -70,10 +76,18 @@
 
 <svelte:window onkeydown={onKeydown} />
 
+<button
+	type="button"
+	class="doc-compact-graph cursor-pointer rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface disabled:opacity-50"
+	disabled={!data}
+	onclick={() => (globalOpen = true)}
+>
+	Open global graph
+</button>
 <section class="graph-panel min-w-0 shrink-0" aria-label="Graph view">
 	<h3 class="m-0 text-base font-semibold text-text">Graph View</h3>
 	<div
-		class="relative mt-2 h-[250px] overflow-hidden rounded-[5px] border border-border"
+		class="relative mt-2 h-[250px] overflow-hidden"
 		data-graph-outer
 		aria-busy={!failed && (!data || (Boolean(currentId) && !renderReady))}
 	>
@@ -81,7 +95,7 @@
 			<p class="flex h-full items-center justify-center px-4 text-center text-xs text-muted">
 				Graph unavailable.
 			</p>
-		{:else if data && currentId}
+		{:else if data && currentId && wide}
 			<GraphView
 				{data}
 				{currentId}

@@ -84,6 +84,20 @@ mystery-fossil-RED.html`) so Workers `html_handling` serves the extensionless li
 
 ## Quartz experience audit closure (2026-09-04)
 
+### Compact UI follow-up
+
+The spacing audit supersedes the original rail geometry below: desktop rails are
+352px with 16px inner gutters, and the article starts 32px from the top. Three
+columns require 1440px; below that, graph access and a collapsible outline sit
+above the article. Navigation becomes a drawer below 1024px. All shell breakpoints
+are owned by layout.css, including exact boundary widths. Listing pages omit the
+empty right column. The local graph keeps its 250px height and centered current
+node, with its rectangular frame removed and placement at the top right.
+
+Document titles precede metadata, original heading ids remain intact, and
+paragraph/section spacing is reduced. Desktop navigation includes visible search.
+Backlink cards retain their appearance with tighter spacing around the section.
+
 - Heading-anchor click icons restored without changing the frozen heading ids.
 - Local graph restored to the repository's Quartz depth 2, exact traversal/link ordering,
   and 380px rail geometry above the TOC. The current page is anchored at the canvas center

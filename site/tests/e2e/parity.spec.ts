@@ -75,25 +75,54 @@ test('graph survives the Quartz interaction sequence without browser errors', as
 	const link = page.locator('article a.internal[href="/sp26-cs544/lectures/lecture-01"]').first();
 	await link.hover();
 	await expect(page.locator('.popover.active-popover')).toBeVisible();
-	await page.getByRole('button', { name: 'Toggle dark mode' }).first().click();
+	await page
+		.getByRole('button', { name: 'Toggle dark mode' })
+		.filter({ visible: true })
+		.first()
+		.click();
 	await link.click();
 	await page.waitForURL('**/sp26-cs544/lectures/lecture-01');
 	await page.waitForTimeout(500);
 	expect(errors).toEqual([]);
 });
 
-test('graph rail follows content at the Quartz tablet breakpoint', async ({ page }) => {
+test('compact page tools stay above the article and open the graph', async ({ page }) => {
 	await page.setViewportSize({ width: 1000, height: 800 });
 	await page.goto('/sp26-cs544/README');
 
 	const main = page.locator('main.doc-main');
 	const graph = page.getByRole('region', { name: 'Graph view' });
-	await expect(graph).toBeVisible();
+	await expect(graph).toBeHidden();
 	await expect(page.getByRole('navigation', { name: 'On this page' })).toBeHidden();
 
 	const mainBox = await main.boundingBox();
-	const graphBox = await graph.boundingBox();
-	expect(graphBox?.y ?? 0).toBeGreaterThanOrEqual((mainBox?.y ?? 0) + (mainBox?.height ?? 0) - 1);
+	const toolsBox = await page.locator('.doc-sidebar-right').boundingBox();
+	expect(toolsBox!.y + toolsBox!.height).toBeLessThanOrEqual(mainBox!.y);
+	await page.getByRole('button', { name: 'Open global graph' }).click();
+	await expect(page.locator('[role="dialog"] canvas')).toBeVisible();
+	await page.getByRole('button', { name: 'Close', exact: true }).click();
+	await page.locator('.doc-compact-outline summary').click();
+	await expect(page.getByRole('navigation', { name: 'On this page' })).toBeVisible();
+});
+
+test('breakpoint boundaries preserve reading width and usable navigation', async ({ page }) => {
+	for (const width of [799, 800, 801, 1023, 1024, 1199, 1200, 1439, 1440]) {
+		await page.setViewportSize({ width, height: 900 });
+		await page.goto('/sp26-cs544/README');
+		const article = await page.locator('article').boundingBox();
+		expect(article!.width).toBeGreaterThanOrEqual(650);
+		if (width < 1024) {
+			const toggle = page.getByRole('button', { name: 'Toggle navigation' });
+			await toggle.click();
+			await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+			await expect(page.getByRole('navigation', { name: 'Documentation' })).toBeInViewport();
+			await page.getByRole('button', { name: 'Close navigation', exact: true }).click();
+		}
+	}
+	await page.goto('/tags');
+	await expect(page.locator('.doc-sidebar-right')).toHaveCount(0);
+	await page.goto('/sp26-cs544');
+	await expect(page.locator('.doc-sidebar-right')).toHaveCount(0);
 });
 
 test('desktop rails stay pinned to both viewport edges on wide screens', async ({ page }) => {

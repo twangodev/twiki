@@ -16,7 +16,9 @@
 
 	const canonical = $derived(data.route === '' ? '/' : `/${data.route}`);
 	// Split only a leading H1, retaining its original markup and deep-link id.
-	const heading = $derived(data.kind === 'page' ? data.page.html.match(/^\s*<h1\b[^>]*>[\s\S]*?<\/h1>/i)?.[0] ?? '' : '');
+	const heading = $derived(
+		data.kind === 'page' ? (data.page.html.match(/^\s*<h1\b[^>]*>[\s\S]*?<\/h1>/i)?.[0] ?? '') : ''
+	);
 	const body = $derived(data.kind === 'page' ? data.page.html.slice(heading.length) : '');
 
 	// Pagefind permits only the final comma-separated filter to use inline
