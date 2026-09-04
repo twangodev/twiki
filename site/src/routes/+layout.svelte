@@ -21,7 +21,7 @@
 	// Subtle crossfade between pages via the View Transitions API
 	// (https://svelte.dev/blog/view-transitions). Progressive enhancement:
 	// no-ops in browsers without document.startViewTransition, and skipped
-	// for users who prefer reduced motion. Duration is tuned in layout.css.
+	// for users who prefer reduced motion. Duration is tuned in foundation.css.
 	onNavigate((navigation) => {
 		if (!document.startViewTransition) return;
 		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;

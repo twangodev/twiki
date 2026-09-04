@@ -1,0 +1,138 @@
+/* ---------------------------------------------------------------------------
+   Fonts — same set as twango.dev / cca (Overused Grotesk, JetBrains Mono, Virgil)
+--------------------------------------------------------------------------- */
+@font-face {
+	font-family: 'Overused Grotesk';
+	src: url('/fonts/OverusedGrotesk-VF.woff2') format('woff2');
+	font-weight: 300 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Overused Grotesk';
+	src: url('/fonts/OverusedGroteskItalic-VF.woff2') format('woff2');
+	font-weight: 400;
+	font-style: italic;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'JetBrains Mono';
+	src: url('/fonts/JetBrainsMono-VF.woff2') format('woff2');
+	font-weight: 100 800;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'JetBrains Mono';
+	src: url('/fonts/JetBrainsMono-Italic-VF.woff2') format('woff2');
+	font-weight: 100 800;
+	font-style: italic;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Virgil';
+	src: url('/fonts/Virgil.woff2') format('woff2');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+/* ---------------------------------------------------------------------------
+   Design tokens — cca's warm-paper palette, wisconsin's red accent
+--------------------------------------------------------------------------- */
+@theme {
+	--font-hand: 'Virgil', cursive;
+	--font-sans: 'Overused Grotesk', system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+	--color-bg: #f8f6f1;
+	--color-surface: #efede7;
+	--color-text: #1a1916;
+	--color-muted: #8a8578;
+	--color-subtle: #e2dfd8;
+	--color-accent: #d35545;
+	--color-accent-soft: #f7e4e1;
+
+	--color-border: var(--color-subtle);
+}
+
+@theme static {
+	--breakpoint-rail: 1440px;
+}
+
+:root {
+	--graph-preview-height: 250px;
+}
+
+:root.dark {
+	--color-bg: #1a1916;
+	--color-surface: #23221e;
+	--color-text: #e8e5df;
+	--color-muted: #7a7568;
+	--color-subtle: #2e2d28;
+	--color-accent: #e68578;
+	--color-accent-soft: #3f1f1b;
+}
+
+html,
+body {
+	background-color: var(--color-bg);
+	color: var(--color-text);
+	font-family: var(--font-sans);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbars — thin, theme-aware, unobtrusive (site-wide)
+--------------------------------------------------------------------------- */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-subtle) transparent;
+}
+*::-webkit-scrollbar {
+	width: 0.625rem;
+	height: 0.625rem;
+}
+*::-webkit-scrollbar-track {
+	background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+	border: 3px solid transparent;
+	border-radius: 9999px;
+	background-color: var(--color-subtle);
+	background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+	background-color: var(--color-muted);
+}
+
+code,
+kbd,
+samp,
+pre {
+	font-family: var(--font-mono);
+}
+
+/* ---------------------------------------------------------------------------
+   View transitions: subtle, quick crossfade between pages (onNavigate +
+   document.startViewTransition in +layout.svelte). Reduced motion is already
+   guarded in JS; the media query here is belt-and-braces.
+--------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: no-preference) {
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation-duration: 120ms;
+		animation-timing-function: ease;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation: none;
+	}
+}

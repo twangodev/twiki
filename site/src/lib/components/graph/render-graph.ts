@@ -181,7 +181,10 @@ export async function renderGraph(
 	}
 
 	let width = graph.offsetWidth;
-	let height = Math.max(graph.offsetHeight, 250);
+	const previewHeight = Number.parseFloat(
+		getComputedStyle(graph).getPropertyValue('--graph-preview-height')
+	);
+	let height = Math.max(graph.offsetHeight, previewHeight || 1);
 
 	// we virtualize the simulation and use pixi to actually render it
 	const simulation: Simulation<NodeData, LinkData> = forceSimulation<NodeData>(graphData.nodes)

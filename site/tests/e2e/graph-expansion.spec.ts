@@ -63,3 +63,18 @@ test('fullscreen graph switches scope and resizes without losing its canvas', as
 	await expect(fullscreen).toHaveCount(0);
 	await expect(page.locator('html')).not.toHaveCSS('overflow', 'hidden');
 });
+test('graph and outline share the preview height token', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await page.goto('/sp26-cs544/README');
+	await expect(page.getByRole('img', { name: 'Knowledge graph' })).toHaveAttribute(
+		'data-graph-ready',
+		'true'
+	);
+	await page.evaluate(() => {
+		document.documentElement.style.setProperty('--graph-preview-height', '280px');
+	});
+	await expect(page.locator('[data-graph-outer]')).toHaveCSS('height', '280px');
+	await expect(page.locator('[data-graph-outer] dialog')).toHaveCSS('height', '280px');
+	await expect(page.locator('.doc-toc')).toHaveCSS('max-height', '620px');
+	await expect(page.locator('[data-graph-outer] canvas')).toHaveCSS('height', '280px');
+});

@@ -25,7 +25,7 @@
 	let slot: HTMLDivElement;
 	let opener: HTMLElement | null = null;
 	const bounds = new Spring(
-		{ x: 0, y: 0, width: 0, height: 250 },
+		{ x: 0, y: 0, width: 0, height: 0 },
 		{ stiffness: 0.16, damping: 0.85, precision: 0.5 }
 	);
 	const currentId = $derived(data ? idForRoute(page.url.pathname, data) : undefined);
@@ -60,7 +60,10 @@
 		opener?.focus({ preventScroll: true });
 	}
 	onMount(() => {
-		const media = window.matchMedia('(width >= 1440px)');
+		const breakpoint = getComputedStyle(document.documentElement)
+			.getPropertyValue('--breakpoint-rail')
+			.trim();
+		const media = window.matchMedia(`(width >= ${breakpoint})`);
 		const updateWidth = () => (wide = media.matches);
 		const resize = () => {
 			if (expanded)
@@ -114,8 +117,13 @@
 	disabled={!data}
 	onclick={openGraph}>Open global graph</button
 >
-<section class="graph-panel min-w-0 shrink-0" class:expanded aria-label="Graph view">
-	<div class="relative h-[250px]" data-graph-outer bind:this={slot}>
+<section
+	class="graph-panel min-w-0 shrink-0"
+	class:expanded
+	class:compact={!wide}
+	aria-label="Graph view"
+>
+	<div class="relative h-(--graph-preview-height)" data-graph-outer bind:this={slot}>
 		<dialog
 			bind:this={dialog}
 			class:expanded
@@ -194,7 +202,7 @@
 		margin: 0;
 		padding: 0;
 		width: 100%;
-		height: 250px;
+		height: var(--graph-preview-height);
 		max-width: none;
 		max-height: none;
 		border: 0;
@@ -253,11 +261,9 @@
 			opacity: 1;
 		}
 	}
-	@media (width < 1440px) {
-		.graph-panel.expanded {
-			display: block;
-			height: 0;
-		}
+	.graph-panel.compact.expanded {
+		display: block;
+		height: 0;
 	}
 	@media (prefers-reduced-motion: reduce) {
 		dialog::backdrop {

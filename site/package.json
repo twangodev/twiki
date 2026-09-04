@@ -71,7 +71,6 @@
 		"svelte-check": "^4.6.0",
 		"tailwind-merge": "^3.6.0",
 		"tailwindcss": "^4.3.0",
-		"tailwindcss-animate": "^1.0.7",
 		"typescript": "^6.0.3",
 		"unified": "^11.0.5",
 		"unist-util-visit": "^5.1.0",
