@@ -6,7 +6,7 @@
  *    SvelteKit serves/copies them like any static asset — the simplest
  *    mechanism that works identically in dev, prerender crawling, and the
  *    Workers deploy. Standalone .html assets are emitted as `<slug>.html`;
- *    Workers `html_handling: auto-trailing-slash` (default) serves them at the
+ *    Workers `html_handling: drop-trailing-slash` serves them at the
  *    live extensionless URL (`/fa25-anthro105/assets/mystery-fossil-GREEN`).
  *    Stale files are pruned (keep-list: favicon.png, fonts/, .gitignore).
  *
