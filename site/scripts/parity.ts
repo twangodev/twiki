@@ -36,6 +36,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { isLocalOnlyBaselineAsset } from './lib/baseline-assets';
 
 import { fromHtml } from 'hast-util-from-html';
 import { visit } from 'unist-util-visit';
@@ -56,7 +57,7 @@ const CONTENT_DIR = path.join(REPO_ROOT, 'content');
  * repo (submodule or superproject), and does a .gitignore pattern match it? */
 function gitEvidence(rel: string): { exists: boolean; tracked: boolean; ignoredBy: string | null } {
 	const abs = path.join(CONTENT_DIR, rel);
-	if (!fs.existsSync(abs)) return { exists: false, tracked: false, ignoredBy: null };
+	const exists = fs.existsSync(abs);
 	const firstSeg = rel.split('/')[0];
 	const subDir = path.join(CONTENT_DIR, firstSeg);
 	const isSub = fs.existsSync(path.join(subDir, '.git'));
@@ -82,7 +83,7 @@ function gitEvidence(rel: string): { exists: boolean; tracked: boolean; ignoredB
 	} catch {
 		/* not ignored */
 	}
-	return { exists: true, tracked, ignoredBy };
+	return { exists, tracked, ignoredBy };
 }
 
 interface LinkRecord {
@@ -382,10 +383,10 @@ for (const f of assetOnlyBaseline) {
 	// public/ paths are slugified; for files whose name survives slugging
 	// unchanged we can check the source's git status directly
 	const ev = gitEvidence(f);
-	if (ev.exists && !ev.tracked) {
+	if (isLocalOnlyBaselineAsset(f, ev.tracked)) {
 		assetJustified.push({
 			file: f,
-			reason: `untracked local file${ev.ignoredBy ? ` (gitignored by ${ev.ignoredBy}, globby served it anyway)` : ''} — never present in CI/live builds`
+			reason: 'untracked local file captured in the frozen baseline (local-only-assets.json)'
 		});
 		continue;
 	}
@@ -409,7 +410,8 @@ const slugUniverse = [...new Set([...baselineSlugs, ...newSlugs])].filter(
 const slugMatched = slugUniverse.filter((s) => baselineSlugs.has(s) && newSlugs.has(s)).length;
 const slugParityPct = (100 * slugMatched) / Math.max(1, slugUniverse.length);
 
-const linkParityPct = totalBaselineRecords === 0 ? 100 : (100 * matchedRecords) / totalBaselineRecords;
+const linkParityPct =
+	totalBaselineRecords === 0 ? 100 : (100 * matchedRecords) / totalBaselineRecords;
 
 const lines: string[] = [];
 const log = (s = '') => lines.push(s);
@@ -446,7 +448,9 @@ if (slugDiffs.length === 0) {
 	log(`None — slug sets identical (${baselineSlugs.size} baseline vs ${newSlugs.size} new).`);
 } else {
 	for (const d of slugDiffs) {
-		log(`- [${d.justified ? 'JUSTIFIED' : 'UNEXPLAINED'}] ${d.kind}: \`${d.slug}\` — ${d.category}`);
+		log(
+			`- [${d.justified ? 'JUSTIFIED' : 'UNEXPLAINED'}] ${d.kind}: \`${d.slug}\` — ${d.category}`
+		);
 	}
 }
 log();
@@ -513,6 +517,7 @@ log();
 fs.writeFileSync(REPORT, lines.join('\n') + '\n');
 console.log(lines.slice(0, 30).join('\n'));
 console.log(`\nfull report: ${REPORT}`);
+if (assetUnexplained.length) console.error('Unexplained baseline assets:', assetUnexplained);
 
 const pass =
 	unexplainedSlugDiffs.length === 0 && linkParityPct >= 99.9 && assetUnexplained.length === 0;

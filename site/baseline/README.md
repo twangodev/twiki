@@ -57,6 +57,13 @@ by hand (and document why), don't try to rebuild Quartz.
 
 ## Retired entries
 
+`local-only-assets.json` records 34 ignored, untracked outputs accidentally
+captured in the local Quartz snapshot: 33 files under
+`sp26-cs537/p6/tests/tests-out/` (tests 1–11, `.err`, `.out`, `.rc`) and
+`sp26-cs544/p7/q7.out`. They are absent from the frozen submodule Git trees
+listed above and from clean CI checkouts. These exact paths are excluded from
+asset parity only while they remain untracked; other missing assets still fail.
+
 | slug | file | retired | reason |
 |---|---|---|---|
 | `index` | `spot-articles.json` | 2026-06-13 | Homepage (`content/index.md`) was intentionally edited post-migration to remove Quartz-era prose (stack description, CI badge, dev command). The Quartz baseline snapshot no longer represents the current homepage content. The other 14 spot pages are unaffected and remain in the baseline. |
