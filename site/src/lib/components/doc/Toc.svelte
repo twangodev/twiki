@@ -62,6 +62,18 @@
 			{ y: box.top - list.getBoundingClientRect().top, height: box.height },
 			{ instant: prefersReducedMotion.current }
 		);
+		// Scroll only the desktop outline, never the article or compact page tools.
+		// Re-measuring during branch slides keeps the active row inside the viewport.
+		const viewport = list.closest<HTMLElement>('.doc-toc');
+		if (viewport && viewport.clientHeight < viewport.scrollHeight) {
+			const bounds = viewport.getBoundingClientRect();
+			const headerHeight =
+				viewport.querySelector('.toc-header')?.getBoundingClientRect().height ?? 0;
+			const top = bounds.top + headerHeight + 24;
+			const bottom = bounds.bottom - 12;
+			if (box.top < top) viewport.scrollTop += box.top - top;
+			else if (box.bottom > bottom) viewport.scrollTop += box.bottom - bottom;
+		}
 	}
 	$effect(() => {
 		const entries = items;
@@ -104,6 +116,8 @@
 		const frame = requestAnimationFrame(measureMarker);
 		const observer = new ResizeObserver(measureMarker);
 		observer.observe(list);
+		const viewport = list.closest('.doc-toc');
+		if (viewport) observer.observe(viewport);
 		return () => {
 			cancelAnimationFrame(frame);
 			observer.disconnect();

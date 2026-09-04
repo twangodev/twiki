@@ -1,5 +1,39 @@
 import { expect, test } from '@playwright/test';
 
+test('active outline row follows reading within its own scroll viewport', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 600 });
+	await page.goto('/');
+	const toc = page.locator('.doc-toc');
+	await toc.getByRole('button', { name: 'Expand all', exact: true }).click();
+	for (const id of ['deployment', 'bonus-features']) {
+		const articleScroll = await page.evaluate((id) => {
+			window.scrollTo({
+				top: window.scrollY + document.getElementById(id)!.getBoundingClientRect().top - 100,
+				behavior: 'instant'
+			});
+			return window.scrollY;
+		}, id);
+		const active = toc.locator(`a[href="#${id}"]`);
+		await expect(active).toHaveAttribute('aria-current', 'location');
+		await expect
+			.poll(async () => {
+				const bounds = (await toc.boundingBox())!;
+				const row = (await active.boundingBox())!;
+				return row.y >= bounds.y && row.y + row.height <= bounds.y + bounds.height;
+			})
+			.toBe(true);
+		expect(await page.evaluate(() => window.scrollY)).toBe(articleScroll);
+		await expect
+			.poll(async () => {
+				const bounds = (await toc.boundingBox())!;
+				const marker = (await toc.locator('.position-marker').boundingBox())!;
+				return marker.y >= bounds.y && marker.y + marker.height <= bounds.y + bounds.height;
+			})
+			.toBe(true);
+	}
+	await expect(page.locator('[data-graph-outer]')).toBeInViewport();
+});
+
 test('deep headings remain reachable without an ever-widening indent', async ({ page }) => {
 	await page.setViewportSize({ width: 1440, height: 900 });
 	await page.goto('/sp26-cs544/debugging-autobadger');
