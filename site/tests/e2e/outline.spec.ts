@@ -126,6 +126,8 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
 					behavior: 'instant'
 				});
 			}, id);
+			// The outgoing slide dispatches its cleanup on the next animation frame.
+			await expect(toc.locator('a[aria-current="location"]')).toHaveCount(1);
 			await expect(toc.locator('a[aria-current="location"]')).toHaveAttribute('href', `#${id}`);
 		}
 		await readSection('bonus-features');

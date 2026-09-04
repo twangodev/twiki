@@ -2,81 +2,152 @@
 	import type { NavNode } from '$lib/types';
 	import Self from './NavTree.svelte';
 	import { page } from '$app/state';
+	import { slide } from 'svelte/transition';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import { ChevronRight } from '@lucide/svelte';
-	import { cn } from '$lib/utils';
-
-	interface Props {
+	let {
+		nodes,
+		depth = 0,
+		expanded = $bindable({})
+	}: {
 		nodes: NavNode[];
-		/** Nesting depth, used for indentation. */
 		depth?: number;
+		expanded?: Record<string, boolean>;
+	} = $props();
+	const uid = $props.id();
+	const currentPath = $derived(decodeURI(page.url.pathname).replace(/\/$/, '') || '/');
+	function key(node: NavNode) {
+		return node.route ?? `${depth}-${node.segment}`;
 	}
-
-	const { nodes, depth = 0 }: Props = $props();
-
-	const currentPath = $derived(normalize(page.url.pathname));
-
-	/** trailingSlash is 'never' on this site: compare routes without it. */
-	function normalize(p: string): string {
-		if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
-		return p;
+	function active(node: NavNode): boolean {
+		return node.route === currentPath;
 	}
-
-	function isActive(route: string | undefined): boolean {
-		return !!route && normalize(route) === currentPath;
-	}
-
-	/** A section is "open" if it contains the active route (or its own route). */
 	function containsActive(node: NavNode): boolean {
-		if (isActive(node.route)) return true;
-		return node.children.some(containsActive);
+		return active(node) || node.children.some(containsActive);
 	}
-
-	const navItemClass = 'm-0';
-	const navRowClass = 'rounded-md px-2 py-[0.3rem] text-sm leading-[1.35] no-underline';
-	const navLinkBase = cn('block', navRowClass, 'text-muted hover:bg-surface hover:text-text');
-	const activeNavLinkClass =
-		'bg-[color:var(--color-accent-soft,#f7e4e1)] font-semibold text-accent';
-	const sectionLabelClass = cn('block font-semibold text-text', navRowClass);
-	const summaryClass = cn(
-		'flex cursor-pointer list-none items-center gap-1.5 font-semibold text-text hover:bg-surface [&::-webkit-details-marker]:hidden',
-		navRowClass
-	);
+	function open(node: NavNode) {
+		return expanded[key(node)] ?? containsActive(node);
+	}
 </script>
 
-<ul class={cn('m-0 list-none p-0', depth > 0 && 'ml-3 border-l border-border pl-1')}>
+<ul class:nested={depth > 0}>
 	{#each nodes as node (node.segment)}
-		<li class={navItemClass}>
-			{#if node.children.length > 0}
-				<details class="group/nav-section" open={containsActive(node)}>
-					<summary class={summaryClass}>
-						<ChevronRight
-							class="size-4 shrink-0 text-muted transition-transform group-open/nav-section:rotate-90"
-							strokeWidth={2.5}
-							aria-hidden="true"
-						/>
-						{#if node.route}
-							<a
-								class={cn(
-									'inline p-0 font-semibold no-underline',
-									isActive(node.route) ? 'text-accent' : 'text-text'
-								)}
-								href={node.route}>{node.title}</a
-							>
-						{:else}
-							<span class="inline p-0 font-semibold text-text">{node.title}</span>
-						{/if}
-					</summary>
-					<Self nodes={node.children} depth={depth + 1} />
-				</details>
-			{:else if node.route}
-				<a
-					class={cn(navLinkBase, isActive(node.route) && activeNavLinkClass)}
-					href={node.route}
-					aria-current={isActive(node.route) ? 'page' : undefined}>{node.title}</a
-				>
-			{:else}
-				<span class={sectionLabelClass}>{node.title}</span>
-			{/if}
+		<li>
+			<div class="row" class:active={active(node)}>
+				{#if node.children.length}
+					<button
+						aria-label={`Toggle ${node.title}`}
+						aria-expanded={open(node)}
+						aria-controls={`${uid}-${node.segment}`}
+						onclick={() => (expanded = { ...expanded, [key(node)]: !open(node) })}
+					>
+						<ChevronRight size={13} class={open(node) ? 'expanded' : ''} />
+					</button>
+				{:else}<span class="spacer"></span>{/if}
+				{#if node.route}
+					<a
+						href={node.route}
+						title={node.title}
+						aria-current={active(node) ? 'page' : undefined}
+						class:section={node.children.length > 0}>{node.title}</a
+					>
+				{:else}<span class="label">{node.title}</span>{/if}
+			</div>
+			<div id={`${uid}-${node.segment}`}>
+				{#if node.children.length && open(node)}
+					<div transition:slide={{ duration: prefersReducedMotion.current ? 0 : 150 }}>
+						<Self nodes={node.children} depth={depth + 1} bind:expanded />
+					</div>
+				{/if}
+			</div>
 		</li>
 	{/each}
 </ul>
+
+<style>
+	ul {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+	ul.nested {
+		margin-left: 0.5rem;
+		padding-left: 0.375rem;
+		border-left: 1px solid var(--color-border);
+	}
+	.row {
+		display: flex;
+		align-items: flex-start;
+		position: relative;
+		border-radius: 0.25rem;
+	}
+	.row.active {
+		background: var(--color-accent-soft, #f7e4e1);
+	}
+	.row.active::before {
+		content: '';
+		position: absolute;
+		inset: 3px auto 3px 0;
+		width: 2px;
+		border-radius: 2px;
+		background: var(--color-accent);
+	}
+	button,
+	.spacer {
+		flex: 0 0 1.125rem;
+		width: 1.125rem;
+		height: 1.875rem;
+		display: grid;
+		place-items: center;
+	}
+	button {
+		cursor: pointer;
+		color: var(--color-muted);
+	}
+	button :global(svg) {
+		transition: transform 150ms;
+	}
+	button :global(.expanded) {
+		transform: rotate(90deg);
+	}
+	a,
+	.label {
+		padding: 0.375rem 0.25rem;
+		font-size: 0.8125rem;
+		line-height: 1.4;
+		color: var(--color-muted);
+		text-decoration: none;
+		overflow-wrap: anywhere;
+		min-width: 0;
+		flex: 1;
+	}
+	a {
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+	a.section {
+		font-weight: 500;
+		color: var(--color-text);
+	}
+	a[aria-current] {
+		color: var(--color-accent);
+		font-weight: 500;
+	}
+	.row:hover {
+		background: var(--color-surface);
+	}
+	a:focus-visible,
+	button:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: -1px;
+		border-radius: 3px;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		button :global(svg) {
+			transition: none;
+		}
+	}
+</style>
