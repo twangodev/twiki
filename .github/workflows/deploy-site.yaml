@@ -99,6 +99,12 @@ jobs:
       - name: Unit tests (slug + pagefind-url)
         run: bun test scripts
 
+      - name: Install browser for interaction parity tests
+        run: bunx playwright install --with-deps chromium
+
+      - name: Browser interaction parity tests
+        run: bun run test:e2e
+
       # Golden-diff parity gate against the frozen Quartz baseline
       # (site/baseline/). Fails the build on any unexplained slug/link diff.
       - name: Parity gate (vs frozen Quartz baseline)
