@@ -51,9 +51,8 @@ export function loadGraph(fetcher: typeof fetch = fetch): Promise<GraphData> {
 // Mirrors quartz/components/Graph.tsx `defaultOptions` (everything default).
 //
 // This repository's Quartz layout explicitly overrode the local graph to
-// depth 2. The renderer temporarily pins the current note at the origin while
-// the first simulation settles, preserving that neighbourhood without letting
-// a high-degree second-hop hub pull the current note out of view.
+// depth 2. Node/link ordering and force initialization are retained exactly by
+// graph-model.ts because d3-force's deterministic seed depends on that order.
 // ---------------------------------------------------------------------------
 
 export interface GraphConfig {

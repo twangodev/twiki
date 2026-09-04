@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { afterNavigate } from '$app/navigation';
+	import { page } from '$app/state';
 	import { Menu } from '@lucide/svelte';
-	import { onMount, type Component, type Snippet } from 'svelte';
-	import type { NavNode } from '$lib/types';
+	import type { Snippet } from 'svelte';
+	import type { BacklinkRef, NavNode } from '$lib/types';
 	import { site } from '$lib/config';
 	import { ThemeToggle } from '$lib/components/ui';
 	import { SearchButton, SearchPalette } from '$lib/components/search';
+	import GraphPanel from '$lib/components/graph/GraphPanel.svelte';
+	import Backlinks from './Backlinks.svelte';
 	import DocPager from './DocPager.svelte';
 	import ReaderModeToggle from './ReaderModeToggle.svelte';
 	import Sidebar from './Sidebar.svelte';
@@ -20,29 +23,19 @@
 	const { nav, children }: Props = $props();
 
 	let mobileNavOpen = $state(false);
+	type RailPageData = { kind?: string; page?: { backlinks?: BacklinkRef[] } };
+	const railPageData = $derived(page.data as RailPageData);
+	const showContentRail = $derived(railPageData.kind === 'page');
+	const backlinks = $derived(showContentRail ? (railPageData.page?.backlinks ?? []) : []);
 
 	afterNavigate(() => {
 		mobileNavOpen = false;
 	});
-
-	// Knowledge-graph card (right rail): lazy-imported after hydration so
-	// the graph stack (pixi.js/d3) and /graph.json never touch the initial bundle.
-	let GraphPanel = $state<Component | null>(null);
-	onMount(async () => {
-		GraphPanel = (await import('$lib/components/graph/GraphPanel.svelte')).default;
-	});
 </script>
 
-<div
-	class={[
-		'mx-auto grid min-h-screen max-w-[90rem] max-[768px]:grid-cols-[minmax(0,1fr)] max-[768px]:grid-rows-[auto_1fr]',
-		readerMode.enabled
-			? 'grid-cols-[minmax(0,1fr)]'
-			: 'grid-cols-[16rem_minmax(0,1fr)_20rem] max-[1100px]:grid-cols-[16rem_minmax(0,1fr)]'
-	]}
->
+<div class={['doc-shell mx-auto min-h-screen', readerMode.enabled && 'doc-shell-reader']}>
 	<header
-		class="sticky top-0 z-30 hidden items-center gap-3 border-b border-border bg-bg px-4 py-2 max-[768px]:flex"
+		class="doc-mobile-header sticky top-0 z-30 hidden items-center gap-3 border-b border-border bg-bg px-4 py-2 max-[800px]:flex"
 	>
 		<button
 			class="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent text-text transition-colors hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
@@ -63,9 +56,9 @@
 
 	<aside
 		class={[
-			'sticky top-0 h-screen border-r border-border bg-bg max-[768px]:fixed max-[768px]:top-0 max-[768px]:left-0 max-[768px]:z-50 max-[768px]:w-[17rem] max-[768px]:max-w-[85vw] max-[768px]:transition-transform max-[768px]:duration-200',
-			readerMode.enabled && 'hidden max-[768px]:block',
-			mobileNavOpen ? 'max-[768px]:translate-x-0' : 'max-[768px]:-translate-x-full'
+			'doc-sidebar-left sticky top-0 h-screen border-r border-border bg-bg max-[800px]:fixed max-[800px]:top-0 max-[800px]:left-0 max-[800px]:z-50 max-[800px]:w-[17rem] max-[800px]:max-w-[85vw] max-[800px]:transition-transform max-[800px]:duration-200',
+			readerMode.enabled && 'hidden max-[800px]:block',
+			mobileNavOpen ? 'max-[800px]:translate-x-0' : 'max-[800px]:-translate-x-full'
 		]}
 	>
 		<Sidebar {nav} />
@@ -74,7 +67,7 @@
 	{#if readerMode.enabled}
 		<!-- floating controls so reader mode can be exited once the rails are gone -->
 		<div
-			class="fixed top-3 right-3 z-30 flex items-center gap-1 rounded-lg border border-border bg-bg/90 p-1 backdrop-blur max-[768px]:hidden"
+			class="fixed top-3 right-3 z-30 flex items-center gap-1 rounded-lg border border-border bg-bg/90 p-1 backdrop-blur max-[800px]:hidden"
 		>
 			<ReaderModeToggle class="size-8" />
 			<ThemeToggle class="size-8" />
@@ -83,14 +76,16 @@
 
 	{#if mobileNavOpen}
 		<button
-			class="fixed inset-0 z-40 cursor-pointer border-0 bg-black/40 min-[769px]:hidden"
+			class="fixed inset-0 z-40 cursor-pointer border-0 bg-black/40 min-[801px]:hidden"
 			type="button"
 			aria-label="Close navigation"
 			onclick={() => (mobileNavOpen = false)}
 		></button>
 	{/if}
 
-	<main class="min-w-0 px-10 pt-8 pb-16 max-[768px]:px-5 max-[768px]:pt-6 max-[768px]:pb-12">
+	<main
+		class="doc-main min-w-0 px-10 pt-8 pb-16 max-[800px]:px-5 max-[800px]:pt-6 max-[800px]:pb-12"
+	>
 		<div class="mx-auto max-w-3xl">
 			{@render children()}
 			<DocPager {nav} />
@@ -98,16 +93,14 @@
 	</main>
 
 	{#if !readerMode.enabled}
-		<aside class="px-4 py-8 max-[1100px]:hidden">
-			<!-- One sticky column so the graph card never collides with the sticky
-			     TOC. top-20 matches Toc's own sticky threshold, so the inner nav
-			     never gets displaced inside this wrapper. -->
-			<div class="sticky top-20 flex flex-col gap-6">
-				<Toc />
-				{#if GraphPanel}
+		<aside class="doc-sidebar-right">
+			{#if showContentRail}
+				<div class="doc-sidebar-right-inner">
 					<GraphPanel />
-				{/if}
-			</div>
+					<div class="doc-toc"><Toc /></div>
+					<Backlinks {backlinks} />
+				</div>
+			{/if}
 		</aside>
 	{/if}
 </div>

@@ -241,7 +241,7 @@ State at the end of Phase 5 (integration + verification). The full chain is gree
 
 ### Build status
 - **`bun run check`**: 0 errors, 0 warnings (4769 files).
-- **`bun test scripts`**: 35 pass / 0 fail (slug, Pagefind query/URL, graph config tests).
+- **`bun test scripts`**: 37 pass / 0 fail (slug, Pagefind query/URL, graph config/model tests).
 - **Prebuild**: 641 pages, 454 assets (176.6 MiB), 167 tags, 268 folders, 1990
   tracked files dropped (whitelist), 0 drafts.
 - **Build**: 796 content routes + 168 tag routes + `/index.xml` + `/sitemap.xml`
@@ -256,14 +256,16 @@ State at the end of Phase 5 (integration + verification). The full chain is gree
 1. **Graph renderer now follows Quartz directly.** It uses pinned Pixi 8,
    d3-force/drag/selection/zoom 3, and Tween.js 25 with an animated canvas,
    visited-node tinting, hover focus, dragging, and local/global zoom behavior.
-   Local graph = client-side depth-2 BFS over the same manifest data; the current
-   note is pinned only through the initial settle so its larger two-hop
-   neighborhood starts centered. Each Pixi app tears down without releasing the
-   global texture pool used by the other graph instance.
+   Local graph = Quartz's ordered depth-2 traversal over the same manifest data;
+   node/link insertion order and unpinned force initialization match the original.
+   A server-rendered 250px shell prevents layout shift while graph data and the
+   renderer chunk load concurrently. Each Pixi app tears down without releasing
+   the global texture pool used by the other graph instance.
 2. **Interaction parity is browser-gated.** Playwright runs search filters and
    `#tag` shorthand, the global-graph/popover/theme/navigation teardown sequence,
-   Mermaid copy/fullscreen/pan/zoom controls, heading deep links/system theme,
-   and the Wrangler-served cache/security/canonical-URL contract.
+   graph-first 380px rail geometry and tablet flow, Mermaid
+   copy/fullscreen/pan/zoom controls, heading deep links/system theme, and the
+   Wrangler-served cache/security/canonical-URL contract.
 3. **TOC slugs collected at the hast stage, not from mdast.** Quartz slugged the
    raw heading *text*; we slug after `rehype-raw` + `rehype-slug` so TOC anchors
    always equal the rendered heading `id`. Fixes one live-broken self-anchor
@@ -311,8 +313,9 @@ equivalents). Re-run the gate any time with the methodology in the report.
 
 ### Perf notes
 - Global graph: 641 nodes / 2404 links, animated Pixi canvas. The Pixi + D3 +
-  Tween renderer is dynamically imported and `/graph.json` is fetched once, so
-  neither is in the per-page critical path.
+  Tween renderer is dynamically imported in parallel with the one-time
+  `/graph.json` fetch; the graph's server-rendered shell has its final dimensions
+  before either finishes.
 - Pages are static HTML served from the Cloudflare asset layer (Worker bypassed),
   with year-long immutable caching for fingerprinted Svelte/Pagefind chunks,
   short private caching for `graph.json`, canonical no-trailing-slash URLs, and

@@ -12,7 +12,7 @@
 	const { nav }: Props = $props();
 </script>
 
-<div class="flex h-full flex-col gap-4 overflow-y-auto px-4 py-5">
+<div class="doc-sidebar-content flex h-full flex-col gap-4 overflow-y-auto px-4 py-5">
 	<a
 		class="text-[1.05rem] font-bold tracking-[-0.01em] text-[color:var(--color-fg,#111827)] no-underline"
 		href="/">{site.name}</a

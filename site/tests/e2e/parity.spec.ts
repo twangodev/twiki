@@ -25,11 +25,32 @@ test('graph survives the Quartz interaction sequence without browser errors', as
 	const errors: string[] = [];
 	page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
 
+	const prerendered = await page.request.get('/sp26-cs544/README');
+	expect(await prerendered.text()).toContain('data-graph-outer');
+
 	await page.goto('/sp26-cs544/README');
+	const graph = page.getByRole('region', { name: 'Graph view' });
+	const graphOuter = graph.locator('[data-graph-outer]');
+	await expect(graphOuter).toBeVisible();
+	await expect(graph.getByRole('heading', { name: 'Graph View' })).toBeVisible();
+	const graphBox = await graphOuter.boundingBox();
+	expect(graphBox?.width ?? 0).toBeGreaterThanOrEqual(315);
+	expect(graphBox?.height).toBe(250);
+
+	const toc = page.getByRole('navigation', { name: 'On this page' });
+	await expect(toc).toBeVisible();
+	const graphPrecedesToc = await graph.evaluate((element) => {
+		const tocElement = document.querySelector('nav[aria-label="On this page"]');
+		return Boolean(
+			tocElement && element.compareDocumentPosition(tocElement) & Node.DOCUMENT_POSITION_FOLLOWING
+		);
+	});
+	expect(graphPrecedesToc).toBe(true);
+
 	const localCanvas = page.locator('[aria-label="Graph view"] canvas');
 	await expect(localCanvas).toBeVisible();
 	const box = await localCanvas.boundingBox();
-	expect(box?.width ?? 0).toBeGreaterThanOrEqual(270);
+	expect(box?.width ?? 0).toBeGreaterThanOrEqual(313);
 
 	await page.getByRole('button', { name: 'Open global graph' }).click();
 	await expect(page.locator('[role="dialog"] canvas')).toBeVisible();
@@ -43,6 +64,20 @@ test('graph survives the Quartz interaction sequence without browser errors', as
 	await page.waitForURL('**/sp26-cs544/lectures/lecture-01');
 	await page.waitForTimeout(500);
 	expect(errors).toEqual([]);
+});
+
+test('graph rail follows content at the Quartz tablet breakpoint', async ({ page }) => {
+	await page.setViewportSize({ width: 1000, height: 800 });
+	await page.goto('/sp26-cs544/README');
+
+	const main = page.locator('main.doc-main');
+	const graph = page.getByRole('region', { name: 'Graph view' });
+	await expect(graph).toBeVisible();
+	await expect(page.getByRole('navigation', { name: 'On this page' })).toBeHidden();
+
+	const mainBox = await main.boundingBox();
+	const graphBox = await graph.boundingBox();
+	expect(graphBox?.y ?? 0).toBeGreaterThanOrEqual((mainBox?.y ?? 0) + (mainBox?.height ?? 0) - 1);
 });
 
 test('Mermaid diagrams retain copy and fullscreen pan/zoom controls', async ({ page }) => {

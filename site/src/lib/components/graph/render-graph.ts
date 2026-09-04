@@ -13,9 +13,9 @@
  * - Data comes from /graph.json (display-form ids) instead of Quartz's
  *   contentIndex, and navigation goes through a callback (SvelteKit `goto`)
  *   instead of window.spaNavigate.
- * - The depth-limited neighbourhood BFS uses an adjacency map instead of
- *   Quartz's repeated O(links) scans, and links resolve node objects through
- *   a Map instead of Array.find — identical result sets, just not quadratic.
+ * - Link construction and neighbourhood traversal retain Quartz's observable
+ *   ordering (d3-force seeds nodes by index); only final node lookup uses a Map
+ *   instead of repeated Array.find calls.
  * - Quartz re-renders on its custom `themechange` event; here GraphView
  *   re-runs renderGraph when `:root`'s class list changes (MutationObserver).
  * - Cleanup also stops the d3 simulation timer (Quartz leaves it to decay).
@@ -37,6 +37,7 @@ import { select } from 'd3-selection';
 import { zoom, zoomIdentity } from 'd3-zoom';
 import { Application, Circle, Container, Graphics, Text } from 'pixi.js';
 import { getVisited, type GraphConfig, type GraphData } from './graph-data';
+import { canvasPosition, orderedGraphElements } from './graph-model';
 
 type GraphicsInfo = {
 	color: string;
@@ -50,11 +51,6 @@ type NodeData = {
 	text: string;
 	tags: string[];
 } & SimulationNodeDatum;
-
-type SimpleLinkData = {
-	source: string;
-	target: string;
-};
 
 type LinkData = {
 	source: NodeData;
@@ -148,68 +144,14 @@ export async function renderGraph(
 		focusOnHover,
 		enableRadial
 	} = cfg;
-	const depth = cfg.depth;
-
 	const data = new Map(fullData.nodes.map((n) => [n.id, n]));
-	const links: SimpleLinkData[] = [];
-	const tags: string[] = [];
-	const validLinks = new Set(data.keys());
-
 	const tweens = new Map<string, TweenNode>();
-	for (const l of fullData.links) {
-		if (validLinks.has(l.source) && validLinks.has(l.target)) {
-			links.push({ source: l.source, target: l.target });
-		}
-	}
-	if (showTags) {
-		for (const [source, details] of data.entries()) {
-			const localTags = details.tags
-				.filter((tag) => !removeTags.includes(tag))
-				.map((tag) => 'tags/' + tag);
-
-			tags.push(...localTags.filter((tag) => !tags.includes(tag)));
-
-			for (const tag of localTags) {
-				links.push({ source, target: tag });
-			}
-		}
-	}
-
-	const neighbourhood = new Set<string>();
-	if (depth >= 0 && slug !== undefined) {
-		// level-by-level BFS to `depth` hops, undirected — same node set as
-		// Quartz's sentinel worklist, built off an adjacency map instead of
-		// re-filtering the link array per node
-		const adjacent = new Map<string, string[]>();
-		const addAdj = (a: string, b: string) => {
-			const arr = adjacent.get(a);
-			if (arr) arr.push(b);
-			else adjacent.set(a, [b]);
-		};
-		for (const l of links) {
-			addAdj(l.source, l.target);
-			addAdj(l.target, l.source);
-		}
-		neighbourhood.add(slug);
-		let frontier: string[] = [slug];
-		for (let level = 0; level < depth && frontier.length > 0; level++) {
-			const next: string[] = [];
-			for (const id of frontier) {
-				for (const neighbour of adjacent.get(id) ?? []) {
-					if (!neighbourhood.has(neighbour)) {
-						neighbourhood.add(neighbour);
-						next.push(neighbour);
-					}
-				}
-			}
-			frontier = next;
-		}
-	} else {
-		validLinks.forEach((id) => neighbourhood.add(id));
-		if (showTags) tags.forEach((tag) => neighbourhood.add(tag));
-	}
-
-	const nodes: NodeData[] = [...neighbourhood].map((url) => {
+	const selected = orderedGraphElements(fullData, slug, {
+		depth: cfg.depth,
+		showTags,
+		removeTags
+	});
+	const nodes: NodeData[] = selected.nodeIds.map((url) => {
 		const text = url.startsWith('tags/') ? '#' + url.substring(5) : (data.get(url)?.title ?? url);
 		return {
 			id: url,
@@ -220,19 +162,11 @@ export async function renderGraph(
 	const nodeById = new Map(nodes.map((n) => [n.id, n]));
 	const graphData: { nodes: NodeData[]; links: LinkData[] } = {
 		nodes,
-		links: links
-			.filter((l) => neighbourhood.has(l.source) && neighbourhood.has(l.target))
-			.map((l) => ({
-				source: nodeById.get(l.source)!,
-				target: nodeById.get(l.target)!
-			}))
+		links: selected.links.map((l) => ({
+			source: nodeById.get(l.source)!,
+			target: nodeById.get(l.target)!
+		}))
 	};
-	const initiallyCenteredNode =
-		!isGlobalGraph && slug !== undefined ? nodeById.get(slug) : undefined;
-	if (initiallyCenteredNode) {
-		initiallyCenteredNode.fx = 0;
-		initiallyCenteredNode.fy = 0;
-	}
 
 	const width = graph.offsetWidth;
 	const height = Math.max(graph.offsetHeight, 250);
@@ -243,15 +177,6 @@ export async function renderGraph(
 		.force('center', forceCenter().strength(centerForce))
 		.force('link', forceLink(graphData.links).distance(linkDistance))
 		.force('collide', forceCollide<NodeData>((n) => nodeRadius(n)).iterations(3));
-	if (initiallyCenteredNode) {
-		simulation.on('end.initial-center', () => {
-			// Leave the settled layout centered, then release the node so normal
-			// drag/reheat behavior remains identical to Quartz.
-			initiallyCenteredNode.fx = null;
-			initiallyCenteredNode.fy = null;
-		});
-	}
-
 	const radius = (Math.min(width, height) / 2) * 0.8;
 	if (enableRadial) simulation.force('radial', forceRadial(radius).strength(0.2));
 
@@ -602,10 +527,11 @@ export async function renderGraph(
 		if (stopAnimation) return;
 		for (const n of nodeRenderData) {
 			const { x, y } = n.simulationData;
-			if (!x || !y) continue;
-			n.gfx.position.set(x + width / 2, y + height / 2);
+			const position = canvasPosition(x, y, width, height);
+			if (!position) continue;
+			n.gfx.position.set(position.x, position.y);
 			if (n.label) {
-				n.label.position.set(x + width / 2, y + height / 2);
+				n.label.position.set(position.x, position.y);
 			}
 		}
 

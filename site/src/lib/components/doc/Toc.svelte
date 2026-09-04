@@ -15,7 +15,7 @@
 </script>
 
 {#if items.length > 0}
-	<nav class="sticky top-20 text-[0.8125rem]" aria-label="On this page">
+	<nav class="text-[0.8125rem]" aria-label="On this page">
 		<p
 			class="m-[0_0_0.5rem] text-[0.7rem] font-bold tracking-[0.08em] text-[color:var(--color-fg-muted,#9ca3af)] uppercase"
 		>

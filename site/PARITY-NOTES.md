@@ -85,8 +85,10 @@ mystery-fossil-RED.html`) so Workers `html_handling` serves the extensionless li
 ## Quartz experience audit closure (2026-09-04)
 
 - Heading-anchor click icons restored without changing the frozen heading ids.
-- Local graph restored to the repository's Quartz depth 2, widened to the old visual
-  footprint, and uses the same Pixi/D3/Tween visualization stack; global graph is 80vw × 80vh.
+- Local graph restored to the repository's Quartz depth 2, exact traversal/link ordering,
+  unpinned force initialization, 380px rail geometry, and graph → TOC → backlinks order.
+  Its 250px shell is server-rendered while the same Pixi/D3/Tween stack loads concurrently;
+  global graph is 80vw × 80vh.
 - Search retains `/` and ⌘K, adds Quartz-style `#tag` shorthand, and indexes distinct course
   and tag filters instead of a malformed composite value.
 - Mermaid now has copy, fullscreen, pan, zoom, reset, Escape, and backdrop-close behavior.
