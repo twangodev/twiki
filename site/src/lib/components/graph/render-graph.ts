@@ -18,6 +18,9 @@
  *   instead of repeated Array.find calls.
  * - Quartz re-renders on its custom `themechange` event; here GraphView
  *   re-runs renderGraph when `:root`'s class list changes (MutationObserver).
+ * - Pixi uses its stable WebGL backend instead of preferring experimental
+ *   WebGPU; the rendered scene is otherwise the same and works on browsers
+ *   without a usable WebGPU adapter.
  * - Cleanup also stops the d3 simulation timer (Quartz leaves it to decay).
  */
 import { Group as TweenGroup, Tween as Tweened } from '@tweenjs/tween.js';
@@ -129,6 +132,7 @@ export async function renderGraph(
 ): Promise<() => void> {
 	const visited = getVisited();
 	graph.replaceChildren();
+	graph.dataset.graphReady = 'false';
 
 	const {
 		drag: enableDrag,
@@ -347,7 +351,7 @@ export async function renderGraph(
 		autoStart: false,
 		autoDensity: true,
 		backgroundAlpha: 0,
-		preference: 'webgpu',
+		preference: 'webgl',
 		resolution: window.devicePixelRatio,
 		eventMode: 'static'
 	});
@@ -521,10 +525,7 @@ export async function renderGraph(
 		);
 	}
 
-	let stopAnimation = false;
-	let animationFrame = 0;
-	function animate(time: number) {
-		if (stopAnimation) return;
+	function drawFrame(time: number) {
 		for (const n of nodeRenderData) {
 			const { x, y } = n.simulationData;
 			const position = canvasPosition(x, y, width, height);
@@ -546,6 +547,20 @@ export async function renderGraph(
 
 		tweens.forEach((t) => t.update(time));
 		app.renderer.render(stage);
+	}
+
+	// Draw once immediately. A backgrounded/throttled tab may defer
+	// requestAnimationFrame, but its graph preview should never remain blank.
+	drawFrame(performance.now());
+	graph.dataset.graphReady = 'true';
+	graph.dataset.graphNodes = String(nodeRenderData.length);
+	graph.dataset.graphLinks = String(linkRenderData.length);
+
+	let stopAnimation = false;
+	let animationFrame = 0;
+	function animate(time: number) {
+		if (stopAnimation) return;
+		drawFrame(time);
 		animationFrame = requestAnimationFrame(animate);
 	}
 

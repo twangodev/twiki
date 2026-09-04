@@ -27,9 +27,22 @@
 		class?: ClassValue;
 		/** Called when a node navigation starts (lets the dialog close). */
 		onnavigate?: () => void;
+		/** Called after Pixi has drawn the first node/link frame. */
+		onready?: () => void;
+		/** Called when the renderer cannot initialize. */
+		onerror?: (error: unknown) => void;
 	}
 
-	const { data, currentId, config, global = false, class: className, onnavigate }: Props = $props();
+	const {
+		data,
+		currentId,
+		config,
+		global = false,
+		class: className,
+		onnavigate,
+		onready,
+		onerror
+	}: Props = $props();
 
 	let container = $state<HTMLDivElement | null>(null);
 
@@ -55,14 +68,22 @@
 		let cancelled = false;
 		let cleanup: (() => void) | undefined;
 		// lazy: pixi.js + d3 + tween.js load only when a graph actually mounts
-		void import('./render-graph').then(async ({ renderGraph }) => {
-			if (cancelled) return;
-			cleanup = await renderGraph(el, args[0], args[1], args[2], args[3], (id) => {
-				onnavigate?.();
-				void goto(hrefForId(id));
+		void import('./render-graph')
+			.then(async ({ renderGraph }) => {
+				if (cancelled) return;
+				cleanup = await renderGraph(el, args[0], args[1], args[2], args[3], (id) => {
+					onnavigate?.();
+					void goto(hrefForId(id));
+				});
+				if (cancelled) cleanup();
+				else onready?.();
+			})
+			.catch((error: unknown) => {
+				if (!cancelled) {
+					console.error('Knowledge graph renderer failed', error);
+					onerror?.(error);
+				}
 			});
-			if (cancelled) cleanup(); // torn down while pixi was initializing
-		});
 		return () => {
 			cancelled = true;
 			cleanup?.();

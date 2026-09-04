@@ -29,6 +29,7 @@
 
 	let data = $state<GraphData | null>(null);
 	let failed = $state(false);
+	let renderReady = $state(false);
 	let globalOpen = $state(false);
 
 	onMount(() => {
@@ -47,6 +48,9 @@
 	});
 
 	const currentId = $derived(data ? idForRoute(page.url.pathname, data) : undefined);
+	function handleRenderError() {
+		failed = true;
+	}
 
 	// Quartz records every navigated-to page in localStorage ("graph-visited")
 	// and tints visited nodes; mirror that on every route change.
@@ -70,14 +74,28 @@
 	<div
 		class="relative mt-2 h-[250px] overflow-hidden rounded-[5px] border border-border"
 		data-graph-outer
-		aria-busy={!data && !failed}
+		aria-busy={!failed && (!data || (Boolean(currentId) && !renderReady))}
 	>
-		{#if data && currentId}
-			<GraphView {data} {currentId} config={localGraphConfig} />
-		{:else if failed}
+		{#if failed}
 			<p class="flex h-full items-center justify-center px-4 text-center text-xs text-muted">
 				Graph unavailable.
 			</p>
+		{:else if data && currentId}
+			<GraphView
+				{data}
+				{currentId}
+				config={localGraphConfig}
+				onready={() => (renderReady = true)}
+				onerror={handleRenderError}
+			/>
+			{#if !renderReady}
+				<div
+					class="pointer-events-none absolute inset-0 flex items-center justify-center"
+					aria-hidden="true"
+				>
+					<span class="size-5 animate-pulse rounded-full bg-subtle"></span>
+				</div>
+			{/if}
 		{:else if data}
 			<p class="flex h-full items-center justify-center px-4 text-center text-xs text-muted">
 				This page is not in the graph.
