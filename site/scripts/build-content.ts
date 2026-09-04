@@ -1,38 +1,4 @@
-/**
- * Content prebuild for the SvelteKit rewrite of wisconsin.twango.dev.
- *
- * Two-pass unified pipeline:
- *   0. discover  — git ls-files per submodule + superproject; whitelist
- *                  classification (pages = tracked *.md; assets = images/PDFs/
- *                  standalone .html); everything else recorded in dropped-urls.txt
- *   1. parse     — per file, cacheable on content hash: gray-matter -> OFM text
- *                  phase -> remark-parse/gfm/math -> OFM mdast -> AutoTag ->
- *                  remark-rehype(allowDangerousHtml) -> rehype-raw -> block refs
- *                  -> YouTube -> heading ids (rehype-slug/github-slugger) ->
- *                  Shiki dual-theme -> description -> rehype-katex
- *   2. resolve   — global link resolution (vendored CrawlLinks w/ the fork's
- *                  "shortest" nearest-match transformLink), backlink inversion,
- *                  transclusion inlining (depth<=3, rebased inner links +
- *                  "Link to original"), root-absolute href canonicalization
- *   3. emit      — .generated/content-manifest.json, .generated/pages/<slug>.json,
- *                  .generated/assets/** under slugified paths, dropped-urls.txt,
- *                  warnings.txt; size guard (warn >20MiB, fail >25MiB)
- *
- * Intentional divergences from Quartz (each also marked inline):
- *  - hrefs/srcs are canonicalized to root-absolute form at emit (browser-equivalent
- *    to Quartz's relative hrefs; required because folder pages lose their trailing
- *    slash under trailingSlash:'never').
- *  - rehype-autolink-headings' anchor-icon DOM is not emitted (cca-style chrome
- *    handles heading anchors); heading ids themselves are identical (github-slugger).
- *  - Shiki replaces rehype-pretty-code (user-approved; dual-theme github-light/dark,
- *    defaultColor:false).
- *  - html assets are copied extensionless at their slug exactly like Quartz's
- *    Assets emitter (e.g. /fa25-anthro105/assets/mystery-fossil-GREEN); the
- *    manifest lists them under `htmlAssets` so the deploy phase can attach
- *    text/html content-type headers.
- *  - description is computed before link resolution, so Quartz's prettyLinks
- *    basename-shortening is not reflected in descriptions (cosmetic).
- */
+/** Render tracked notes, resolve links and transclusions, and emit pages, assets, and graph data. */
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';

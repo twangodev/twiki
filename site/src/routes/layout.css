@@ -683,7 +683,7 @@ pre {
 }
 
 /* ---------------------------------------------------------------------------
-   Links — internal/external/tag (CrawlLinks classes), Quartz parity
+   Internal, external, and tag links
 --------------------------------------------------------------------------- */
 .prose a.internal.broken {
 	opacity: 0.5;

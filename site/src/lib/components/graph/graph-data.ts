@@ -1,19 +1,4 @@
-/**
- * Client-side data layer for the knowledge-graph viewer.
- *
- * The graph (nodes + links) comes from the prebuild manifest and is served as
- * a prerendered static endpoint at `/graph.json` (~275 kB raw, gzips to a
- * fraction of that). It is fetched lazily, once, the first time any graph
- * component mounts — no graph data is embedded in page payloads or in the
- * initial JS bundle.
- *
- * Node ids are display-form slugs as emitted by `scripts/build-content.ts`:
- *   - `'/'`                         → the homepage
- *   - `'sp26-cs537/README'`         → a leaf page
- *   - `'fa24-asianam160/lectures/'` → a folder index page (trailing slash)
- *   - `'tags/<tag>'`                → tag nodes, synthesized by render-graph
- *                                     when `showTags` is on (Quartz parity)
- */
+/** Lazily fetch and cache the prerendered /graph.json endpoint. */
 
 export interface GraphNode {
 	id: string;
@@ -45,16 +30,7 @@ export function loadGraph(fetcher: typeof fetch = fetch): Promise<GraphData> {
 	return graphPromise;
 }
 
-// ---------------------------------------------------------------------------
-// Graph configuration — Quartz parity.
-//
-// Mirrors quartz/components/Graph.tsx `defaultOptions` (everything default).
-//
-// This repository's Quartz layout explicitly overrode the local graph to
-// depth 2. Node/link ordering is retained exactly by graph-model.ts because
-// d3-force's deterministic seed depends on that order. The local-only
-// centerCurrentNode option keeps the page being read at the canvas center.
-// ---------------------------------------------------------------------------
+// Node ordering affects the seeded force layout; keep it stable in graph-model.ts.
 
 export interface GraphConfig {
 	drag: boolean;

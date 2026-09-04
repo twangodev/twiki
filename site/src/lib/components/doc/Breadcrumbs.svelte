@@ -1,7 +1,4 @@
 <script lang="ts">
-	// Quartz-parity breadcrumbs: Home / <folder> / … / <current>. Hidden on the
-	// homepage. Every intermediate crumb is a real route (folder pages exist for
-	// every directory).
 	interface Props {
 		/** Display route of the current page, no leading slash ('' = home). */
 		route: string;

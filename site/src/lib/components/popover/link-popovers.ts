@@ -1,15 +1,4 @@
-/**
- * Hover popovers for internal links — Quartz `popover.inline.ts` parity,
- * rebuilt as a Svelte attachment.
- *
- * Behavior: hovering an `a.internal` inside the article for ~300ms fetches the
- * target's prerendered HTML, extracts the article body via DOMParser, caches
- * it per-URL, and shows a fixed-position preview card anchored to the link
- * (@floating-ui/dom: inline + shift + flip, same middleware as Quartz). If the
- * href carries a `#anchor`, the card scrolls to that heading. Escape
- * dismisses. Disabled on touch/coarse-pointer devices. The card lives in
- * `<body>` with `position: fixed`, so there is never layout shift.
- */
+/** Svelte attachment for cached, anchor-aware previews of internal links. */
 
 import { computePosition, flip, inline, shift } from '@floating-ui/dom';
 import type { Attachment } from 'svelte/attachments';
@@ -17,7 +6,6 @@ import './popover.css';
 
 const SHOW_DELAY_MS = 300;
 const HIDE_DELAY_MS = 150;
-/** Scroll buffer above an anchored heading inside the card (Quartz: 12px). */
 const ANCHOR_SCROLL_OFFSET = 12;
 
 type PopoverContent =

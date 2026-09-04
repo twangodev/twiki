@@ -1,13 +1,6 @@
 /**
- * Build-time loader for the prebuild output in `site/.generated`.
- *
- * Everything here runs in Node during `vite build` (prerender) and `vite dev`
- * only — the deployed site is fully prerendered, so none of this ships to the
- * Worker. Reads are synchronous + cached; the manifest is ~1.2 MB and page
- * JSONs are read once each during prerender.
- *
- * Also imported by `scripts/prepare-static.ts` (bun), so no `$lib`/`$app`
- * aliases or SvelteKit imports are allowed here — relative imports only.
+ * Cached readers for generated content used during prerendering and development.
+ * Keep imports relative: prepare-static.ts also loads this module outside SvelteKit.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -41,7 +34,7 @@ export function getManifest(): ContentManifest {
 
 /**
  * Canonical slug → display route (no leading/trailing slash; `''` = home).
- * Mirrors Quartz: trailing `index` segment is trimmed from URLs.
+ * Trailing `index` segments are trimmed from URLs.
  */
 export function displayRoute(slug: string): string {
 	if (slug === 'index') return '';

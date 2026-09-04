@@ -1,5 +1,4 @@
 <script lang="ts">
-	// ContentMeta: last-modified date + reading time (Quartz parity).
 	interface Props {
 		/** ISO date string (frontmatter date -> submodule git log -> fs). */
 		modified?: string;

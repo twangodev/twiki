@@ -65,7 +65,6 @@
 			toggleSearch();
 			return;
 		}
-		// Quartz parity: "/" opens search (unless typing somewhere).
 		if (
 			event.key === '/' &&
 			!event.metaKey &&

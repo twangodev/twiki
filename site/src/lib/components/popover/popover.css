@@ -1,8 +1,4 @@
-/*
- * Hover-popover card for internal links (Quartz popover.scss parity, restyled
- * to the cca token system). The element lives in <body> with position: fixed,
- * so showing/hiding it never causes layout shift in the article.
- */
+/* Fixed positioning keeps previews outside the article layout. */
 
 .popover {
 	position: fixed;

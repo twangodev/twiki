@@ -25,14 +25,3 @@ bun run test:e2e
 ```
 
 Browser tests require Chromium: `bunx playwright install chromium`.
-
-## Deployment
-
-`.github/workflows/svelte.yml` runs type checks, unit tests, and browser tests
-in separate jobs. Once they pass, a final job builds and deploys `main`.
-Build output stays on the runner; no artifacts are uploaded or downloaded.
-
-The GitHub `production` environment supplies the `CLOUDFLARE_API_TOKEN` secret
-and `CLOUDFLARE_ACCOUNT_ID` variable.
-
-Cloudflare Access gates the site. workers.dev and preview URLs are disabled.

@@ -1,17 +1,7 @@
 /**
- * Verbatim port of the wisconsin Quartz fork's `quartz/util/path.ts`.
- *
- * This file is the heart of URL parity: slugging (`slugifyFilePath`/`sluggify`),
- * anchor handling (`splitAnchor`, incl. the PDF `#page=N` passthrough), simple-slug
- * trailing-`index` trimming, and the fork-patched nearest-match `transformLink`
- * resolution (commits c508392 / 8399e6e: suffix match on a "/" boundary; ambiguity
- * broken by longest shared dir prefix with the source, then shallowest path, then
- * lexicographic order; zero matches fall through to root-absolute).
- *
- * Intentional divergences from the fork source (all non-behavioral for the build):
- *  - DOM-only helpers (`getFullSlug`, `normalizeRelativeURLs`) are omitted (browser code).
- *  - `clone` uses `structuredClone` instead of rfdc (identical output for hast JSON).
- *  - Everything else is copied verbatim.
+ * URL and wikilink utilities ported from the Wisconsin Quartz fork's path.ts.
+ * Ambiguous links prefer the longest shared directory prefix, then the
+ * shallowest path, then lexicographic order.
  */
 import { slug as slugAnchor } from 'github-slugger';
 import type { Element as HastElement } from 'hast';

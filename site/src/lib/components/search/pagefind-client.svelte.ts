@@ -54,7 +54,7 @@ export interface SearchSection {
 	excerpt: string;
 }
 
-/** All hits for one page, grouped (Quartz-parity: page row + section rows). */
+/** Search hits grouped by page and section. */
 export interface SearchGroup {
 	id: string;
 	title: string;
