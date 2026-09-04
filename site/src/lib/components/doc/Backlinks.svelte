@@ -1,6 +1,8 @@
 <script lang="ts">
-	// Backlinks panel — pages that link to the current one. This lives after
-	// the graph and TOC in the right rail, matching Quartz's component order.
+	// Backlinks panel — pages that link to the current one, styled as
+	// cca-aesthetic cards (1px border-border, rounded, surface hover, accent on
+	// hover) to match DocPager.
+	import { CornerDownRight } from '@lucide/svelte';
 	import type { BacklinkRef } from '$lib/types';
 
 	interface Props {
@@ -14,18 +16,42 @@
 		if (slug === '/') return '/';
 		return '/' + slug.replace(/\/$/, '');
 	}
+
+	/** Parent path of the linking page, shown as context under the title. */
+	function context(slug: string): string {
+		if (slug === '/') return '';
+		const segments = slug.replace(/\/$/, '').split('/');
+		return segments.slice(0, -1).join(' / ');
+	}
 </script>
 
 {#if backlinks.length > 0}
-	<section class="backlinks flex min-w-0 flex-col" data-island="backlinks" aria-label="Backlinks">
-		<h3 class="m-0 text-base font-semibold text-text">Backlinks</h3>
-		<ul class="my-2 max-h-[22rem] list-none overflow-y-auto p-0 text-sm">
+	<section class="mt-12 border-t border-border pt-6" data-island="backlinks" aria-label="Backlinks">
+		<h2 class="m-0 mb-3 text-xs font-semibold tracking-[0.08em] text-muted uppercase">
+			Linked to this page
+		</h2>
+		<ul class="m-0 grid list-none grid-cols-2 gap-2 p-0 max-[640px]:grid-cols-1">
 			{#each backlinks as link (link.slug)}
-				<li class="min-w-0 py-0.5">
+				<li class="min-w-0">
 					<a
-						class="block truncate font-medium text-accent no-underline hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
-						href={href(link.slug)}>{link.title}</a
+						class="group flex items-center gap-3 rounded-md border border-border px-3 py-2 no-underline transition-colors hover:border-accent hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+						href={href(link.slug)}
 					>
+						<CornerDownRight
+							class="size-4 shrink-0 text-muted transition-colors group-hover:text-accent"
+							aria-hidden="true"
+						/>
+						<span class="min-w-0 flex-1">
+							<span
+								class="block truncate text-sm leading-snug font-medium text-text group-hover:text-accent"
+							>
+								{link.title}
+							</span>
+							{#if context(link.slug)}
+								<span class="block truncate text-xs text-muted">{context(link.slug)}</span>
+							{/if}
+						</span>
+					</a>
 				</li>
 			{/each}
 		</ul>

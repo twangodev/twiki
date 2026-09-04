@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Folder, FileText } from '@lucide/svelte';
 	import SEO from '$lib/components/SEO.svelte';
+	import Backlinks from '$lib/components/doc/Backlinks.svelte';
 	import Breadcrumbs from '$lib/components/doc/Breadcrumbs.svelte';
 	import ContentMeta from '$lib/components/doc/ContentMeta.svelte';
 	import { enhanceArticle } from '$lib/components/doc/enhancements';
@@ -66,6 +67,8 @@
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -- build-time rendered, trusted corpus -->
 		{@html data.page.html}
 	</article>
+
+	<Backlinks backlinks={data.page.backlinks} />
 {:else}
 	<SEO title={data.listing.name} {canonical} />
 

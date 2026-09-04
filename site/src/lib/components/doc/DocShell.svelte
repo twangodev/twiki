@@ -3,12 +3,11 @@
 	import { page } from '$app/state';
 	import { Menu } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
-	import type { BacklinkRef, NavNode } from '$lib/types';
+	import type { NavNode } from '$lib/types';
 	import { site } from '$lib/config';
 	import { ThemeToggle } from '$lib/components/ui';
 	import { SearchButton, SearchPalette } from '$lib/components/search';
 	import GraphPanel from '$lib/components/graph/GraphPanel.svelte';
-	import Backlinks from './Backlinks.svelte';
 	import DocPager from './DocPager.svelte';
 	import ReaderModeToggle from './ReaderModeToggle.svelte';
 	import Sidebar from './Sidebar.svelte';
@@ -23,10 +22,9 @@
 	const { nav, children }: Props = $props();
 
 	let mobileNavOpen = $state(false);
-	type RailPageData = { kind?: string; page?: { backlinks?: BacklinkRef[] } };
+	type RailPageData = { kind?: string };
 	const railPageData = $derived(page.data as RailPageData);
 	const showContentRail = $derived(railPageData.kind === 'page');
-	const backlinks = $derived(showContentRail ? (railPageData.page?.backlinks ?? []) : []);
 
 	afterNavigate(() => {
 		mobileNavOpen = false;
@@ -98,7 +96,6 @@
 				<div class="doc-sidebar-right-inner">
 					<GraphPanel />
 					<div class="doc-toc"><Toc /></div>
-					<Backlinks {backlinks} />
 				</div>
 			{/if}
 		</aside>
