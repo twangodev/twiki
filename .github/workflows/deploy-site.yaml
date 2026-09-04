@@ -6,7 +6,7 @@
 # gone, and the repo-root `public/` it built no longer exists. The parity and
 # anchor gates run against the frozen Quartz snapshot in `site/baseline/`.
 #
-# >>> MERGING THIS BRANCH INTO v4 ENDS GITHUB PAGES UPDATES. <<<
+# The SvelteKit production branch is main; v4 retains the legacy Quartz site.
 # The GH Pages deploy no longer runs, so https://wisconsin.twango.dev (still
 # DNS-pointed at GitHub Pages) freezes at its last Pages build until the DNS
 # cutover. This workflow BUILDS + VERIFIES on every push/PR but does NOT deploy
@@ -28,7 +28,7 @@ name: Build & Deploy Site (SvelteKit → Cloudflare)
 
 on:
   push:
-    branches: [v4]
+    branches: [main]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -124,7 +124,7 @@ jobs:
       # + CLOUDFLARE_ACCOUNT_ID. Inactive until the activation checklist is done.
       # ----------------------------------------------------------------------
       - name: Deploy to Cloudflare Workers
-        if: ${{ env.RUN_DEPLOY == 'true' && (github.event_name != 'workflow_dispatch' || inputs.deploy) }}
+        if: ${{ env.RUN_DEPLOY == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy)) }}
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
