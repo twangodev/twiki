@@ -56,6 +56,14 @@ test('graph survives the Quartz interaction sequence without browser errors', as
 	await expect(graphView).toHaveAttribute('data-graph-ready', 'true');
 	expect(Number(await graphView.getAttribute('data-graph-nodes'))).toBeGreaterThan(1);
 	expect(Number(await graphView.getAttribute('data-graph-links'))).toBeGreaterThan(0);
+	const currentNodePosition = await graphView.evaluate((element) => ({
+		x: Number(element.getAttribute('data-graph-current-x')),
+		y: Number(element.getAttribute('data-graph-current-y')),
+		centerX: (element.querySelector('canvas')?.clientWidth ?? 0) / 2,
+		centerY: (element.querySelector('canvas')?.clientHeight ?? 0) / 2
+	}));
+	expect(currentNodePosition.x).toBeCloseTo(currentNodePosition.centerX, 5);
+	expect(currentNodePosition.y).toBeCloseTo(currentNodePosition.centerY, 5);
 	const box = await localCanvas.boundingBox();
 	expect(box?.width ?? 0).toBeGreaterThanOrEqual(313);
 

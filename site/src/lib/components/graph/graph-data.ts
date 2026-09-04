@@ -51,8 +51,9 @@ export function loadGraph(fetcher: typeof fetch = fetch): Promise<GraphData> {
 // Mirrors quartz/components/Graph.tsx `defaultOptions` (everything default).
 //
 // This repository's Quartz layout explicitly overrode the local graph to
-// depth 2. Node/link ordering and force initialization are retained exactly by
-// graph-model.ts because d3-force's deterministic seed depends on that order.
+// depth 2. Node/link ordering is retained exactly by graph-model.ts because
+// d3-force's deterministic seed depends on that order. The local-only
+// centerCurrentNode option keeps the page being read at the canvas center.
 // ---------------------------------------------------------------------------
 
 export interface GraphConfig {
@@ -69,6 +70,7 @@ export interface GraphConfig {
 	showTags: boolean;
 	focusOnHover: boolean;
 	enableRadial: boolean;
+	centerCurrentNode: boolean;
 }
 
 export const localGraphConfig: GraphConfig = {
@@ -84,7 +86,8 @@ export const localGraphConfig: GraphConfig = {
 	showTags: true,
 	removeTags: [],
 	focusOnHover: false,
-	enableRadial: false
+	enableRadial: false,
+	centerCurrentNode: true
 };
 
 export const globalGraphConfig: GraphConfig = {
@@ -100,7 +103,8 @@ export const globalGraphConfig: GraphConfig = {
 	showTags: true,
 	removeTags: [],
 	focusOnHover: true,
-	enableRadial: true
+	enableRadial: true,
+	centerCurrentNode: false
 };
 
 // ---------------------------------------------------------------------------

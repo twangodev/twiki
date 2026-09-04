@@ -21,6 +21,8 @@
  * - Pixi uses its stable WebGL backend instead of preferring experimental
  *   WebGPU; the rendered scene is otherwise the same and works on browsers
  *   without a usable WebGPU adapter.
+ * - The local graph anchors the page being read at the simulation origin so
+ *   dense two-hop neighborhoods cannot push it outside the preview.
  * - Cleanup also stops the d3 simulation timer (Quartz leaves it to decay).
  */
 import { Group as TweenGroup, Tween as Tweened } from '@tweenjs/tween.js';
@@ -146,7 +148,8 @@ export async function renderGraph(
 		removeTags,
 		showTags,
 		focusOnHover,
-		enableRadial
+		enableRadial,
+		centerCurrentNode
 	} = cfg;
 	const data = new Map(fullData.nodes.map((n) => [n.id, n]));
 	const tweens = new Map<string, TweenNode>();
@@ -171,6 +174,11 @@ export async function renderGraph(
 			target: nodeById.get(l.target)!
 		}))
 	};
+	const centeredNode = centerCurrentNode && slug !== undefined ? nodeById.get(slug) : undefined;
+	if (centeredNode) {
+		centeredNode.fx = 0;
+		centeredNode.fy = 0;
+	}
 
 	const width = graph.offsetWidth;
 	const height = Math.max(graph.offsetHeight, 250);
@@ -469,8 +477,13 @@ export async function renderGraph(
 				})
 				.on('end', function dragended(event) {
 					if (!event.active) simulation.alphaTarget(0);
-					event.subject.fx = null;
-					event.subject.fy = null;
+					if (event.subject === centeredNode) {
+						event.subject.fx = 0;
+						event.subject.fy = 0;
+					} else {
+						event.subject.fx = null;
+						event.subject.fy = null;
+					}
 					dragging = false;
 
 					// if the time between mousedown and mouseup is short, we consider it a click
@@ -531,6 +544,10 @@ export async function renderGraph(
 			const position = canvasPosition(x, y, width, height);
 			if (!position) continue;
 			n.gfx.position.set(position.x, position.y);
+			if (n.simulationData === centeredNode) {
+				graph.dataset.graphCurrentX = String(position.x);
+				graph.dataset.graphCurrentY = String(position.y);
+			}
 			if (n.label) {
 				n.label.position.set(position.x, position.y);
 			}

@@ -4,7 +4,8 @@
 	 *
 	 * Local mode: depth-2 neighborhood of the current page (incl. tag nodes),
 	 * rendered by the Quartz pixi.js/d3-force port in a 250px card — same
-	 * height and configured depth as this repository's Quartz layout.
+	 * height and configured depth as this repository's Quartz layout. The page
+	 * being read remains anchored at the center of the preview.
 	 * Global mode: button over the graph canvas
 	 * (or ctrl/cmd+g, as in Quartz) opens the full-corpus dialog. Graph data
 	 * is fetched once from the prerendered `/graph.json` endpoint, while the

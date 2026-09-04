@@ -257,8 +257,9 @@ State at the end of Phase 5 (integration + verification). The full chain is gree
    d3-force/drag/selection/zoom 3, and Tween.js 25 with an animated canvas,
    visited-node tinting, hover focus, dragging, and local/global zoom behavior.
    Local graph = Quartz's ordered depth-2 traversal over the same manifest data;
-   node/link insertion order and unpinned force initialization match the original.
-   A server-rendered 250px shell prevents layout shift while graph data and the
+   node/link insertion order matches the original, while the current page stays
+   anchored at the canvas center so dense neighborhoods remain navigable. A
+   server-rendered 250px shell prevents layout shift while graph data and the
    renderer chunk load concurrently. Each Pixi app tears down without releasing
    the global texture pool used by the other graph instance.
 2. **Interaction parity is browser-gated.** Playwright runs search filters and
