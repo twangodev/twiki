@@ -91,7 +91,7 @@ import { buildGitDateMap, parseGitmodules, resolveDates } from './lib/lastmod';
 // ---------------------------------------------------------------------------
 // config
 // ---------------------------------------------------------------------------
-const PIPELINE_VERSION = '2'; // bump to invalidate the stage-1 cache (2: hast-stage TOC)
+const PIPELINE_VERSION = '3'; // bump to invalidate the stage-1 cache (3: include H1-H6 in TOC)
 const SITE_DIR = path.resolve(import.meta.dir, '..');
 const REPO_ROOT = path.resolve(SITE_DIR, '..');
 const CONTENT_DIR = path.join(REPO_ROOT, 'content');
@@ -438,10 +438,10 @@ async function parsePage(file: SourceFile): Promise<PageParse> {
 	// handleMissingId:'fail' enforces it corpus-wide.)
 	const toc: TocEntry[] = [];
 	const collectToc = () => (tree: HtmlRoot) => {
-		let highestDepth = 3;
+		let highestDepth = 6;
 		const entries: TocEntry[] = [];
 		visit(tree, 'element', (node: Element) => {
-			const m = /^h([1-3])$/.exec(node.tagName);
+			const m = /^h([1-6])$/.exec(node.tagName);
 			if (m && typeof node.properties?.id === 'string') {
 				const depth = Number(m[1]);
 				highestDepth = Math.min(highestDepth, depth);
