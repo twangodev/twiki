@@ -10,15 +10,10 @@
 	"assets": {
 		"binding": "ASSETS",
 		"directory": ".svelte-kit/cloudflare",
-		// Match SvelteKit's trailingSlash='never' contract at the edge.
 		"html_handling": "drop-trailing-slash",
-		// Serve the prerendered /404 page from the asset layer for unknown URLs.
 		"not_found_handling": "404-page",
-		// Keep prerendered pages on the globally cached asset path. Cloudflare
-		// Access still authenticates requests before they reach this Worker.
 		"run_worker_first": false
 	},
-	// Serve only the custom hostname; configure Cloudflare Access before deploying.
 	"workers_dev": false,
 	"preview_urls": false,
 	"routes": [
