@@ -1,32 +1,61 @@
 import { expect, test } from '@playwright/test';
 
-test('outline follow eases toward its target without repeated jumps', async ({ page }) => {
+test('outline follows with one smooth scroll and reaches its target', async ({ page }) => {
 	await page.setViewportSize({ width: 1440, height: 600 });
 	await page.emulateMedia({ reducedMotion: 'no-preference' });
 	await page.goto('/');
 	await page.locator('.doc-toc').getByRole('button', { name: 'Expand all', exact: true }).click();
-	// Let the manual expansion finish before sampling the independent follow motion.
-	await page.waitForTimeout(300);
-	const positions = await page.evaluate(async () => {
-		const viewport = document.querySelector<HTMLElement>('.doc-toc')!;
+	const toc = page.locator('.doc-toc');
+	await expect
+		.poll(() =>
+			toc.evaluate(
+				(el) =>
+					el
+						.getAnimations({ subtree: true })
+						.filter((animation) => animation.playState === 'running').length
+			)
+		)
+		.toBe(0);
+	await toc.evaluate((element) => {
+		const viewport = element as HTMLElement;
+		const calls: ScrollToOptions[] = [];
+		const scrollTo = viewport.scrollTo.bind(viewport);
+		Object.defineProperty(viewport, 'scrollTo', {
+			value: (options: ScrollToOptions) => {
+				if (viewport.querySelector('a[href="#deployment"][aria-current="location"]')) {
+					calls.push(options);
+					viewport.dataset.scrollCalls = JSON.stringify(calls);
+				}
+				scrollTo(options);
+			}
+		});
+	});
+	await page.evaluate(() => {
 		const heading = document.getElementById('deployment')!;
 		window.scrollTo({
 			top: window.scrollY + heading.getBoundingClientRect().top - 100,
 			behavior: 'instant'
 		});
-		const positions: number[] = [];
-		const start = performance.now();
-		while (performance.now() - start < 1200) {
-			await new Promise(requestAnimationFrame);
-			positions.push(viewport.scrollTop);
-		}
-		return positions;
 	});
-	expect(new Set(positions.map(Math.round)).size).toBeGreaterThan(4);
-	for (let i = 1; i < positions.length; i++)
-		expect(positions[i]).toBeGreaterThanOrEqual(positions[i - 1] - 1);
-	expect(positions.at(-1)).toBeGreaterThan(0);
-	expect(Math.abs(positions.at(-1)! - positions.at(-5)!)).toBeLessThan(1);
+	await expect(toc.locator('a[href="#deployment"]')).toHaveAttribute('aria-current', 'location');
+	await expect(toc).toHaveAttribute('data-scroll-calls', /smooth/);
+	await expect
+		.poll(() =>
+			toc.evaluate((element) => {
+				const viewport = element as HTMLElement;
+				const [call] = JSON.parse(viewport.dataset.scrollCalls!) as ScrollToOptions[];
+				const target = Math.min(call.top!, viewport.scrollHeight - viewport.clientHeight);
+				return Math.abs(viewport.scrollTop - target);
+			})
+		)
+		.toBeLessThan(1);
+	const calls = await toc.evaluate((el) => JSON.parse((el as HTMLElement).dataset.scrollCalls!));
+	expect(calls).toEqual([{ behavior: 'smooth', top: expect.any(Number) }]);
+	expect(calls[0].top).toBeGreaterThan(0);
+	const viewport = (await toc.boundingBox())!;
+	const active = (await toc.locator('a[href="#deployment"]').boundingBox())!;
+	expect(active.y).toBeGreaterThanOrEqual(viewport.y);
+	expect(active.y + active.height).toBeLessThanOrEqual(viewport.y + viewport.height);
 });
 
 test('active outline row follows reading within its own scroll viewport', async ({ page }) => {
