@@ -46,3 +46,6 @@
 [submodule "content/sp26-cs639"]
 	path = content/sp26-cs639
 	url = https://github.com/twangodev/sp26-cs639
+[submodule "content/fa26-philos244"]
+	path = content/fa26-philos244
+	url = https://github.com/twangodev/fa26-philos244
