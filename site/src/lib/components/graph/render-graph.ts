@@ -39,7 +39,7 @@ import {
 	type SimulationNodeDatum
 } from 'd3-force';
 import { select } from 'd3-selection';
-import { zoom, zoomIdentity } from 'd3-zoom';
+import { zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom';
 import { Application, Circle, Container, Graphics, Text } from 'pixi.js';
 import { getVisited, type GraphConfig, type GraphData } from './graph-data';
 import { canvasPosition, orderedGraphElements } from './graph-model';
@@ -180,8 +180,8 @@ export async function renderGraph(
 		centeredNode.fy = 0;
 	}
 
-	const width = graph.offsetWidth;
-	const height = Math.max(graph.offsetHeight, 250);
+	let width = graph.offsetWidth;
+	let height = Math.max(graph.offsetHeight, 250);
 
 	// we virtualize the simulation and use pixi to actually render it
 	const simulation: Simulation<NodeData, LinkData> = forceSimulation<NodeData>(graphData.nodes)
@@ -501,42 +501,63 @@ export async function renderGraph(
 		}
 	}
 
+	let zoomController: ZoomBehavior<HTMLCanvasElement, NodeData> | undefined;
 	if (enableZoom) {
-		select<HTMLCanvasElement, NodeData>(app.canvas).call(
-			zoom<HTMLCanvasElement, NodeData>()
-				.filter((event: Event) => {
-					// local graph only wheel-zooms with ctrl/meta held (Quartz checks
-					// for the .global-graph-container class; here it's a parameter)
-					if (event.type === 'wheel') {
-						if (isGlobalGraph) return true;
-						const we = event as WheelEvent;
-						return we.ctrlKey || we.metaKey;
-					}
-					return !(event as MouseEvent).button;
-				})
-				.extent([
-					[0, 0],
-					[width, height]
-				])
-				.scaleExtent([0.25, 4])
-				.on('zoom', ({ transform }) => {
-					currentTransform = transform;
-					stage.scale.set(transform.k, transform.k);
-					stage.position.set(transform.x, transform.y);
+		zoomController = zoom<HTMLCanvasElement, NodeData>()
+			.filter((event: Event) => {
+				// local graph only wheel-zooms with ctrl/meta held (Quartz checks
+				// for the .global-graph-container class; here it's a parameter)
+				if (event.type === 'wheel') {
+					if (isGlobalGraph || graph.dataset.expanded === 'true') return true;
+					const we = event as WheelEvent;
+					return we.ctrlKey || we.metaKey;
+				}
+				return !(event as MouseEvent).button;
+			})
+			.extent((): [[number, number], [number, number]] => [
+				[0, 0],
+				[width, height]
+			])
+			.scaleExtent([0.25, 4])
+			.on('zoom', ({ transform }) => {
+				currentTransform = transform;
+				stage.scale.set(transform.k, transform.k);
+				stage.position.set(transform.x, transform.y);
 
-					// zoom adjusts opacity of labels too
-					const scale = transform.k * opacityScale;
-					const scaleOpacity = Math.max((scale - 1) / 3.75, 0);
-					const activeNodes = nodeRenderData.filter((n) => n.active).flatMap((n) => n.label);
+				// zoom adjusts opacity of labels too
+				const scale = transform.k * opacityScale;
+				const scaleOpacity = Math.max((scale - 1) / 3.75, 0);
+				const activeNodes = nodeRenderData.filter((n) => n.active).flatMap((n) => n.label);
 
-					for (const label of labelsContainer.children) {
-						if (!activeNodes.includes(label)) {
-							label.alpha = scaleOpacity;
-						}
+				for (const label of labelsContainer.children) {
+					if (!activeNodes.includes(label)) {
+						label.alpha = scaleOpacity;
 					}
-				})
-		);
+				}
+			});
+		select<HTMLCanvasElement, NodeData>(app.canvas).call(zoomController);
 	}
+
+	// Resize the existing Pixi canvas, keeping the simulation and zoom alive.
+	const resizeObserver = new ResizeObserver(() => {
+		const nextWidth = graph.clientWidth;
+		const nextHeight = graph.clientHeight;
+		if (!nextWidth || !nextHeight || (nextWidth === width && nextHeight === height)) return;
+		const { x, y, k } = currentTransform;
+		const nextTransform = zoomIdentity
+			.translate(x + ((nextWidth - width) * (1 - k)) / 2, y + ((nextHeight - height) * (1 - k)) / 2)
+			.scale(k);
+		width = nextWidth;
+		height = nextHeight;
+		app.renderer.resize(width, height);
+		if (enableRadial) {
+			simulation.force('radial', forceRadial((Math.min(width, height) / 2) * 0.8).strength(0.2));
+			simulation.alpha(Math.max(simulation.alpha(), 0.15)).restart();
+		}
+		if (zoomController)
+			select<HTMLCanvasElement, NodeData>(app.canvas).call(zoomController.transform, nextTransform);
+	});
+	resizeObserver.observe(graph);
 
 	function drawFrame(time: number) {
 		for (const n of nodeRenderData) {
@@ -587,6 +608,7 @@ export async function renderGraph(
 		if (destroyed) return;
 		destroyed = true;
 		stopAnimation = true;
+		resizeObserver.disconnect();
 		cancelAnimationFrame(animationFrame);
 		tweens.forEach((t) => t.stop());
 		tweens.clear();

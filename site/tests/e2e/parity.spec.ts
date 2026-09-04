@@ -68,7 +68,7 @@ test('graph survives the Quartz interaction sequence without browser errors', as
 	const box = await localCanvas.boundingBox();
 	expect(box?.width ?? 0).toBeGreaterThanOrEqual(313);
 
-	await page.getByRole('button', { name: 'Open global graph' }).click();
+	await page.getByRole('button', { name: 'Expand graph' }).click();
 	await expect(page.locator('[role="dialog"] canvas')).toBeVisible();
 	await page.getByRole('button', { name: 'Close' }).click();
 

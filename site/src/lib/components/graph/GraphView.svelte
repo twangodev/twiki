@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * Shared graph renderer shell (sidebar local graph + global graph dialog).
+	 * Persistent graph renderer shell, shared by the inline and expanded view.
 	 *
 	 * The actual rendering is a faithful port of Quartz's pixi.js + d3-force
 	 * implementation living in ./render-graph.ts, loaded via dynamic
@@ -25,7 +25,7 @@
 		 */
 		global?: boolean;
 		class?: ClassValue;
-		/** Called when a node navigation starts (lets the dialog close). */
+		/** Called when a node navigation starts (lets the expanded view close). */
 		onnavigate?: () => void;
 		/** Called after Pixi has drawn the first node/link frame. */
 		onready?: () => void;
@@ -62,7 +62,7 @@
 		// reactive deps: re-render on data / current page / theme changes
 		void themeTick;
 		const el = container;
-		const args = [data, currentId, config, global] as const;
+		const args = [data, currentId, config] as const;
 		if (!el) return;
 
 		let cancelled = false;
@@ -71,7 +71,7 @@
 		void import('./render-graph')
 			.then(async ({ renderGraph }) => {
 				if (cancelled) return;
-				cleanup = await renderGraph(el, args[0], args[1], args[2], args[3], (id) => {
+				cleanup = await renderGraph(el, args[0], args[1], args[2], false, (id) => {
 					onnavigate?.();
 					void goto(hrefForId(id));
 				});
@@ -93,6 +93,7 @@
 
 <div
 	bind:this={container}
+	data-expanded={global}
 	class={cn('h-full w-full overflow-hidden', className)}
 	role="img"
 	aria-label="Knowledge graph"
