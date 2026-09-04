@@ -92,7 +92,9 @@ mystery-fossil-RED.html`) so Workers `html_handling` serves the extensionless li
   immediate first frame prevent a blank preview. Global graph is 80vw × 80vh.
 - Backlinks retain the Svelte card treatment below the article instead of moving into the rail.
 - The desktop shell spans the viewport so navigation stays flush left, the graph/TOC rail
-  stays flush right, and the capped article remains centered between them. Reader mode stays
+  stays flush right, and the capped article remains centered between them. The right rail is a
+  full-height, bordered `bg-bg` sidebar with divided graph and outline sections, matching the
+  left rail and Postframe's inspector language without shrinking the graph. Reader mode stays
   centered.
 - Search retains `/` and ⌘K, adds Quartz-style `#tag` shorthand, and indexes distinct course
   and tag filters instead of a malformed composite value.

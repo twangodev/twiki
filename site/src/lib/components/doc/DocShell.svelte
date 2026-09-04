@@ -91,7 +91,7 @@
 	</main>
 
 	{#if !readerMode.enabled}
-		<aside class="doc-sidebar-right">
+		<aside class="doc-sidebar-right" aria-label="Page tools">
 			{#if showContentRail}
 				<div class="doc-sidebar-right-inner">
 					<GraphPanel />

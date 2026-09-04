@@ -101,13 +101,38 @@ test('desktop rails stay pinned to both viewport edges on wide screens', async (
 
 	const sidebarBox = await page.locator('.doc-sidebar-left').boundingBox();
 	const mainContentBox = await page.locator('.doc-main > div').boundingBox();
-	const rightRailBox = await page.locator('.doc-sidebar-right').boundingBox();
+	const rightRail = page.locator('.doc-sidebar-right');
+	const rightRailBox = await rightRail.boundingBox();
 	const shellBox = await page.locator('.doc-shell').boundingBox();
 	expect(sidebarBox?.x).toBe(0);
 	expect(shellBox?.x).toBe(0);
 	expect(shellBox?.width).toBe(1920);
 	expect((rightRailBox?.x ?? 0) + (rightRailBox?.width ?? 0)).toBe(1920);
 	expect((mainContentBox?.x ?? 0) + (mainContentBox?.width ?? 0) / 2).toBe(960);
+
+	const panelStyle = await rightRail.evaluate((element) => {
+		const style = getComputedStyle(element);
+		const leftRail = document.querySelector<HTMLElement>('.doc-sidebar-left');
+		return {
+			background: style.backgroundColor,
+			leftBackground: leftRail ? getComputedStyle(leftRail).backgroundColor : null,
+			border: style.borderLeftWidth,
+			borderStyle: style.borderLeftStyle,
+			height: style.height,
+			position: style.position
+		};
+	});
+	expect(panelStyle).toEqual({
+		background: panelStyle.leftBackground,
+		leftBackground: panelStyle.leftBackground,
+		border: '1px',
+		borderStyle: 'solid',
+		height: '900px',
+		position: 'sticky'
+	});
+	expect(
+		await page.locator('.doc-toc').evaluate((element) => getComputedStyle(element).borderTopWidth)
+	).toBe('1px');
 });
 
 test('Mermaid diagrams retain copy and fullscreen pan/zoom controls', async ({ page }) => {
