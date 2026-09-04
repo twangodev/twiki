@@ -1,7 +1,7 @@
 /**
  * Content prebuild for the SvelteKit rewrite of wisconsin.twango.dev.
  *
- * Two-pass unified pipeline per site/ARCHITECTURE.md §4 (stages 0–3):
+ * Two-pass unified pipeline:
  *   0. discover  — git ls-files per submodule + superproject; whitelist
  *                  classification (pages = tracked *.md; assets = images/PDFs/
  *                  standalone .html); everything else recorded in dropped-urls.txt
@@ -1075,7 +1075,7 @@ async function main() {
 	fs.writeFileSync(path.join(OUT_DIR, 'content-manifest.json'), JSON.stringify(manifest, null, 1));
 
 	// dropped-urls.txt — tracked files the old Quartz site served but the
-	// whitelist excludes (review before cutover; see ARCHITECTURE.md critique §C)
+	// whitelist excludes.
 	fs.writeFileSync(
 		path.join(OUT_DIR, 'dropped-urls.txt'),
 		otherSrc.map((f) => '/' + f.slug).join('\n') + '\n'

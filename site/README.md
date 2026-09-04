@@ -1,0 +1,38 @@
+# Wisconsin site
+
+SvelteKit course notes, deployed to Cloudflare Workers at `wisconsin.twango.dev`.
+
+## Development
+
+Run from `site/`:
+
+```sh
+bun install --frozen-lockfile
+bun run build:content
+bun run dev:host
+```
+
+Course content is stored in Git submodules under `content/`. Rerun
+`build:content` after changing notes.
+
+## Checks
+
+```sh
+bun run build:all
+bun run check
+bun test scripts
+bun run test:e2e
+```
+
+Browser tests require Chromium: `bunx playwright install chromium`.
+
+## Deployment
+
+`.github/workflows/svelte.yml` separates build, type checks, unit tests, browser
+tests, and deployment. All checks must pass before deploying `main`.
+
+The GitHub `production` environment supplies the `CLOUDFLARE_API_TOKEN` secret
+and `CLOUDFLARE_ACCOUNT_ID` variable. The shared build artifact is deleted after
+a deployment attempt; cleanup failures are non-blocking.
+
+Cloudflare Access gates the site. workers.dev and preview URLs are disabled.
