@@ -142,9 +142,7 @@ pre {
 .doc-shell {
 	display: grid;
 	width: 100%;
-	max-width: 101.25rem;
-	margin-right: auto;
-	margin-left: 0;
+	max-width: none;
 	grid-template-columns: 23.75rem minmax(0, 1fr) 23.75rem;
 	grid-template-areas: 'left main right';
 	column-gap: 5px;

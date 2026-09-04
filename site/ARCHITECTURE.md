@@ -44,7 +44,7 @@ Around that vendored core, use commodity unified plugins: remark-gfm, remark-mat
 
 - `src/routes/layout.css` — the single source of truth: Tailwind 4 `@theme` tokens, `@custom-variant dark (&:where(:root.dark, :root.dark *))`, prose remaps, admonition styles, thin themed scrollbars, Shiki dark-swap rule, heading weight override (semibold + `-0.025em` tracking, `scroll-margin-top: 5rem`).
 - `static/fonts/*` + `@font-face` blocks: **Overused Grotesk** (sans), **JetBrains Mono** (mono), Virgil (reserve). These replace wisconsin's Google-Fonts trio (Schibsted Grotesk / Source Sans Pro / IBM Plex Mono) — self-hosted variable fonts, better identity match with twango.dev family.
-- `src/lib/components/doc/`: `DocShell` (left-anchored 23.75rem sidebar / `max-w-3xl` content / 23.75rem graph+TOC rail, mobile slide-in at ≤800px), `Sidebar`, `NavTree` (native `<details>`, natural sort), `Toc`, `DocPager`, `enhancements.ts` (drop `filePreviews`, `kotlinPlayground`).
+- `src/lib/components/doc/`: `DocShell` (full-width 23.75rem left sidebar / centered `max-w-3xl` content / 23.75rem graph+TOC rail, mobile slide-in at ≤800px), `Sidebar`, `NavTree` (native `<details>`, natural sort), `Toc`, `DocPager`, `enhancements.ts` (drop `filePreviews`, `kotlinPlayground`).
 - `src/lib/components/ui/*` (Button variants, Dialog/Tooltip/Select wrappers, ThemeToggle, layout primitives), `src/lib/utils.ts` (`cn()`), `SEO.svelte`, `mode-watcher` wiring with `defaultMode="dark"`.
 - `src/lib/components/search/` palette UI + `search-state.svelte.ts` + ⌘K binding (rewired to Pagefind).
 - Mermaid embed component + base64 passthrough; KaTeX CSS global import; admonition kind colors.

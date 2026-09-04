@@ -95,15 +95,19 @@ test('graph rail follows content at the Quartz tablet breakpoint', async ({ page
 	expect(graphBox?.y ?? 0).toBeGreaterThanOrEqual((mainBox?.y ?? 0) + (mainBox?.height ?? 0) - 1);
 });
 
-test('desktop sidebar stays flush with the left edge on wide screens', async ({ page }) => {
+test('desktop rails stay pinned to both viewport edges on wide screens', async ({ page }) => {
 	await page.setViewportSize({ width: 1920, height: 900 });
 	await page.goto('/sp26-cs544/README');
 
 	const sidebarBox = await page.locator('.doc-sidebar-left').boundingBox();
+	const mainContentBox = await page.locator('.doc-main > div').boundingBox();
+	const rightRailBox = await page.locator('.doc-sidebar-right').boundingBox();
 	const shellBox = await page.locator('.doc-shell').boundingBox();
 	expect(sidebarBox?.x).toBe(0);
 	expect(shellBox?.x).toBe(0);
-	expect(shellBox?.width).toBe(1620);
+	expect(shellBox?.width).toBe(1920);
+	expect((rightRailBox?.x ?? 0) + (rightRailBox?.width ?? 0)).toBe(1920);
+	expect((mainContentBox?.x ?? 0) + (mainContentBox?.width ?? 0) / 2).toBe(960);
 });
 
 test('Mermaid diagrams retain copy and fullscreen pan/zoom controls', async ({ page }) => {
