@@ -136,144 +136,80 @@ pre {
 	font-family: var(--font-mono);
 }
 
-/* ---------------------------------------------------------------------------
-   Documentation shell — retain Quartz's rail geometry and breakpoints.
---------------------------------------------------------------------------- */
+/* Documentation shell: shared breakpoints own all rail and drawer geometry. */
 .doc-shell {
 	display: grid;
 	width: 100%;
-	max-width: none;
-	grid-template-columns: 23.75rem minmax(0, 1fr) 23.75rem;
+	grid-template-columns: 22rem minmax(0, 1fr) 22rem;
 	grid-template-areas: 'left main right';
 }
-
-.doc-mobile-header {
-	grid-area: mobile-header;
+.doc-shell-listing {
+	grid-template-columns: 22rem minmax(0, 1fr);
+	grid-template-areas: 'left main';
 }
-
-.doc-sidebar-left {
-	grid-area: left;
-}
-
-.doc-main {
-	grid-area: main;
-	padding-top: 6rem;
-}
-
+.doc-mobile-header { display: none; grid-area: mobile-header; }
+.doc-sidebar-left { grid-area: left; position: sticky; top: 0; height: 100dvh; }
+.doc-main { grid-area: main; padding: 2rem 2rem 3rem; }
 .doc-sidebar-right {
 	position: sticky;
 	top: 0;
 	grid-area: right;
-	box-sizing: border-box;
-	height: 100vh;
+	height: 100dvh;
 	border-left: 1px solid var(--color-border);
 	background: var(--color-bg);
 	overflow-y: auto;
 	overscroll-behavior: contain;
-	padding: 6rem 2rem 2rem;
+	padding: 2rem 1rem 1rem;
 }
-
-.doc-sidebar-right-inner {
-	display: flex;
-	min-height: 0;
-	flex-direction: column;
-	gap: 0;
-}
-
+.doc-sidebar-right-inner { display: flex; min-height: 0; flex-direction: column; }
 .doc-toc {
-	margin: 1.5rem -2rem 0;
+	margin: 1rem -1rem 0;
 	border-top: 1px solid var(--color-border);
-	padding: 1.5rem 2rem 0;
+	padding: 1rem 1rem 0;
 }
-
-.doc-sidebar-content {
-	padding: 6rem 2rem 2rem;
-}
-
+.doc-toc:has(> nav):not(:has(li)) { display: none; }
+.doc-sidebar-content { padding: 2rem 1rem 1rem; }
 .doc-shell-reader {
-	max-width: 90rem;
-	margin-right: auto;
-	margin-left: auto;
 	grid-template-columns: minmax(0, 1fr);
 	grid-template-areas: 'main';
 }
+.doc-shell-reader .doc-sidebar-left { display: none; }
+.doc-nav-backdrop { display: none; }
 
-@media (min-width: 801px) and (max-width: 1199.98px) {
+@media (width < 1440px) {
 	.doc-shell {
-		grid-template-columns: 23.75rem minmax(0, 1fr);
-		grid-template-areas:
-			'left main'
-			'left right';
+		grid-template-columns: 18rem minmax(0, 1fr);
+		grid-template-areas: 'left main' 'left right';
 	}
-
-	.doc-shell-reader {
-		grid-template-columns: minmax(0, 1fr);
-		grid-template-areas: 'main';
-	}
-
-	.doc-sidebar-right {
-		position: static;
-		height: auto;
-		border-left: 0;
-		overflow: visible;
-		padding: 0 2rem 2rem;
-	}
-
-	.doc-sidebar-right-inner {
-		flex-direction: row;
-	}
-
-	.doc-sidebar-right-inner > * {
-		min-width: 0;
-		max-height: 24rem;
-		flex: 1;
-	}
-
-	.doc-toc {
-		display: none;
-	}
+	.doc-shell-listing { grid-template-areas: 'left main'; }
+	.doc-shell-reader { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'main'; }
+	.doc-main { padding-inline: 1.5rem; }
+	.doc-sidebar-right { position: static; height: auto; border-left: 0; padding: 0 1.5rem 1.5rem; }
+	.doc-toc { display: none; }
 }
-
-@media (max-width: 800px) {
-	.doc-shell,
-	.doc-shell-reader {
+@media (width < 1024px) {
+	.doc-shell, .doc-shell-listing, .doc-shell-reader {
 		grid-template-columns: minmax(0, 1fr);
-		grid-template-areas:
-			'mobile-header'
-			'main'
-			'right';
-		row-gap: 5px;
+		grid-template-areas: 'mobile-header' 'main' 'right';
 	}
-
-	.doc-main {
-		padding-top: 1.5rem;
+	.doc-mobile-header { display: flex; }
+	.doc-main { padding: 1.5rem 1.25rem 2rem; }
+	.doc-sidebar-left, .doc-shell-reader .doc-sidebar-left {
+		display: block;
+		position: fixed;
+		top: 0;
+		left: 0;
+		z-index: 50;
+		width: 17rem;
+		max-width: 85vw;
+		transform: translateX(-100%);
+		transition: transform 200ms;
 	}
-
-	.doc-sidebar-content {
-		padding: 1.25rem 1rem;
-	}
-
-	.doc-sidebar-right {
-		position: static;
-		height: auto;
-		border-left: 0;
-		overflow: visible;
-		padding: 0 1.25rem 2rem;
-	}
-
-	.doc-sidebar-right-inner {
-		flex-direction: row;
-	}
-
-	.doc-sidebar-right-inner > * {
-		min-width: 0;
-		max-height: 24rem;
-		flex: 1;
-	}
-
-	.doc-toc {
-		display: none;
-	}
+	.doc-sidebar-left.doc-nav-open { transform: translateX(0); }
+	.doc-nav-backdrop { display: block; }
+	.doc-sidebar-content { padding: 1.25rem 1rem; }
+	.doc-reader-controls { display: none; }
+	.doc-sidebar-right { padding-inline: 1.25rem; }
 }
 
 /* ---------------------------------------------------------------------------
