@@ -15,6 +15,9 @@
 	const { data }: Props = $props();
 
 	const canonical = $derived(data.route === '' ? '/' : `/${data.route}`);
+	// Split only a leading H1, retaining its original markup and deep-link id.
+	const heading = $derived(data.kind === 'page' ? data.page.html.match(/^\s*<h1\b[^>]*>[\s\S]*?<\/h1>/i)?.[0] ?? '' : '');
+	const body = $derived(data.kind === 'page' ? data.page.html.slice(heading.length) : '');
 
 	// Pagefind permits only the final comma-separated filter to use inline
 	// `key:value` syntax. Emit one hidden capture element per value instead so
@@ -60,12 +63,19 @@
 			</div>
 			<!-- Frontmatter title beats Pagefind's h1-scraping (some pages lack an h1). -->
 			<span class="sr-only" data-pagefind-meta="title">{data.page.title}</span>
-			<div data-pagefind-ignore>
+		{/if}
+		{#if heading}
+			{@html heading}
+		{:else if data.kind === 'page'}
+			<h1>{data.page.title}</h1>
+		{/if}
+		{#if data.route !== ''}
+			<div class="doc-meta" data-pagefind-ignore>
 				<ContentMeta modified={data.page.dates?.modified} readingTime={data.page.readingTime} />
 			</div>
 		{/if}
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -- build-time rendered, trusted corpus -->
-		{@html data.page.html}
+		{@html body}
 	</article>
 
 	<Backlinks backlinks={data.page.backlinks} />

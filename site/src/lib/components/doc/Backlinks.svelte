@@ -26,7 +26,7 @@
 </script>
 
 {#if backlinks.length > 0}
-	<section class="mt-12 border-t border-border pt-6" data-island="backlinks" aria-label="Backlinks">
+	<section class="mt-8 border-t border-border pt-4" data-island="backlinks" aria-label="Backlinks">
 		<h2 class="m-0 mb-3 text-xs font-semibold tracking-[0.08em] text-muted uppercase">
 			Linked to this page
 		</h2>

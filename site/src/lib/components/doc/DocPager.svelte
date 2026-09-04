@@ -58,7 +58,7 @@
 
 {#if previousPage || nextPage}
 	<nav
-		class="mt-12 grid grid-cols-2 gap-3 border-t border-border pt-6 max-[640px]:grid-cols-1"
+		class="mt-8 grid grid-cols-2 gap-3 border-t border-border pt-4 max-[640px]:grid-cols-1"
 		aria-label="Page navigation"
 	>
 		{#if previousPage}

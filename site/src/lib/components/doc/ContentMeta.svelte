@@ -21,7 +21,7 @@
 </script>
 
 {#if formatted || readingTime}
-	<p class="mt-1 mb-6 text-[0.8125rem] text-muted">
+	<p class="m-0 text-[0.8125rem] text-muted">
 		{#if formatted}<span>Last modified: {formatted}</span>{/if}
 		{#if formatted && readingTime}<span aria-hidden="true"> · </span>{/if}
 		{#if readingTime}<span>{readingTime} min read</span>{/if}
