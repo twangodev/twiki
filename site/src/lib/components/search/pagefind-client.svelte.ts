@@ -35,6 +35,10 @@ interface PagefindModule {
 	init(): Promise<void>;
 	options(opts: Record<string, unknown>): Promise<void>;
 	filters(): Promise<Record<string, Record<string, number>>>;
+	search(
+		query: string | null,
+		options?: { filters?: Record<string, string[]> }
+	): Promise<{ results: PagefindRawResult[] }>;
 	debouncedSearch(
 		query: string,
 		options?: { filters?: Record<string, string[]> },
@@ -96,12 +100,15 @@ const SECTIONS_PER_PAGE = 4;
  * callers must keep previous results in that case.
  */
 export async function searchPagefind(
-	query: string,
+	query: string | null,
 	filters: Record<string, string[]>
 ): Promise<SearchGroup[] | null> {
 	if (!pagefind) return [];
 	const opts = Object.keys(filters).length > 0 ? { filters } : undefined;
-	const res = await pagefind.debouncedSearch(query, opts, 120);
+	const res =
+		query === null
+			? await pagefind.search(null, opts)
+			: await pagefind.debouncedSearch(query, opts, 120);
 	if (res === null) return null;
 
 	const top = res.results.slice(0, PAGE_LIMIT);

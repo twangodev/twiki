@@ -9,6 +9,7 @@
 		searchPagefind,
 		type SearchGroup
 	} from './pagefind-client.svelte';
+	import { parseSearchQuery } from './pagefind-query';
 	import { closeSearch, searchState, toggleSearch } from './search-state.svelte';
 
 	let query = $state('');
@@ -18,22 +19,24 @@
 
 	const courseOptions = $derived(Object.entries(searchClient.filters.course ?? {}).sort());
 	const tagOptions = $derived(Object.entries(searchClient.filters.tag ?? {}).sort());
+	const parsedQuery = $derived(parseSearchQuery(query));
 
 	const activeFilters = $derived.by(() => {
 		const f: Record<string, string[]> = {};
 		if (course) f.course = [course];
-		if (tag) f.tag = [tag];
+		if (parsedQuery.tag) f.tag = [parsedQuery.tag];
+		else if (tag) f.tag = [tag];
 		return f;
 	});
 
 	$effect(() => {
-		const q = query.trim();
+		const parsed = parsedQuery;
 		const filters = activeFilters;
-		if (searchClient.status !== 'ready' || q.length < 2) {
+		if (searchClient.status !== 'ready' || (parsed.term !== null && parsed.term.length < 2)) {
 			groups = [];
 			return;
 		}
-		void searchPagefind(q, filters).then((out) => {
+		void searchPagefind(parsed.term, filters).then((out) => {
 			// null = superseded by a newer keystroke; keep current results.
 			if (out !== null) groups = out;
 		});
@@ -96,7 +99,7 @@
 					<Search class="size-4 shrink-0 text-text/60" />
 					<Command.Input
 						bind:value={query}
-						placeholder="Search…"
+						placeholder="Search… or #tag"
 						class="h-11 w-full bg-transparent text-sm text-text outline-none placeholder:text-text/50"
 					/>
 				</div>
@@ -132,7 +135,9 @@
 					{#if searchClient.status === 'loading' || searchClient.status === 'idle'}
 						<div class="block px-3 py-6 text-center text-sm text-text/60">Loading index…</div>
 					{:else if searchClient.status === 'missing'}
-						<div class="flex flex-col items-center gap-2 px-3 py-6 text-center text-sm text-text/60">
+						<div
+							class="flex flex-col items-center gap-2 px-3 py-6 text-center text-sm text-text/60"
+						>
 							{#if import.meta.env.DEV}
 								<span>No search index in dev — Pagefind indexes the built site.</span>
 								<code class="rounded-sm bg-surface px-1.5 py-0.5 text-xs"
@@ -151,7 +156,9 @@
 						</div>
 					{:else}
 						<Command.Empty class="block px-3 py-6 text-center text-sm text-text/60">
-							{query.trim().length < 2 ? 'Type at least 2 characters…' : 'No results'}
+							{parsedQuery.term !== null && parsedQuery.term.length < 2
+								? 'Type at least 2 characters…'
+								: 'No results'}
 						</Command.Empty>
 						{#each groups as group (group.id)}
 							<Command.Group value={group.id}>

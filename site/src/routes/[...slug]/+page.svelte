@@ -16,14 +16,12 @@
 
 	const canonical = $derived(data.route === '' ? '/' : `/${data.route}`);
 
-	// Pagefind inline filters: course = first route segment, plus page tags.
-	// data-pagefind-filter parses comma-separated `key:value` pairs; corpus tag
-	// values are comma-free (checked against content-manifest.json).
-	const pagefindFilter = $derived.by(() => {
+	// Pagefind permits only the final comma-separated filter to use inline
+	// `key:value` syntax. Emit one hidden capture element per value instead so
+	// course and every tag become independent, repeatable filters.
+	const pagefindCourse = $derived.by(() => {
 		if (data.route === '') return undefined;
-		const parts = [`course:${data.route.split('/')[0]}`];
-		if (data.kind === 'page') parts.push(...data.page.tags.map((t) => `tag:${t}`));
-		return parts.join(', ');
+		return data.route.split('/')[0];
 	});
 
 	function shortDate(iso?: string): string {
@@ -50,11 +48,16 @@
 	<article
 		class="prose dark:prose-invert max-w-none"
 		data-pagefind-body
-		data-pagefind-filter={pagefindFilter}
 		{@attach enhanceArticle(data.route)}
 		{@attach linkPopovers(data.route)}
 	>
 		{#if data.route !== ''}
+			<div class="hidden" data-pagefind-ignore>
+				<span data-pagefind-filter="course">{pagefindCourse}</span>
+				{#each data.page.tags as tag (tag)}
+					<span data-pagefind-filter="tag">{tag}</span>
+				{/each}
+			</div>
 			<!-- Frontmatter title beats Pagefind's h1-scraping (some pages lack an h1). -->
 			<span class="sr-only" data-pagefind-meta="title">{data.page.title}</span>
 			<div data-pagefind-ignore>
@@ -71,11 +74,11 @@
 
 	<Breadcrumbs route={data.route} current={data.listing.name} />
 
-	<article
-		class="prose dark:prose-invert max-w-none"
-		data-pagefind-body
-		data-pagefind-filter={pagefindFilter}
-	>
+	<article class="prose dark:prose-invert max-w-none" data-pagefind-body>
+		{#if pagefindCourse}
+			<span class="hidden" data-pagefind-ignore data-pagefind-filter="course">{pagefindCourse}</span
+			>
+		{/if}
 		<h1>{data.listing.name}</h1>
 		<p class="text-muted">
 			{data.listing.pageCount}
