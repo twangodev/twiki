@@ -21,7 +21,9 @@ test('Pagefind exposes real course and tag filters, including #tag search', asyn
 	await expect(page.locator('[data-command-group-items]').first()).toBeVisible();
 });
 
-test('graph survives the Quartz interaction sequence without browser errors', async ({ page }) => {
+test('graph survives navigation, fullscreen, and theme changes without browser errors', async ({
+	page
+}) => {
 	await page.setViewportSize({ width: 1440, height: 900 });
 	const errors: string[] = [];
 	page.on('pageerror', (error) => errors.push(error.stack ?? error.message));

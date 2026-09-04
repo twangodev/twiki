@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { canvasPosition, orderedGraphElements } from '../../src/lib/components/graph/graph-model';
 
-describe('Quartz graph model parity', () => {
+describe('graph model', () => {
 	test('orders outgoing neighbours before incoming neighbours', () => {
 		const graph = {
 			nodes: [

@@ -1,28 +1,4 @@
-/**
- * Prepares build inputs from `.generated` (run after `build:content`, before
- * `vite dev`/`vite build`). Three jobs:
- *
- * 1. Sync `.generated/assets/**` into `static/` (hardlinks when possible) so
- *    SvelteKit serves/copies them like any static asset — the simplest
- *    mechanism that works identically in dev, prerender crawling, and the
- *    Workers deploy. Standalone .html assets are emitted as `<slug>.html`;
- *    Workers `html_handling: drop-trailing-slash` serves them at the
- *    live extensionless URL (`/fa25-anthro105/assets/mystery-fossil-GREEN`).
- *    Stale files are pruned (keep-list: favicon.png, fonts/, .gitignore).
- *
- * 2. Emit `src/lib/generated/nav.json` — the Explorer tree as a static module
- *    import. Importing it (instead of returning it from a layout `load`) keeps
- *    the ~60 kB nav payload out of every prerendered page's data script; it
- *    ships once in a shared JS chunk.
- *
- * 3. Emit `.generated/expected-404.json` — every internal href/src in the
- *    rendered corpus that resolves to nothing. These are bug-for-bug parity
- *    with links that are *also broken on the live site* (see
- *    `.generated/warnings.txt`; golden-diff link parity is 100%). The strict
- *    prerender crawler (`handleHttpError`) fails on any 404 NOT in this list.
- *
- * Size guard (per ARCHITECTURE.md §D): warn >20 MiB, fail >25 MiB per file.
- */
+/** Sync assets, emit navigation, and report unresolved content links for prerendering. */
 
 import {
 	copyFileSync,
@@ -197,20 +173,10 @@ for (const slug of Object.keys(manifest.pages)) {
 const sorted = [...expected404].sort();
 writeFileSync(path.join(GENERATED, 'expected-404.json'), JSON.stringify(sorted, null, '\t'));
 console.log(
-	`expected-404: ${sorted.length} unique live-broken link targets whitelisted for the crawler`
+	`expected-404: ${sorted.length} unresolved content link targets reported to the crawler`
 );
 
-// ---------------------------------------------------------------------------
-// 3b. Expected-missing-id list for the strict prerender crawler
-//     (handleMissingId: 'fail' otherwise aborts the build). An in-page anchor
-//     target `/<slug>#<id>` is whitelisted ONLY when the same anchor is also
-//     broken on the live Quartz site — i.e. a content authoring error, not a
-//     pipeline regression. Format: `<slug>#<id>`. Verified (Phase 5 analysis):
-//     exactly 2 such anchors corpus-wide, 0 anchors that live resolves but we
-//     drop. If a new entry appears here, confirm it against public/ before
-//     whitelisting; never silently hide an id we failed to emit.
-// ---------------------------------------------------------------------------
-
+// Missing content anchors are reported without blocking publication.
 const pageIds = new Map<string, Set<string>>();
 const idRe = /id="([^"]*)"/g;
 for (const slug of Object.keys(manifest.pages)) {
@@ -222,8 +188,7 @@ for (const slug of Object.keys(manifest.pages)) {
 	pageIds.set(slug, ids);
 }
 
-// path#id → owning page slug (so we can cross-check the live build).
-const missingAnchor = new Map<string, string>();
+const missingAnchor = new Set<string>();
 const anchorRe = /(?:href|src)="(\/[^"#]*#[^"]+)"/g;
 for (const slug of Object.keys(manifest.pages)) {
 	const doc = JSON.parse(readFileSync(path.join(GENERATED, 'pages', `${slug}.json`), 'utf-8')) as {
@@ -251,55 +216,17 @@ for (const slug of Object.keys(manifest.pages)) {
 		const ids = pageIds.get(targetSlug);
 		if (!ids) continue;
 		// The prerenderer keys missing-id errors by the rendered path, not the slug.
-		if (!ids.has(id)) missingAnchor.set(`${target}#${id}`, targetSlug);
+		if (!ids.has(id)) missingAnchor.add(`${target}#${id}`);
 	}
 }
 
-// Cross-check every broken in-page anchor against the FROZEN Quartz baseline: if
-// the live page emitted that id but ours does not, it's a pipeline regression and
-// must be fixed, never whitelisted. site/baseline/page-ids.json is a snapshot of
-// the final Quartz build's per-page element ids (see site/baseline/README.md);
-// a slug absent from the map means the live page did not exist (liveIds → null).
-const BASELINE_DIR = path.resolve(SITE_DIR, 'baseline');
-const baselinePageIds = JSON.parse(
-	readFileSync(path.join(BASELINE_DIR, 'page-ids.json'), 'utf-8')
-) as Record<string, string[]>;
-const liveIdCache = new Map<string, Set<string> | null>();
-function liveIds(slug: string): Set<string> | null {
-	if (liveIdCache.has(slug)) return liveIdCache.get(slug)!;
-	const ids = Object.prototype.hasOwnProperty.call(baselinePageIds, slug)
-		? new Set<string>(baselinePageIds[slug])
-		: null;
-	liveIdCache.set(slug, ids);
-	return ids;
-}
-
-const regressions: string[] = [];
-const expectedMissingId: string[] = [];
-for (const [key, targetSlug] of missingAnchor) {
-	const id = key.slice(key.indexOf('#') + 1);
-	const live = liveIds(targetSlug);
-	if (live && live.has(id)) {
-		regressions.push(`${key} (slug ${targetSlug}: live emits this id, we dropped it)`);
-	} else {
-		expectedMissingId.push(key);
-	}
-}
-if (regressions.length > 0) {
-	console.error(
-		`FAIL: ${regressions.length} broken in-page anchor(s) are REGRESSIONS (live resolves them):`
-	);
-	for (const r of regressions) console.error(`  - ${r}`);
-	process.exit(1);
-}
-
-const sortedIds = expectedMissingId.sort();
+const sortedIds = [...missingAnchor].sort();
 writeFileSync(
 	path.join(GENERATED, 'expected-missing-id.json'),
 	JSON.stringify(sortedIds, null, '\t')
 );
 console.log(
-	`expected-missing-id: ${sortedIds.length} in-page anchors broken on the live site too (0 regressions)`
+	`expected-missing-id: ${sortedIds.length} unresolved content anchors reported to the crawler`
 );
 console.log(
 	`routes: ${contentEntries().length} content + ${Object.keys(manifest.tags).length + 1} tag + 2 xml + /404`

@@ -6,7 +6,7 @@ describe('parseSearchQuery', () => {
 		expect(parseSearchQuery('  distributed systems ')).toEqual({ term: 'distributed systems' });
 	});
 
-	test('supports Quartz-style tag-only searches', () => {
+	test('supports tag-only searches', () => {
 		expect(parseSearchQuery('#cs544')).toEqual({ term: null, tag: 'cs544' });
 	});
 

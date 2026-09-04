@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { globalGraphConfig, localGraphConfig } from '../../src/lib/components/graph/graph-data';
 
-describe('local graph parity', () => {
-	test('keeps the repository Quartz depth override', () => {
+describe('local graph configuration', () => {
+	test('uses the configured neighborhood depth', () => {
 		expect(localGraphConfig.depth).toBe(2);
 	});
 
