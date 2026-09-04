@@ -227,6 +227,12 @@ export async function renderGraph(
 				target: nodeById.get(l.target)!
 			}))
 	};
+	const initiallyCenteredNode =
+		!isGlobalGraph && slug !== undefined ? nodeById.get(slug) : undefined;
+	if (initiallyCenteredNode) {
+		initiallyCenteredNode.fx = 0;
+		initiallyCenteredNode.fy = 0;
+	}
 
 	const width = graph.offsetWidth;
 	const height = Math.max(graph.offsetHeight, 250);
@@ -237,6 +243,14 @@ export async function renderGraph(
 		.force('center', forceCenter().strength(centerForce))
 		.force('link', forceLink(graphData.links).distance(linkDistance))
 		.force('collide', forceCollide<NodeData>((n) => nodeRadius(n)).iterations(3));
+	if (initiallyCenteredNode) {
+		simulation.on('end.initial-center', () => {
+			// Leave the settled layout centered, then release the node so normal
+			// drag/reheat behavior remains identical to Quartz.
+			initiallyCenteredNode.fx = null;
+			initiallyCenteredNode.fy = null;
+		});
+	}
 
 	const radius = (Math.min(width, height) / 2) * 0.8;
 	if (enableRadial) simulation.force('radial', forceRadial(radius).strength(0.2));
@@ -583,6 +597,7 @@ export async function renderGraph(
 	}
 
 	let stopAnimation = false;
+	let animationFrame = 0;
 	function animate(time: number) {
 		if (stopAnimation) return;
 		for (const n of nodeRenderData) {
@@ -605,17 +620,24 @@ export async function renderGraph(
 
 		tweens.forEach((t) => t.update(time));
 		app.renderer.render(stage);
-		requestAnimationFrame(animate);
+		animationFrame = requestAnimationFrame(animate);
 	}
 
-	requestAnimationFrame(animate);
+	animationFrame = requestAnimationFrame(animate);
+	let destroyed = false;
 	return () => {
+		if (destroyed) return;
+		destroyed = true;
 		stopAnimation = true;
+		cancelAnimationFrame(animationFrame);
 		tweens.forEach((t) => t.stop());
 		tweens.clear();
 		simulation.stop();
-		// remove the canvas + free the GL/GPU context — the dialog can be
-		// reopened many times, so contexts must not leak
-		app.destroy(true, { children: true, texture: true });
+		// Pixi treats a boolean `true` renderer option as "remove the canvas AND
+		// release global resources". Local and global graphs are separate Pixi
+		// applications, so releasing the process-wide text texture pool while
+		// the other graph is alive corrupts its atlas. Remove this app's canvas,
+		// children and renderer without releasing resources shared by its peer.
+		app.destroy({ removeView: true, releaseGlobalResources: false }, { children: true });
 	};
 }

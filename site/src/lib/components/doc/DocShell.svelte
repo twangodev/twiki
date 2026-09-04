@@ -38,7 +38,7 @@
 		'mx-auto grid min-h-screen max-w-[90rem] max-[768px]:grid-cols-[minmax(0,1fr)] max-[768px]:grid-rows-[auto_1fr]',
 		readerMode.enabled
 			? 'grid-cols-[minmax(0,1fr)]'
-			: 'grid-cols-[16rem_minmax(0,1fr)_14rem] max-[1100px]:grid-cols-[16rem_minmax(0,1fr)]'
+			: 'grid-cols-[16rem_minmax(0,1fr)_20rem] max-[1100px]:grid-cols-[16rem_minmax(0,1fr)]'
 	]}
 >
 	<header

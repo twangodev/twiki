@@ -18,10 +18,37 @@ export { mermaidDiagrams };
 /** Single entry point: applies every content enhancement to the article. */
 export function enhanceArticle(dep: unknown): Attachment<HTMLElement> {
 	return (node) => {
-		const cleanups = [copyButtons(dep)(node), calloutFold(dep)(node), mermaidDiagrams(dep)(node)];
+		const cleanups = [
+			copyButtons(dep)(node),
+			headingAnchors(dep)(node),
+			calloutFold(dep)(node),
+			mermaidDiagrams(dep)(node)
+		];
 		return () => {
 			for (const cleanup of cleanups) cleanup?.();
 		};
+	};
+}
+
+const LINK_ICON =
+	'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+
+/** Restore Quartz's visible deep-link affordance without changing heading ids. */
+export function headingAnchors(_dep: unknown): Attachment<HTMLElement> {
+	return (node) => {
+		const anchors = Array.from(
+			node.querySelectorAll<HTMLElement>('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]')
+		).map((heading) => {
+			const anchor = document.createElement('a');
+			anchor.className = 'heading-anchor';
+			anchor.href = `#${encodeURIComponent(heading.id)}`;
+			anchor.setAttribute('aria-label', `Link to ${heading.textContent?.trim() || 'heading'}`);
+			anchor.title = 'Link to this heading';
+			anchor.innerHTML = LINK_ICON;
+			heading.appendChild(anchor);
+			return anchor;
+		});
+		return () => anchors.forEach((anchor) => anchor.remove());
 	};
 }
 

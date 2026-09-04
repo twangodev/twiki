@@ -36,7 +36,7 @@
 </script>
 
 <svelte:head><link rel="icon" href="/favicon.png" /></svelte:head>
-<ModeWatcher defaultMode="dark" />
+<ModeWatcher defaultMode="system" />
 
 <DocShell {nav}>
 	{@render children()}

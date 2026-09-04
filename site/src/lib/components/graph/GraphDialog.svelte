@@ -28,7 +28,9 @@
 
 <DialogRoot bind:open>
 	<DialogOverlay />
-	<DialogContent class="flex h-[85vh] max-w-5xl flex-col gap-3 p-4">
+	<DialogContent
+		class="flex h-[80vh] w-[80vw] max-w-none flex-col gap-3 p-4 max-[768px]:h-[90vh] max-[768px]:w-[94vw]"
+	>
 		<div class="flex items-center justify-between gap-3">
 			<DialogTitle>Graph view</DialogTitle>
 			<DialogClose

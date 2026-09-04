@@ -168,6 +168,48 @@ pre {
 	scroll-margin-top: 5rem;
 }
 
+.prose .heading-anchor {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.1em;
+	height: 1.1em;
+	margin-left: 0.35em;
+	vertical-align: -0.08em;
+	color: var(--color-muted);
+	opacity: 0;
+	transition:
+		opacity 150ms ease,
+		color 150ms ease;
+}
+.prose :where(h1, h2, h3, h4, h5, h6):hover > .heading-anchor,
+.prose .heading-anchor:focus-visible {
+	opacity: 1;
+}
+.prose .heading-anchor:hover {
+	color: var(--color-accent);
+}
+.prose .heading-anchor:focus-visible {
+	border-radius: 0.2em;
+	outline: 2px solid var(--color-accent);
+	outline-offset: 2px;
+}
+.prose .heading-anchor svg {
+	width: 0.8em;
+	height: 0.8em;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+@media (hover: none) {
+	.prose .heading-anchor {
+		opacity: 0.65;
+	}
+}
+
 .prose :where(code):not(:where(pre code)) {
 	font-family: var(--font-mono);
 	font-size: 0.875em;
@@ -512,15 +554,19 @@ pre {
 }
 .prose .mermaid-diagram {
 	margin: 1.25rem 0;
-	display: flex;
-	justify-content: center;
+	position: relative;
 	overflow-x: auto;
 }
-.prose .mermaid-diagram > svg {
+.prose .mermaid-inline-content {
+	display: flex;
+	justify-content: center;
+	min-width: max-content;
+}
+.prose .mermaid-inline-content > svg {
 	max-width: 100%;
 	height: auto;
 }
-.prose .mermaid-diagram > .mermaid-error {
+.prose .mermaid-inline-content > .mermaid-error {
 	margin: 0;
 	width: 100%;
 	border: 1px solid var(--color-border);
@@ -528,6 +574,131 @@ pre {
 	padding: 0.5rem 0.75rem;
 	font-size: 0.8125rem;
 	color: var(--color-muted);
+}
+
+.mermaid-toolbar {
+	position: sticky;
+	right: 0.5rem;
+	bottom: 0.5rem;
+	display: flex;
+	float: right;
+	gap: 0.35rem;
+	width: max-content;
+	margin-top: -2.35rem;
+	opacity: 0;
+	transition: opacity 150ms ease;
+}
+.mermaid-diagram:hover .mermaid-toolbar,
+.mermaid-toolbar:focus-within {
+	opacity: 1;
+}
+.mermaid-control-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2rem;
+	height: 2rem;
+	padding: 0 0.5rem;
+	border: 1px solid var(--color-border);
+	border-radius: 0.375rem;
+	background: var(--color-bg);
+	color: var(--color-muted);
+	font: 500 0.75rem/1 var(--font-sans);
+	cursor: pointer;
+	box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
+}
+.mermaid-control-button:hover,
+.mermaid-control-button:focus-visible,
+.mermaid-control-button.copied {
+	color: var(--color-text);
+	border-color: var(--color-accent);
+	outline: none;
+}
+.mermaid-control-button:focus-visible {
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+.mermaid-control-button:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+.mermaid-control-button svg {
+	width: 0.9rem;
+	height: 0.9rem;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+body.mermaid-modal-open {
+	overflow: hidden;
+}
+.mermaid-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 80;
+	display: grid;
+	place-items: center;
+	padding: 3vh 3vw;
+	background: rgb(0 0 0 / 60%);
+	backdrop-filter: blur(4px);
+}
+.mermaid-modal-panel {
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr);
+	width: min(90vw, 90rem);
+	height: 88vh;
+	overflow: hidden;
+	border: 1px solid var(--color-border);
+	border-radius: 0.75rem;
+	background: var(--color-bg);
+	box-shadow: 0 24px 64px rgb(0 0 0 / 35%);
+}
+.mermaid-modal-controls {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.4rem;
+	padding: 0.65rem;
+	border-bottom: 1px solid var(--color-border);
+}
+.mermaid-modal-viewport {
+	display: grid;
+	place-items: center;
+	min-height: 0;
+	overflow: hidden;
+	cursor: grab;
+	touch-action: none;
+	user-select: none;
+}
+.mermaid-modal-viewport.is-dragging {
+	cursor: grabbing;
+}
+.mermaid-modal-content {
+	transform-origin: center;
+	will-change: transform;
+}
+.mermaid-modal-content > svg {
+	display: block;
+	max-width: 82vw;
+	max-height: 76vh;
+	height: auto;
+}
+
+@media (hover: none) {
+	.mermaid-toolbar {
+		opacity: 1;
+	}
+}
+
+@media (max-width: 640px) {
+	.mermaid-modal {
+		padding: 2vw;
+	}
+	.mermaid-modal-panel {
+		width: 96vw;
+		height: 92vh;
+	}
 }
 
 /* ---------------------------------------------------------------------------
