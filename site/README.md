@@ -28,11 +28,11 @@ Browser tests require Chromium: `bunx playwright install chromium`.
 
 ## Deployment
 
-`.github/workflows/svelte.yml` separates build, type checks, unit tests, browser
-tests, and deployment. All checks must pass before deploying `main`.
+`.github/workflows/svelte.yml` runs type checks, unit tests, and browser tests
+in separate jobs. Once they pass, a final job builds and deploys `main`.
+Build output stays on the runner; no artifacts are uploaded or downloaded.
 
 The GitHub `production` environment supplies the `CLOUDFLARE_API_TOKEN` secret
-and `CLOUDFLARE_ACCOUNT_ID` variable. The shared build artifact is deleted after
-a deployment attempt; cleanup failures are non-blocking.
+and `CLOUDFLARE_ACCOUNT_ID` variable.
 
 Cloudflare Access gates the site. workers.dev and preview URLs are disabled.

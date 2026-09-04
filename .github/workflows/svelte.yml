@@ -18,7 +18,7 @@ defaults:
     working-directory: site
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -28,30 +28,8 @@ jobs:
           token: ${{ secrets.PAT_TOKEN }}
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bun run build:all
-      - uses: actions/upload-artifact@v4
-        with:
-          name: site
-          path: |
-            site/.svelte-kit/cloudflare
-            site/.svelte-kit/cloudflare-tmp
-            site/.svelte-kit/output/server
-            site/src/lib/generated/nav.json
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 7
-
-  check:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - uses: actions/download-artifact@v4
-        with:
-          name: site
-          path: site
+      - run: bun run build:content
+      - run: bun run prepare:static
       - run: bun run check
 
   unit-tests:
@@ -63,43 +41,36 @@ jobs:
       - run: bun test scripts
 
   browser-tests:
-    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.PAT_TOKEN }}
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - uses: actions/download-artifact@v4
-        with:
-          name: site
-          path: site
+      - run: bun run build:all
       - run: bunx playwright install --with-deps chromium
       - run: bun run test:e2e
 
-  deploy:
-    needs: [build, check, unit-tests, browser-tests]
+  build-and-deploy:
+    needs: [check, unit-tests, browser-tests]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: write
     environment:
       name: production
       url: https://wisconsin.twango.dev
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.PAT_TOKEN }}
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - uses: actions/download-artifact@v4
-        with:
-          name: site
-          path: site
+      - run: bun run build:all
       - run: bunx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-      - uses: geekyeggo/delete-artifact@v5
-        if: always()
-        with:
-          name: site
-          failOnError: false
