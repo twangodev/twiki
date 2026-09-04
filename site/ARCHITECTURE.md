@@ -30,11 +30,11 @@ Around that vendored core, use commodity unified plugins: remark-gfm, remark-mat
 | Conflict | Reports | Resolution |
 |---|---|---|
 | mdsvex (cca) vs plain unified | cca-architecture vs ecosystem + pipeline reports | **Plain unified.** Wikilink resolution, backlinks, and graph need whole-corpus knowledge; mdsvex is per-file and compiles 660 components into the Vite graph (MDsveX #294). cca's mdsvex choice made sense for in-`src` authored docs; wisconsin's corpus is out-of-tree submodule content with zero Svelte-in-markdown. We still reuse cca's *non-mdsvex* pipeline pieces: Shiki highlighter module, KaTeX global CSS import, admonition CSS, mermaid base64-passthrough + lazy-import component pattern. |
-| minisearch/API endpoint (cca) vs Pagefind vs FlexSearch (Quartz) | all four | **Pagefind.** cca's server endpoint existed because the site is auth-gated; wisconsin is public and fully prerendered, so a static, chunked index wins. Keep cca's palette UI for visual continuity. FlexSearch parity isn't required — UX parity is. |
+| minisearch/API endpoint (cca) vs Pagefind vs FlexSearch (Quartz) | all four | **Pagefind.** Wisconsin is fully prerendered and gated by Cloudflare Access, so the static, chunked index remains inside the same authenticated asset boundary without a search API. Keep cca's palette UI for visual continuity. FlexSearch parity isn't required — UX parity is. |
 | adapter-cloudflare vs adapter-static | cloudflare report (calls it low-stakes) | **adapter-cloudflare**, prerendered. One-line switch either way; keeps the Worker slot free. |
 | Vendor Quartz v5 community plugin vs local fork | ecosystem vs feature-inventory/pipeline reports | **Local fork.** The v5 `quartz-community/obsidian-flavored-markdown` repo is cleaner code, but the fork's patches (nearest-match resolution, callout divs, autotag, lastmod) define the live site's behavior. Use v5 sources as a structural reference only. Do not chase Quartz 5 as a moving target — the regression baseline is the deployed site. |
-| trailingSlash 'always' (cca/MkDocs) vs Quartz URLs | cca vs feature inventory | **`trailingSlash: 'never'`** (SvelteKit default). Live URLs are `/sp26-cs537/README` with no trailing slash; Workers assets' default `html_handling: auto-trailing-slash` serves `foo.html` at `/foo`. cca's 'always' was an MkDocs-ism; do not import it. |
-| Graph: force-graph vs sigma vs pixi (Quartz) | ecosystem report | **force-graph** (56 kB gz incl. d3-force), dynamically `import()`-ed; canvas is ample at 660 nodes. |
+| trailingSlash 'always' (cca/MkDocs) vs Quartz URLs | cca vs feature inventory | **`trailingSlash: 'never'`** (SvelteKit default). Live URLs are `/sp26-cs537/README` with no trailing slash; Workers assets use `html_handling: 'drop-trailing-slash'` to enforce the same canonical form. cca's 'always' was an MkDocs-ism; do not import it. |
+| Graph: force-graph vs sigma vs pixi (Quartz) | ecosystem report | **Pixi 8 + d3-force/drag/zoom + Tween.js**, matching Quartz's visualization stack and dynamically imported outside the initial page bundle. |
 
 ---
 
@@ -91,7 +91,7 @@ Legend: ✅ solved (proven implementation exists) · 🟡 needs work (clear path
 | Slugs (case-sensitive, spaces→`-`, `&`→`-and-`, ext-strip md/html only) | Shared `slug.ts`, verbatim port | ✅ | fork `path.ts` `slugifyFilePath`/`sluggify` — golden-diff slug set |
 | SPA navigation | SvelteKit client router + `data-sveltekit-preload-data="hover"`; optional `onNavigate` + `startViewTransition` (https://svelte.dev/blog/view-transitions) | ✅ | SvelteKit native |
 | Hover popovers | Quartz's own trick: `fetch(href)` of prerendered page + DOMParser, extract main content, per-URL cache; heading-anchor scroll | 🟡 | https://quartz.jzhao.xyz/features/popover-previews pattern; build as Svelte attachment |
-| Graph view (local depth-2 + global) | `force-graph` (56 kB gz) lazy-imported; data = manifest links; local = client-side depth-2 filter; color by AutoTag course | 🟡 | https://github.com/vasturiano/force-graph |
+| Graph view (local depth-2 + global) | Quartz's Pixi 8 + d3-force/drag/zoom + Tween.js stack, lazy-imported; data = manifest links; local = client-side depth-2 filter | ✅ | port of `quartz/components/scripts/graph.inline.ts` |
 | Backlinks panel | Inverted link map computed in prebuild stage 2, in manifest, rendered server-side | ✅ | pipeline design (Quartz ContentIndex pattern) |
 | TOC | Build-time TOC in page JSON → cca `Toc.svelte` | ✅ | cca + prebuild |
 | Search (FlexSearch, `/` key, tag search) | Pagefind postbuild + cca SearchPalette; bind both `/` and ⌘K; tag filters via Pagefind filters | ✅ | https://pagefind.app/ ; cca palette UI |
@@ -186,7 +186,7 @@ Stage 1/3: callouts (incl. `[!success]-` collapse), KaTeX, Shiki (verify asm/con
 DocShell/Sidebar/NavTree (Explorer), TOC, Breadcrumbs, ContentMeta with submodule git dates, DocPager, dark mode, ReaderMode, folder + tag pages, 404, footer fix. Prerender all routes; `handleMissingId: 'error'` clean. *Exit: full site browsable locally, every live URL resolves.*
 
 **Phase 4 — Interactive features.**
-Pagefind + palette (`/`, ⌘K), backlinks panel, force-graph (local depth-2 + global), hover popovers, view transitions. *Exit: feature-matrix 🟡 items → ✅.*
+Pagefind + palette (`/`, ⌘K), backlinks panel, Pixi graph (local depth-2 + global), hover popovers, view transitions. *Exit: feature-matrix 🟡 items → ✅.*
 
 **Phase 5 — Cutover.**
 RSS/sitemap, Plausible, `_headers` cache rules, crawl the old sitemap against the new deploy (expect 0 non-200s), DNS switch wisconsin.twango.dev to the Worker, keep Quartz build runnable for one term as fallback.
@@ -241,33 +241,29 @@ State at the end of Phase 5 (integration + verification). The full chain is gree
 
 ### Build status
 - **`bun run check`**: 0 errors, 0 warnings (4769 files).
-- **`bun test scripts`**: 31 pass / 0 fail (slug + pagefind-url tests).
+- **`bun test scripts`**: 35 pass / 0 fail (slug, Pagefind query/URL, graph config tests).
 - **Prebuild**: 641 pages, 454 assets (176.6 MiB), 167 tags, 268 folders, 1990
   tracked files dropped (whitelist), 0 drafts.
 - **Build**: 796 content routes + 168 tag routes + `/index.xml` + `/sitemap.xml`
   + `/404`, fully prerendered, adapter-cloudflare. Largest shipped asset 22.6 MiB
   (`hdma-wi-2021.sql.gz`) — under the 25 MiB cap; size guard active.
-- **Pagefind**: 796 pages / 39,367 words indexed, 1 filter (course); bundle at
+- **Pagefind**: 796 pages / 39,368 words indexed, 2 filters (course + tag); bundle at
   `/pagefind/` in the deployed assets. Search degrades to a "missing index"
   state in `vite dev` (no index built) — expected; `build:all` or
   `build:search` after a build makes it live in `preview`.
 
 ### Deviations from the plan
-1. **Graph: LayerChart, not `force-graph`.** §1.7 picked vasturiano/`force-graph`;
-   built on **`layerchart@2.0.0-next.65`** (`layerchart/force` → `ForceSimulation`)
-   instead — a first-class Svelte 5 component already in the bits-ui/LayerChart
-   family, so no wrapper around an imperative canvas lib and one fewer dependency
-   style. d3-force is still the engine (`d3-force@3`, the same layout math
-   `force-graph` uses). The `2.0.0-next.x` prerelease is the only line with Svelte
-   5 support; pinned exactly (no `^`) because it is a moving prerelease.
-2. **Graph render = settled SVG, not animated canvas.** The simulation runs to
-   completion synchronously (static mode) and renders once; pan/zoom/hover are
-   pure CSS transforms on the settled SVG. At the corpus size (641 nodes / 2404
-   links) this is smooth — nothing re-layouts after settle, the browser only
-   composites. Escape hatch documented in `GraphView.svelte`: swap the `<svg>`
-   body for a `<canvas>` draw loop (d3-quadtree hit-testing) if a much larger
-   future corpus makes it janky; the data layer and props stay identical. Local
-   graph = client-side depth-2 BFS filter over the same manifest data.
+1. **Graph renderer now follows Quartz directly.** It uses pinned Pixi 8,
+   d3-force/drag/selection/zoom 3, and Tween.js 25 with an animated canvas,
+   visited-node tinting, hover focus, dragging, and local/global zoom behavior.
+   Local graph = client-side depth-2 BFS over the same manifest data; the current
+   note is pinned only through the initial settle so its larger two-hop
+   neighborhood starts centered. Each Pixi app tears down without releasing the
+   global texture pool used by the other graph instance.
+2. **Interaction parity is browser-gated.** Playwright runs search filters and
+   `#tag` shorthand, the global-graph/popover/theme/navigation teardown sequence,
+   Mermaid copy/fullscreen/pan/zoom controls, heading deep links/system theme,
+   and the Wrangler-served cache/security/canonical-URL contract.
 3. **TOC slugs collected at the hast stage, not from mdast.** Quartz slugged the
    raw heading *text*; we slug after `rehype-raw` + `rehype-slug` so TOC anchors
    always equal the rendered heading `id`. Fixes one live-broken self-anchor
@@ -281,8 +277,9 @@ State at the end of Phase 5 (integration + verification). The full chain is gree
    the live `public/` build**: an anchor is only whitelisted if the live Quartz
    page *also* lacks the id; if live emits an id we dropped, the prebuild fails
    (0 such regressions found). Exactly 2 irreducible entries (content authoring
-   errors, broken on live too): `fa25-anthro105/lectures/lecture-7#darwins-finches`
-   and `fa24-asianam160/lectures/lecture-05#graph-convolutional-networks-gcns`.
+   errors, broken on live too): `fa25-anthro105/lectures/lecture-7#darwins-finches`,
+   `/#question-4`, and
+   `fa24-asianam160/lectures/lecture-05#graph-convolutional-networks-gcns`.
 5. **`favicon.ico` → `favicon.png`.** Quartz shipped `/favicon.ico`; the new site
    declares `<link rel="icon" href="/favicon.png">`. A bare `GET /favicon.ico`
    now 404s but the tab icon is unaffected. Drop a `favicon.ico` in `static/` if
@@ -299,14 +296,12 @@ Quartz's `globby` shipped; `git ls-files` correctly excludes them), framework 9
 (`index.css`/`postscript.js`/`prescript.js`/`favicon.ico`/`static/**` → SvelteKit
 equivalents). Re-run the gate any time with the methodology in the report.
 
-### Known gaps / not at Quartz parity
-- **Heading-anchor click icons**: not emitted (cca chrome handles anchors); ids
-  identical. (Carried from Phase 2.)
-- **Copy buttons / callout fold / mermaid** are JS-hydrated (`enhanceArticle`
+### Remaining intentional differences
+- **Copy buttons / callout fold / Mermaid** are JS-hydrated (`enhanceArticle`
   attachment), matching Quartz which also adds them via JS — so no-JS readers get
-  raw `pre`/expanded-callout/raw-mermaid-source fallbacks, not the controls.
-- **KaTeX output is HTML-only** (no MathML) — visually identical, lighter, but
-  screen readers lose the MathML layer. Flip to `htmlAndMathml` for a11y parity.
+  raw `pre`/expanded-callout/raw-Mermaid-source fallbacks, not the controls.
+- **KaTeX is HTML-only in both builds.** The repository's Quartz config also set
+  `output: 'html'`; there is no MathML regression to close.
 - **Highlights `==x==`** are accent-red tinted, not Quartz yellow (identity).
 - **Bug-for-bug broken links**: ~198 internal link targets are broken on the live
   Quartz site too (e.g. `[[textbook]]` on `sp26-cs537/README` → `/textbook`,
@@ -315,12 +310,12 @@ equivalents). Re-run the gate any time with the methodology in the report.
   fixes, not pipeline changes.
 
 ### Perf notes
-- Global graph: 641 nodes / 2404 links, settled SVG. Simulation runs once at
-  dialog-open; no animation loop. The graph + LayerChart + d3-force code is
-  dynamically imported (not in the per-page critical path). Largest client JS
-  chunks are the markdown-runtime + graph islands (~138 kB gz each), only loaded
-  on demand.
-- Pages are static HTML served from the asset layer (Worker bypassed); the
-  Worker slot stays free for future redirects/OG/gating.
+- Global graph: 641 nodes / 2404 links, animated Pixi canvas. The Pixi + D3 +
+  Tween renderer is dynamically imported and `/graph.json` is fetched once, so
+  neither is in the per-page critical path.
+- Pages are static HTML served from the Cloudflare asset layer (Worker bypassed),
+  with year-long immutable caching for fingerprinted Svelte/Pagefind chunks,
+  short private caching for `graph.json`, canonical no-trailing-slash URLs, and
+  security/no-index headers. Cloudflare Access gates requests before the Worker.
 - Prebuild ~14 s cold (Shiki highlighter dominates parse), seconds warm via the
   stage-1 content-hash cache.

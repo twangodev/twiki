@@ -49,8 +49,8 @@ function stripNewChrome(html: string): string {
 }
 
 const normalizations: [RegExp, string][] = [
-	// katex: MathML/annotation duplication differs (quartz emitted mathml+html,
-	// we emit html-only) — collapse every katex root to a marker
+	// KaTeX's deeply nested presentation spans are not useful to the prose-text
+	// comparison — collapse every math root to a marker.
 	[/<span class="katex(?:-display)?"[\s\S]*?<\/span><\/span><\/span>/g, '⟨math⟩'],
 	// svg internals irrelevant for text diff
 	[/<svg[\s\S]*?<\/svg>/g, ''],
