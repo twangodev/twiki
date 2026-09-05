@@ -153,18 +153,18 @@
 	</button>
 	{#if course && !choosing}
 		<div
-			class="flex shrink-0 gap-1 rounded-md bg-surface p-1"
+			class="inline-flex shrink-0 self-start gap-0.5 rounded-full bg-surface p-0.5"
 			role="group"
 			aria-label="Explorer view"
 		>
 			{#each ['notes', 'files'] as view}
 				<button
-					class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded px-2 py-1.5 text-xs text-muted aria-pressed:bg-bg aria-pressed:text-text"
+					class="flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.6875rem] leading-4 text-muted aria-pressed:bg-bg aria-pressed:text-text"
 					aria-pressed={explorer === view}
 					aria-controls={`${uid}-courses`}
 					onclick={() => (explorer = view as 'notes' | 'files')}
 				>
-					{#if view === 'notes'}<BookOpen size={14} />Notes{:else}<FolderCode size={14} />Files{/if}
+					{#if view === 'notes'}<BookOpen size={12} />Notes{:else}<FolderCode size={12} />Files{/if}
 				</button>
 			{/each}
 		</div>
