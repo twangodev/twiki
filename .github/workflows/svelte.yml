@@ -21,6 +21,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      - run: git config --global submodule.fetchJobs 8
+        working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -43,6 +45,8 @@ jobs:
   browser-tests:
     runs-on: ubuntu-latest
     steps:
+      - run: git config --global submodule.fetchJobs 8
+        working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -62,6 +66,8 @@ jobs:
       name: production
       url: https://wisconsin.twango.dev
     steps:
+      - run: git config --global submodule.fetchJobs 8
+        working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
