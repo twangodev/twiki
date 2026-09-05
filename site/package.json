@@ -4,6 +4,7 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
+		"db:generate": "drizzle-kit generate",
 		"build:content": "bun scripts/build-content.ts",
 		"build:search": "pagefind --site .svelte-kit/cloudflare",
 		"build:all": "bun run build:content && bun run build && bun run build:search",
@@ -21,6 +22,7 @@
 		"format": "prettier --write ."
 	},
 	"devDependencies": {
+		"@better-auth/drizzle-adapter": "1.7.2",
 		"@cloudflare/workers-types": "^5.20260904.1",
 		"@floating-ui/dom": "^1",
 		"@lucide/svelte": "^1.17.0",
@@ -45,6 +47,8 @@
 		"d3-force": "3.0.0",
 		"d3-selection": "3.0.0",
 		"d3-zoom": "3.0.0",
+		"drizzle-kit": "^0.31.10",
+		"drizzle-orm": "^0.45.2",
 		"github-slugger": "^2.0.0",
 		"gray-matter": "^4.0.3",
 		"hast-util-to-html": "^9.0.5",

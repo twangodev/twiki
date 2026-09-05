@@ -7,6 +7,7 @@ import { getMigrations } from 'better-auth/db/migration';
 import { createAuth, isOwner, type AuthEnv } from '../worker/auth';
 import { authenticateRequest } from '../worker/gate';
 import { loginPage, returnPath } from '../worker/login';
+import { revokeAccess } from '../src/lib/server/access-admin';
 
 describe('private Worker gate', () => {
 	let proxy: Awaited<ReturnType<typeof getPlatformProxy<AuthEnv>>>;
@@ -35,7 +36,11 @@ describe('private Worker gate', () => {
 			.map((s) => s.trim())
 			.filter(Boolean);
 		await env.DB.batch(statements.map((sql) => env.DB.prepare(sql)));
-		const auth = betterAuth({ ...createAuth(env).options, plugins: [testUtils()] });
+		const auth = betterAuth({
+			...createAuth(env).options,
+			database: env.DB,
+			plugins: [testUtils()]
+		});
 		const ctx = await auth.$context;
 		const user = await ctx.test.saveUser(ctx.test.createUser());
 		userId = user.id;
@@ -63,7 +68,7 @@ describe('private Worker gate', () => {
 	}
 
 	test('checked-in schema matches Better Auth on D1', async () => {
-		const migration = await getMigrations(createAuth(env).options);
+		const migration = await getMigrations({ ...createAuth(env).options, database: env.DB });
 		expect(migration.toBeCreated).toHaveLength(0);
 		expect(migration.toBeAdded).toHaveLength(0);
 		expect(migration.toBeAddedIndexes).toHaveLength(0);
@@ -111,6 +116,23 @@ describe('private Worker gate', () => {
 		expect(await response.text()).toBe('private course content');
 		expect(response.headers.get('cache-control')).toBe('private, no-store');
 	});
+	test('sessions remain compatible across the native D1 and Drizzle adapters', async () => {
+		const drizzle = betterAuth({ ...createAuth(env).options, plugins: [testUtils()] });
+		const native = betterAuth({ ...createAuth(env).options, database: env.DB });
+		const headers = new Headers({ cookie });
+		const before = await native.api.getSession({ headers });
+		const after = await drizzle.api.getSession({ headers });
+		expect(after?.user.id).toBe(userId);
+		expect(after?.session.expiresAt).toEqual(before?.session.expiresAt);
+		const ctx = await drizzle.$context;
+		const login = await ctx.test.login({ userId });
+		expect((await native.api.getSession({ headers: login.headers }))?.user.id).toBe(userId);
+		const stored = await env.DB.prepare('SELECT createdAt FROM session WHERE token = ?')
+			.bind(login.token)
+			.first<{ createdAt: string }>();
+		expect(typeof stored?.createdAt).toBe('string');
+		expect(new Date(stored!.createdAt).toISOString()).toBe(stored!.createdAt);
+	});
 	test('content failures are distinct from authentication failures', async () => {
 		const response = await authenticateRequest(
 			new Request(origin + '/graph.json', { headers: { cookie } }),
@@ -153,7 +175,19 @@ describe('private Worker gate', () => {
 		expect((await request('/graph.json', { headers })).status).toBe(200);
 		expect(await (await request('/api/access', { headers })).json()).toEqual({ role: 'member' });
 		expect(await isOwner(env.DB, user.id, env.OWNER_GITHUB_ID)).toBe(false);
-		await env.DB.prepare('DELETE FROM siteAccess WHERE githubId = ?').bind('12345').run();
+		await env.DB.prepare(
+			"CREATE TRIGGER fail_revoke BEFORE DELETE ON session BEGIN SELECT RAISE(ABORT, 'test rollback'); END"
+		).run();
+		try {
+			await expect(revokeAccess(env, '12345')).rejects.toThrow();
+			expect((await request('/graph.json', { headers })).status).toBe(200);
+		} finally {
+			await env.DB.prepare('DROP TRIGGER fail_revoke').run();
+		}
+		await revokeAccess(env, '12345');
+		expect(
+			await env.DB.prepare('SELECT id FROM session WHERE userId = ?').bind(user.id).first()
+		).toBeNull();
 		expect((await request('/graph.json', { headers })).status).toBe(401);
 		expect((await request('/api/access', { headers })).status).toBe(401);
 		expect(
@@ -161,6 +195,10 @@ describe('private Worker gate', () => {
 				.mapProfileToUser({ id: 12345 } as never)
 				.catch(() => null)
 		).toBeNull();
+	});
+	test('owner access cannot be revoked', async () => {
+		await expect(revokeAccess(env, env.OWNER_GITHUB_ID)).rejects.toMatchObject({ status: 400 });
+		expect((await request('/graph.json', { headers: { cookie } })).status).toBe(200);
 	});
 	test('configuration errors fail closed', async () => {
 		expect((await request('/graph.json', {}, { ...env, BETTER_AUTH_SECRET: '' })).status).toBe(503);

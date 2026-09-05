@@ -1,7 +1,9 @@
-import { betterAuth } from 'better-auth';
+import { betterAuth } from 'better-auth/minimal';
+import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { APIError } from 'better-auth/api';
 import type { D1Database } from '@cloudflare/workers-types';
 import { accessForUser, isGithubAllowed } from './access';
+import { database } from '../database';
 export { isOwner } from './access';
 
 export interface AuthEnv {
@@ -29,7 +31,7 @@ export function createAuth(env: AuthEnv) {
 		appName: 'Wisconsin',
 		baseURL: env.ORIGIN,
 		secret: env.BETTER_AUTH_SECRET,
-		database: env.DB,
+		database: drizzleAdapter(database(env.DB), { provider: 'sqlite' }),
 		trustedOrigins: [env.ORIGIN],
 		emailAndPassword: { enabled: false },
 		account: { accountLinking: { enabled: false }, encryptOAuthTokens: true },
