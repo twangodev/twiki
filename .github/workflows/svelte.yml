@@ -96,7 +96,7 @@ jobs:
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - run: bun install --frozen-lockfile
       - run: bun run build:all
-      - run: bunx wrangler d1 migrations apply wisconsin-auth --remote
+      - run: bunx wrangler d1 migrations apply wisconsin --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}

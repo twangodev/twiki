@@ -34,7 +34,7 @@ graph data. The login page is standalone and does not load course bundles.
 
 Before publishing this version:
 
-1. Create D1 database `wisconsin-auth` and replace the placeholder `database_id`
+1. Create D1 database `wisconsin` and replace the placeholder `database_id`
    in `wrangler.jsonc`. CI needs D1 edit permission to apply checked-in migrations.
 2. Create a GitHub OAuth application with homepage `https://wisconsin.twango.dev`
    and callback `https://wisconsin.twango.dev/api/auth/callback/github`.
@@ -49,7 +49,7 @@ separate development OAuth application's credentials, and use callback
 `http://127.0.0.1:4173/api/auth/callback/github`. Run:
 
 ```sh
-bunx wrangler d1 migrations apply wisconsin-auth --local
+bunx wrangler d1 migrations apply wisconsin --local
 bun run build:all
 bun run preview
 ```
