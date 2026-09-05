@@ -65,7 +65,7 @@ export function publicationFixture() {
 	write('content/sp99-cs101/exams/restricted.pdf', '%PDF-1.4\nexamprivatecanary\n%%EOF');
 	write(
 		'content/sp99-cs101/publish.yaml',
-		'include:\n  - notes/public.md\n  - notes/second.md\n  - notes/draft.md\n  - notes/figure.svg\n  - p01/**/*.java\n  - exams/shared.pdf\nexclude:\n  - p01/private/**\n'
+		'include:\n  - notes/public.md\n  - notes/second.md\n  - notes/draft.md\n  - notes/figure.svg\n  - p01/**/*.java\n  - exams/shared.pdf\nexclude:\n  - p01/private/**\nlicense:\n  name: CC BY 4.0\n  url: https://creativecommons.org/licenses/by/4.0/\n  attribution: Example author\n  source: https://example.com/course\n  changes: Reformatted as Markdown.\n'
 	);
 	git(course, 'add', '.');
 	git(course, 'commit', '-m', 'Publish selected current files');

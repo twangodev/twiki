@@ -4,6 +4,7 @@
 	import Backlinks from '$lib/components/doc/Backlinks.svelte';
 	import Breadcrumbs from '$lib/components/doc/Breadcrumbs.svelte';
 	import ContentMeta from '$lib/components/doc/ContentMeta.svelte';
+	import LicenseNotice from '$lib/components/doc/LicenseNotice.svelte';
 	import { enhanceArticle } from '$lib/components/doc/enhancements';
 	import { linkPopovers } from '$lib/components/popover';
 	import type { PageData } from './$types';
@@ -81,6 +82,9 @@
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -- build-time rendered, trusted corpus -->
 		{@html body}
 	</article>
+	{#if data.page.license}
+		<div class="mt-6"><LicenseNotice license={data.page.license} /></div>
+	{/if}
 
 	<Backlinks backlinks={data.page.backlinks} />
 {:else}

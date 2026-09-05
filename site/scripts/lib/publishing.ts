@@ -3,10 +3,40 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { parseDocument } from 'yaml';
 import { parseGitmodules } from './lastmod';
+import type { ContentLicense } from '../../src/lib/content-license';
 
 export interface PublishPolicy {
 	include: string[];
 	exclude: string[];
+	license?: ContentLicense;
+}
+
+function parseLicense(value: unknown): ContentLicense {
+	if (!value || typeof value !== 'object' || Array.isArray(value))
+		throw new Error('license must be a mapping');
+	const fields = value as Record<string, unknown>;
+	if (
+		Object.keys(fields).some(
+			(key) => !['name', 'url', 'attribution', 'source', 'changes'].includes(key)
+		)
+	)
+		throw new Error('Unknown license field');
+	for (const key of [
+		'name',
+		'url',
+		'attribution',
+		'source',
+		...(Object.hasOwn(fields, 'changes') ? ['changes'] : [])
+	]) {
+		if (typeof fields[key] !== 'string' || !(fields[key] as string).trim())
+			throw new Error(`license.${key} must be nonempty text`);
+	}
+	for (const key of ['url', 'source']) {
+		const url = new URL(fields[key] as string);
+		if (url.protocol !== 'https:' || url.username || url.password)
+			throw new Error(`license.${key} must be an HTTPS URL without credentials`);
+	}
+	return fields as unknown as ContentLicense;
 }
 
 export function parsePublishPolicy(source: string): PublishPolicy {
@@ -18,8 +48,8 @@ export function parsePublishPolicy(source: string): PublishPolicy {
 	const value = document.toJS({ maxAliasCount: 0 });
 	if (!value || typeof value !== 'object' || Array.isArray(value))
 		throw new Error('Expected a mapping with include and optional exclude lists');
-	if (Object.keys(value).some((key) => !['include', 'exclude'].includes(key)))
-		throw new Error('Only include and exclude are supported');
+	if (Object.keys(value).some((key) => !['include', 'exclude', 'license'].includes(key)))
+		throw new Error('Only include, exclude, and license are supported');
 	for (const key of ['include', 'exclude']) {
 		const patterns = Object.hasOwn(value, key) ? value[key] : key === 'exclude' ? [] : undefined;
 		if (!Array.isArray(patterns)) throw new Error(`${key} must be a list of paths`);
@@ -40,7 +70,11 @@ export function parsePublishPolicy(source: string): PublishPolicy {
 				);
 		}
 	}
-	return { include: value.include, exclude: value.exclude ?? [] };
+	return {
+		include: value.include,
+		exclude: value.exclude ?? [],
+		...(Object.hasOwn(value, 'license') ? { license: parseLicense(value.license) } : {})
+	};
 }
 
 export function publicationDecision(file: string, policy?: PublishPolicy) {
@@ -99,4 +133,9 @@ export function publicationResolver(repo: string) {
 export function publicationFilter(repo: string) {
 	const resolve = publicationResolver(repo);
 	return (relative: string) => resolve(relative).public;
+}
+
+export function courseLicenseResolver(repo: string) {
+	const policies = coursePolicies(repo);
+	return (relative: string) => policies.get(relative.split('/')[0])?.license;
 }

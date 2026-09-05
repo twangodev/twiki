@@ -1,4 +1,5 @@
 <script lang="ts">
+	import LicenseNotice from '$lib/components/doc/LicenseNotice.svelte';
 	import {
 		BookOpen,
 		Check,
@@ -265,6 +266,12 @@
 			{/key}
 		{/if}
 	</div>
+	{#if data.file?.license}
+		<details class="shrink-0 border-t border-border px-3 text-xs text-muted">
+			<summary class="cursor-pointer py-1.5">{data.file.license.name} · Attribution</summary>
+			<LicenseNotice license={data.file.license} />
+		</details>
+	{/if}
 	<footer
 		class="flex shrink-0 items-center justify-between border-t border-border bg-surface px-3 py-1 text-[0.6875rem] text-muted"
 	>

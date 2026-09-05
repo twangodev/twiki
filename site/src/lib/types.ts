@@ -54,6 +54,7 @@ export interface PagePublication {
 
 /** Per-page metadata as stored in `content-manifest.json` `pages`. */
 export interface ManifestPage {
+	license?: import('./content-license').ContentLicense;
 	publication: PagePublication;
 	/** Canonical slug, e.g. `sp26-cs537/README` or `…/midterm-1/index` (no leading slash). */
 	slug: string;

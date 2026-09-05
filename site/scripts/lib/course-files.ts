@@ -16,7 +16,7 @@ import { parseGitmodules } from './lastmod';
 import { slugifyFilePath, type FilePath } from './slug';
 import { buildFileIcons } from './file-icons';
 import { createFileHistoryBuilder } from './file-history';
-import { publicationFilter } from './publishing';
+import { publicationFilter, courseLicenseResolver } from './publishing';
 
 const excludedDirectories = new Set([
 	'node_modules',
@@ -63,6 +63,7 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 	const repo = process.env.WISCONSIN_CONTENT_REPO ?? path.dirname(siteDir);
 	const publicEdition = process.env.VITE_PUBLIC_EDITION === 'true';
 	const isPublished = publicationFilter(repo);
+	const licenseFor = courseLicenseResolver(repo);
 	const contentRoot = path.join(repo, 'content');
 	const output = path.join(siteDir, '.generated/assets/_files');
 	rmSync(output, { recursive: true, force: true });
@@ -109,7 +110,12 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 		if (!existsSync(source) || !lstatSync(source).isFile()) continue;
 		if (realpathSync(source) !== path.join(contentRoot, relative)) continue;
 		const size = lstatSync(source).size;
-		const file: CourseFile = { path: segments.join('/'), size, kind: 'binary' };
+		const file: CourseFile = {
+			path: segments.join('/'),
+			size,
+			kind: 'binary',
+			license: licenseFor(relative)
+		};
 		files.push(file);
 		count++;
 		if (size > assetLimit) continue;

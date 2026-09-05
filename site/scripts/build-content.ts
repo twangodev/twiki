@@ -53,7 +53,7 @@ import {
 } from './lib/ofm';
 import { applyAutoTags } from './lib/autotag';
 import { buildGitDateMap, parseGitmodules, resolveDates } from './lib/lastmod';
-import { publicationResolver } from './lib/publishing';
+import { publicationResolver, courseLicenseResolver } from './lib/publishing';
 import { protectPublicLinks } from './lib/public-links';
 
 // ---------------------------------------------------------------------------
@@ -836,6 +836,7 @@ async function main() {
 	// stage 0
 	const { files: discovered } = discover();
 	const publicationFor = publicationResolver(REPO_ROOT);
+	const licenseFor = courseLicenseResolver(REPO_ROOT);
 	const files = publicEdition
 		? discovered.filter((file) => publicationFor(file.rel).public)
 		: discovered;
@@ -995,6 +996,7 @@ async function main() {
 
 		const html = toHtml(page.tree, { allowDangerousHtml: true });
 		const meta = {
+			license: licenseFor(page.rel),
 			publication: publicEdition ? { public: true } : publicationFor(page.rel),
 			slug: page.slug,
 			title: page.title,

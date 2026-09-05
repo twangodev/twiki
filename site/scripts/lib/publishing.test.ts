@@ -40,3 +40,29 @@ test('invalid policies fail closed rather than silently widening publication', (
 	])
 		expect(() => parsePublishPolicy(source)).toThrow();
 });
+
+test('license metadata records attribution without granting public access', () => {
+	const license = {
+		name: 'CC BY 4.0',
+		url: 'https://creativecommons.org/licenses/by/4.0/',
+		attribution: 'Example author',
+		source: 'https://example.com/course',
+		changes: 'Reformatted as Markdown.'
+	};
+	const policy = parsePublishPolicy(JSON.stringify({ include: [], license }));
+	expect(policy.license).toEqual(license);
+	expect(publicationDecision('notes.md', policy).public).toBe(false);
+	for (const invalid of [
+		null,
+		'CC BY',
+		{},
+		{ ...license, typo: true },
+		{ ...license, attribution: '' },
+		{ ...license, source: 'javascript:alert(1)' },
+		{ ...license, url: 'https://user:secret@example.com' },
+		{ ...license, changes: false }
+	])
+		expect(() =>
+			parsePublishPolicy(JSON.stringify({ include: ['**'], license: invalid }))
+		).toThrow();
+});

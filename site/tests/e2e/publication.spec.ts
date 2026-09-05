@@ -36,6 +36,13 @@ test('anonymous HTML, hydration, navigation, graphs and search use only the publ
 		page.on('pageerror', (error) => errors.push(error.message));
 		await page.goto(note);
 		await expect(page.getByRole('heading', { name: 'Public derivations' })).toBeVisible();
+		await expect(page.getByRole('complementary', { name: 'Content license' })).toContainText(
+			'Example author'
+		);
+		await expect(page.locator('head link[rel="license"]')).toHaveAttribute(
+			'href',
+			'https://creativecommons.org/licenses/by/4.0/'
+		);
 		await expect(page.getByLabel('Page visibility: Public')).toBeVisible();
 		expect(await html.text()).not.toContain('Included by');
 		await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
@@ -112,6 +119,10 @@ test('public files render and download without exposing siblings or history', as
 		const page = await context.newPage();
 		await page.goto('/sp99-cs101/files/p01/Main.java');
 		await expect(page.locator('.cm-content')).toContainText('class Main');
+		await page.getByText('CC BY 4.0 · Attribution', { exact: true }).click();
+		await expect(page.getByRole('complementary', { name: 'Content license' })).toContainText(
+			'Reformatted as Markdown.'
+		);
 		await expect(page.getByRole('button', { name: 'File history', exact: true })).toHaveCount(0);
 		await expect(page.getByRole('button', { name: 'Toggle blame', exact: true })).toHaveCount(0);
 		await page.goto('/sp99-cs101/files/p01/R%C3%A9sum%C3%A9%20Test.java');

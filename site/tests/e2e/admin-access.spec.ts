@@ -58,7 +58,7 @@ test('only the owner can manage access, and revocation blocks existing sessions'
 			'Access revoked. Existing sessions have been signed out.'
 		);
 		await expect(page.getByText('@fixture-member', { exact: true })).toHaveCount(0);
-		expect((await member.request.get(`${origin}/graph.json`)).status()).toBe(401);
+		expect((await member.request.get(`${origin}/sp26-cs544/README`)).status()).toBe(401);
 		expect((await member.request.get(`${origin}/api/access`)).status()).toBe(401);
 		expect((await page.request.get('/graph.json')).status()).toBe(200);
 	} finally {

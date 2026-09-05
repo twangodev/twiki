@@ -1,4 +1,5 @@
 export interface CourseFile {
+	license?: import('./content-license').ContentLicense;
 	path: string;
 	size: number;
 	kind: 'text' | 'image' | 'pdf' | 'binary';
