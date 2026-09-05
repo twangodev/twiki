@@ -1,6 +1,8 @@
 import { betterAuth } from 'better-auth';
 import { APIError } from 'better-auth/api';
 import type { D1Database } from '@cloudflare/workers-types';
+import { accessForUser, isGithubAllowed } from './access';
+export { isOwner } from './access';
 
 export interface AuthEnv {
 	DB: D1Database;
@@ -9,15 +11,6 @@ export interface AuthEnv {
 	GITHUB_CLIENT_SECRET: string;
 	BETTER_AUTH_SECRET: string;
 	OWNER_GITHUB_ID: string;
-}
-
-export async function isOwner(db: D1Database, userId: string, ownerId: string) {
-	return Boolean(
-		await db
-			.prepare('SELECT id FROM account WHERE userId = ? AND providerId = ? AND accountId = ?')
-			.bind(userId, 'github', ownerId)
-			.first()
-	);
 }
 
 export function createAuth(env: AuthEnv) {
@@ -50,8 +43,8 @@ export function createAuth(env: AuthEnv) {
 			github: {
 				clientId: env.GITHUB_CLIENT_ID,
 				clientSecret: env.GITHUB_CLIENT_SECRET,
-				mapProfileToUser(profile) {
-					if (String(profile.id) !== env.OWNER_GITHUB_ID) {
+				async mapProfileToUser(profile) {
+					if (!(await isGithubAllowed(env, String(profile.id)))) {
 						throw new APIError('FORBIDDEN', { message: 'This account does not have access.' });
 					}
 					return {};
@@ -62,11 +55,11 @@ export function createAuth(env: AuthEnv) {
 			account: {
 				create: {
 					before: async (account) =>
-						account.providerId === 'github' && account.accountId === env.OWNER_GITHUB_ID
+						account.providerId === 'github' && (await isGithubAllowed(env, account.accountId))
 				}
 			},
 			session: {
-				create: { before: async (session) => isOwner(env.DB, session.userId, env.OWNER_GITHUB_ID) }
+				create: { before: async (session) => Boolean(await accessForUser(env, session.userId)) }
 			}
 		}
 	});

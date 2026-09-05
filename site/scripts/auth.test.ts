@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { getPlatformProxy } from 'wrangler';
 import { betterAuth } from 'better-auth';
 import { testUtils } from 'better-auth/plugins';
@@ -26,7 +26,11 @@ describe('private Worker gate', () => {
 			GITHUB_CLIENT_SECRET: 'test',
 			BETTER_AUTH_SECRET: 'test-only-private-worker-secret-0000000000'
 		};
-		const statements = readFileSync('migrations/0001_auth.sql', 'utf8')
+		const statements = readdirSync('migrations')
+			.filter((file) => file.endsWith('.sql'))
+			.sort()
+			.map((file) => readFileSync(`migrations/${file}`, 'utf8'))
+			.join('\n')
 			.split(';')
 			.map((s) => s.trim())
 			.filter(Boolean);
@@ -129,6 +133,35 @@ describe('private Worker gate', () => {
 		);
 		expect(response.status).toBe(401);
 	});
+	test('allowlisted members can read content but lose access immediately when removed', async () => {
+		await env.DB.prepare(
+			'INSERT INTO siteAccess (githubId, githubLogin, createdAt) VALUES (?, ?, ?)'
+		)
+			.bind('12345', 'member', Date.now())
+			.run();
+		const auth = betterAuth({ ...createAuth(env).options, plugins: [testUtils()] });
+		const ctx = await auth.$context;
+		const user = await ctx.test.saveUser(ctx.test.createUser());
+		await ctx.internalAdapter.createAccount({
+			userId: user.id,
+			providerId: 'github',
+			issuer: 'local:oauth:github',
+			accountId: '12345'
+		});
+		const member = await ctx.test.login({ userId: user.id });
+		const headers = member.headers;
+		expect((await request('/graph.json', { headers })).status).toBe(200);
+		expect(await (await request('/api/access', { headers })).json()).toEqual({ role: 'member' });
+		expect(await isOwner(env.DB, user.id, env.OWNER_GITHUB_ID)).toBe(false);
+		await env.DB.prepare('DELETE FROM siteAccess WHERE githubId = ?').bind('12345').run();
+		expect((await request('/graph.json', { headers })).status).toBe(401);
+		expect((await request('/api/access', { headers })).status).toBe(401);
+		expect(
+			await auth.options.socialProviders.github
+				.mapProfileToUser({ id: 12345 } as never)
+				.catch(() => null)
+		).toBeNull();
+	});
 	test('configuration errors fail closed', async () => {
 		expect((await request('/graph.json', {}, { ...env, BETTER_AUTH_SECRET: '' })).status).toBe(503);
 		expect((await request('/graph.json', {}, { ...env, DB: undefined! })).status).toBe(503);
@@ -152,7 +185,7 @@ describe('private Worker gate', () => {
 		expect((await request('/api/auth/sign-up/email', { method: 'POST' })).status).toBe(404);
 		expect((await request('/api/auth/link-social', { method: 'POST' })).status).toBe(404);
 	});
-	test('GitHub OAuth creates an owner session and rejects other accounts', async () => {
+	test('GitHub OAuth admits owners and approved members, but rejects other accounts', async () => {
 		const originalFetch = globalThis.fetch;
 		let githubId = 22;
 		globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -178,7 +211,10 @@ describe('private Worker gate', () => {
 		}) as typeof fetch;
 		try {
 			const oauthEnv = { ...env, OWNER_GITHUB_ID: '22' };
-			for (const id of [22, 23]) {
+			await env.DB.prepare('INSERT INTO siteAccess VALUES (?, ?, ?)')
+				.bind('24', 'test-member', Date.now())
+				.run();
+			for (const id of [22, 24, 23]) {
 				githubId = id;
 				const start = await request(
 					'/login',
@@ -212,8 +248,8 @@ describe('private Worker gate', () => {
 					{ headers: { cookie: sessionCookie } },
 					oauthEnv
 				);
-				expect(protectedResponse.status).toBe(id === 22 ? 200 : 401);
-				if (id === 22) {
+				expect(protectedResponse.status).toBe(id !== 23 ? 200 : 401);
+				if (id !== 23) {
 					const logout = await request(
 						'/logout',
 						{ method: 'POST', headers: { origin, cookie: sessionCookie } },

@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -39,7 +39,11 @@ const proxy = await getPlatformProxy<AuthEnv>({
 	remoteBindings: false
 });
 try {
-	const sql = readFileSync('migrations/0001_auth.sql', 'utf8')
+	const sql = readdirSync('migrations')
+		.filter((file) => file.endsWith('.sql'))
+		.sort()
+		.map((file) => readFileSync(`migrations/${file}`, 'utf8'))
+		.join('\n')
 		.split(';')
 		.map((s) => s.trim())
 		.filter(Boolean);
@@ -60,6 +64,21 @@ try {
 	writeFileSync(
 		'.generated/logout-state.json',
 		JSON.stringify({ cookies: logoutSession.cookies, origins: [] })
+	);
+	await proxy.env.DB.prepare('INSERT INTO siteAccess VALUES (?, ?, ?)')
+		.bind('123456', 'fixture-member', Date.now())
+		.run();
+	const member = await ctx.test.saveUser(ctx.test.createUser());
+	await ctx.internalAdapter.createAccount({
+		userId: member.id,
+		providerId: 'github',
+		accountId: '123456',
+		issuer: 'local:oauth:github'
+	});
+	const memberSession = await ctx.test.login({ userId: member.id });
+	writeFileSync(
+		'.generated/member-state.json',
+		JSON.stringify({ cookies: memberSession.cookies, origins: [] })
 	);
 } finally {
 	await proxy.dispose();

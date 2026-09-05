@@ -1,4 +1,5 @@
-import { createAuth, isOwner, type AuthEnv } from './auth';
+import { createAuth, type AuthEnv } from './auth';
+import { accessForUser } from './access';
 import { copyCookies, handleAuthEndpoint, redirect, signIn, signOut } from './auth-routes';
 import { loginPage, returnPath } from './login';
 
@@ -43,14 +44,21 @@ async function routeRequest(
 		returnHeaders: true
 	});
 	copyCookies(headers, cookies);
-	const allowed = session && (await isOwner(env.DB, session.user.id, env.OWNER_GITHUB_ID));
+	const access = session && (await accessForUser(env, session.user.id));
 	if (reading && url.pathname === '/login') {
 		const next = returnPath(url.searchParams.get('next'));
-		if (allowed) return redirect(next);
+		if (access) return redirect(next);
 		const page = loginPage(next, url.searchParams.has('error'));
 		return request.method === 'HEAD' ? new Response(null, page) : page;
 	}
-	return allowed ? null : requireLogin(request, url);
+	if (!access) return requireLogin(request, url);
+	if (url.pathname === '/api/access') {
+		if (!reading) return new Response('Method not allowed', { status: 405 });
+		return new Response(request.method === 'HEAD' ? null : JSON.stringify({ role: access }), {
+			headers: { 'Content-Type': 'application/json' }
+		});
+	}
+	return null;
 }
 
 export async function authenticateRequest(
