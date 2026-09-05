@@ -22,15 +22,15 @@ for (const mode of ['light', 'dark'] as const) {
 			await article.goto('/');
 			if (mode === 'dark') await expect(article.locator('html')).toHaveClass(/dark/);
 			else await expect(article.locator('html')).not.toHaveClass(/dark/);
-			const colors = await article
-				.locator('body')
-				.evaluate((node) => ({
-					background: getComputedStyle(node).backgroundColor,
-					text: getComputedStyle(node).color,
-					font: getComputedStyle(node).fontFamily
-				}));
+			const colors = await article.locator('body').evaluate((node) => ({
+				background: getComputedStyle(node).backgroundColor,
+				text: getComputedStyle(node).color,
+				font: getComputedStyle(node).fontFamily
+			}));
 			const login = await anonymous.newPage();
 			await login.goto('/login');
+			await expect(login).toHaveTitle('Sign in · wisconsin');
+			await expect(login.getByRole('heading', { name: 'wisconsin', exact: true })).toBeVisible();
 			await expect(login.locator('html')).toHaveCSS('background-color', colors.background);
 			await expect(login.locator('html')).toHaveCSS('color', colors.text);
 			await expect(login.locator('html')).toHaveCSS('font-family', colors.font);
