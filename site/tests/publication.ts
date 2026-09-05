@@ -9,9 +9,10 @@ const environment = {
 	PUBLICATION_TEST: 'true'
 };
 function buildAndTest(mode: string, specification: string) {
+	const testFile = `/${specification.replaceAll('.', '\\.')}$`;
 	for (const command of [
 		['run', 'build:all'],
-		['x', 'playwright', 'test', specification, '--workers=2']
+		['x', 'playwright', 'test', testFile, '--workers=2']
 	]) {
 		const result = spawnSync('bun', command, {
 			stdio: 'inherit',
