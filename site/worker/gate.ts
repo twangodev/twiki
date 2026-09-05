@@ -1,27 +1,56 @@
 import { createAuth, isOwner, type AuthEnv } from './auth';
+import { copyCookies, handleAuthEndpoint, redirect, signIn, signOut } from './auth-routes';
 import { loginPage, returnPath } from './login';
 
-const publicAuthPaths = new Set([
-	'/api/auth/sign-in/social',
-	'/api/auth/callback/github',
-	'/api/auth/get-session',
-	'/api/auth/sign-out',
-	'/api/auth/error'
-]);
-
-function privateResponse(response: Response, cookies?: Headers) {
+function privateResponse(response: Response, cookies: Headers) {
 	const result = new Response(response.body, response);
 	result.headers.set('Cache-Control', 'private, no-store');
 	result.headers.set('X-Content-Type-Options', 'nosniff');
 	result.headers.set('X-Frame-Options', 'DENY');
 	result.headers.set('Referrer-Policy', 'same-origin');
 	result.headers.set('X-Robots-Tag', 'noindex, nofollow');
-	for (const cookie of cookies?.getSetCookie() ?? []) result.headers.append('Set-Cookie', cookie);
+	copyCookies(cookies, result.headers);
 	return result;
 }
 
-function redirect(path: string) {
-	return new Response(null, { status: 303, headers: { Location: path } });
+function requireLogin(request: Request, url: URL) {
+	const navigation =
+		request.method === 'GET' &&
+		(request.headers.get('sec-fetch-mode') === 'navigate' ||
+			request.headers.get('accept')?.includes('text/html'));
+	if (navigation) return redirect('/login?next=' + encodeURIComponent(url.pathname + url.search));
+	return new Response('Unauthorized', { status: 401 });
+}
+
+async function routeRequest(
+	request: Request,
+	env: AuthEnv,
+	cookies: Headers
+): Promise<Response | null> {
+	const url = new URL(request.url);
+	if (url.origin !== env.ORIGIN) return new Response('Misdirected request', { status: 421 });
+	const auth = createAuth(env);
+	const reading = request.method === 'GET' || request.method === 'HEAD';
+	if (reading && url.pathname === '/fonts/OverusedGrotesk-VF.woff2') return null;
+	if (url.pathname.startsWith('/api/auth/')) return handleAuthEndpoint(request, auth);
+	if (request.method === 'POST') {
+		if (url.pathname === '/login') return signIn(request, auth);
+		if (url.pathname === '/logout') return signOut(request, auth);
+	}
+
+	const { headers, response: session } = await auth.api.getSession({
+		headers: request.headers,
+		returnHeaders: true
+	});
+	copyCookies(headers, cookies);
+	const allowed = session && (await isOwner(env.DB, session.user.id, env.OWNER_GITHUB_ID));
+	if (reading && url.pathname === '/login') {
+		const next = returnPath(url.searchParams.get('next'));
+		if (allowed) return redirect(next);
+		const page = loginPage(next, url.searchParams.has('error'));
+		return request.method === 'HEAD' ? new Response(null, page) : page;
+	}
+	return allowed ? null : requireLogin(request, url);
 }
 
 export async function authenticateRequest(
@@ -29,87 +58,21 @@ export async function authenticateRequest(
 	env: AuthEnv,
 	serve: () => Promise<Response>
 ) {
+	const cookies = new Headers();
+	let response: Response | null;
 	try {
-		const url = new URL(request.url);
-		if (url.origin !== env.ORIGIN)
-			return privateResponse(new Response('Misdirected request', { status: 421 }));
-		const auth = createAuth(env);
-		if (
-			url.pathname === '/fonts/OverusedGrotesk-VF.woff2' &&
-			(request.method === 'GET' || request.method === 'HEAD')
-		) {
-			return privateResponse(await serve());
-		}
-		if (url.pathname.startsWith('/api/auth/')) {
-			if (!publicAuthPaths.has(url.pathname))
-				return privateResponse(new Response('Not found', { status: 404 }));
-			if (url.pathname === '/api/auth/error') return privateResponse(redirect('/login?error=1'));
-			return privateResponse(await auth.handler(request));
-		}
-		if ((url.pathname === '/login' || url.pathname === '/logout') && request.method === 'POST') {
-			if (
-				request.headers.get('origin') !== env.ORIGIN ||
-				request.headers.get('sec-fetch-site') === 'cross-site'
-			) {
-				return privateResponse(new Response('Forbidden', { status: 403 }));
-			}
-			const login = url.pathname === '/login';
-			const next = login ? returnPath((await request.formData()).get('next')) : '/login';
-			const headers = new Headers(request.headers);
-			headers.set('Content-Type', 'application/json');
-			headers.delete('content-length');
-			const response = await auth.handler(
-				new Request(
-					new URL(login ? '/api/auth/sign-in/social' : '/api/auth/sign-out', env.ORIGIN),
-					{
-						method: 'POST',
-						headers,
-						body: JSON.stringify(
-							login
-								? { provider: 'github', callbackURL: next, errorCallbackURL: '/login?error=1' }
-								: {}
-						)
-					}
-				)
-			);
-			if (!response.ok) {
-				const page = loginPage(next, true);
-				const result = new Response(page.body, { status: response.status, headers: page.headers });
-				const retryAfter = response.headers.get('x-retry-after');
-				if (retryAfter) result.headers.set('Retry-After', retryAfter);
-				return privateResponse(result, response.headers);
-			}
-			const data = login ? ((await response.json()) as { url: string }) : null;
-			return privateResponse(redirect(data?.url ?? '/login'), response.headers);
-		}
-		const { headers, response: session } = await auth.api.getSession({
-			headers: request.headers,
-			returnHeaders: true
-		});
-		const allowed = session && (await isOwner(env.DB, session.user.id, env.OWNER_GITHUB_ID));
-		if (url.pathname === '/login' && (request.method === 'GET' || request.method === 'HEAD')) {
-			const next = returnPath(url.searchParams.get('next'));
-			const response = allowed ? redirect(next) : loginPage(next, url.searchParams.has('error'));
-			return privateResponse(
-				request.method === 'HEAD' ? new Response(null, response) : response,
-				headers
-			);
-		}
-		if (!allowed) {
-			const navigation =
-				request.method === 'GET' &&
-				(request.headers.get('sec-fetch-mode') === 'navigate' ||
-					request.headers.get('accept')?.includes('text/html'));
-			return privateResponse(
-				navigation
-					? redirect(`/login?next=${encodeURIComponent(url.pathname + url.search)}`)
-					: new Response('Unauthorized', { status: 401 }),
-				headers
-			);
-		}
-		return privateResponse(await serve(), headers);
+		response = await routeRequest(request, env, cookies);
 	} catch {
 		console.error('Authentication request failed');
-		return privateResponse(new Response('Authentication temporarily unavailable', { status: 503 }));
+		response = new Response('Authentication temporarily unavailable', { status: 503 });
 	}
+	if (response === null) {
+		try {
+			response = await serve();
+		} catch {
+			console.error('Content request failed');
+			response = new Response('Content temporarily unavailable', { status: 500 });
+		}
+	}
+	return privateResponse(response, cookies);
 }

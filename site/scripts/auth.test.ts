@@ -107,6 +107,19 @@ describe('private Worker gate', () => {
 		expect(await response.text()).toBe('private course content');
 		expect(response.headers.get('cache-control')).toBe('private, no-store');
 	});
+	test('content failures are distinct from authentication failures', async () => {
+		const response = await authenticateRequest(
+			new Request(origin + '/graph.json', { headers: { cookie } }),
+			env,
+			async () => {
+				throw new Error('Asset storage unavailable');
+			}
+		);
+		expect(response.status).toBe(500);
+		expect(await response.text()).toBe('Content temporarily unavailable');
+		expect(response.headers.get('cache-control')).toBe('private, no-store');
+	});
+
 	test('owner authorization is checked again on every request', async () => {
 		expect(await isOwner(env.DB, userId, '1')).toBe(false);
 		const response = await request(
