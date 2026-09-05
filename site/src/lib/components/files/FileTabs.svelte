@@ -51,7 +51,7 @@
 				href={fileRoute(tab.course, tab.path)}
 				aria-current={isFile && sameFile(tab, { course, path }) ? 'page' : undefined}
 				title={`${tab.course}/${tab.path}${!tab.pinned ? ' — double-click to keep open' : ''}`}
-				ondblclick={() => workspace.open(tab.course, tab.path, true)}
+				onclick={(event) => workspace.activate(event, tab.course, tab.path)}
 			>
 				<FileIcon name={tab.path.split('/').at(-1)!} /><span class="max-w-64 truncate"
 					>{tabLabel(tab, tabs)}</span

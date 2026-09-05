@@ -4,6 +4,43 @@ const directory = '/fa24-cs300/files/p01/src/main/java';
 const first = `${directory}/ElectionManager.java`;
 const second = `${directory}/ElectionManagerTester.java`;
 
+test.describe('touch file activation', () => {
+	test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+	test('double tapping a file pins it before the mobile explorer closes', async ({ page }) => {
+		await page.goto(first);
+		await page.getByRole('button', { name: 'Toggle navigation', exact: true }).click();
+		const file = page.getByRole('region', { name: 'Course files' }).locator(`a[href="${second}"]`);
+		await file.tap();
+		await file.tap();
+		await expect(page).toHaveURL(second);
+		await expect(
+			page
+				.getByRole('navigation', { name: 'Open files' })
+				.getByRole('link', { name: 'ElectionManagerTester.java', exact: true })
+		).not.toHaveClass(/italic/);
+	});
+});
+
+test('single explorer clicks preview and double clicks pin across navigation', async ({ page }) => {
+	await page.goto(first);
+	const explorer = page.getByRole('region', { name: 'Course files' });
+	const tabs = page.getByRole('navigation', { name: 'Open files' });
+	await explorer.locator(`a[href="${second}"]`).click();
+	await expect(page).toHaveURL(second);
+	await expect(tabs.getByRole('link')).toHaveCount(1);
+	await expect(tabs.getByRole('link')).toHaveClass(/italic/);
+	await explorer.locator(`a[href="${first}"]`).dblclick();
+	await expect(page).toHaveURL(first);
+	await expect(
+		tabs.getByRole('link', { name: 'ElectionManager.java', exact: true })
+	).not.toHaveClass(/italic/);
+	await explorer.locator(`a[href="${second}"]`).click();
+	await expect(tabs.getByRole('link')).toHaveCount(2);
+	await expect(
+		tabs.getByRole('link', { name: 'ElectionManager.java', exact: true })
+	).not.toHaveClass(/italic/);
+});
+
 test('pinning immediately after opening a file survives reload', async ({ page }) => {
 	await page.goto(first);
 	await page.getByRole('button', { name: 'Keep file open' }).click();

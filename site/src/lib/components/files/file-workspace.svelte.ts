@@ -1,4 +1,6 @@
 import { getContext, setContext } from 'svelte';
+import { goto } from '$app/navigation';
+import { fileRoute } from '$lib/files';
 import { openFile, restoreTabs, sameFile, type FileTab } from '$lib/file-tabs';
 
 const context = Symbol('file-workspace');
@@ -7,6 +9,31 @@ const storageKey = 'wisconsin-file-tabs';
 class FileWorkspace {
 	tabs = $state<FileTab[]>([]);
 	ready = $state(false);
+	private lastClick?: { course: string; path: string; time: number };
+	private touchNavigation?: ReturnType<typeof setTimeout>;
+
+	activate(event: MouseEvent, course: string, path: string) {
+		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+			return;
+		const repeated =
+			event.detail > 0 &&
+			this.lastClick &&
+			sameFile(this.lastClick, { course, path }) &&
+			event.timeStamp - this.lastClick.time < 500;
+		const pinned = event.detail > 1 || !!repeated;
+		this.lastClick =
+			pinned || event.detail === 0 ? undefined : { course, path, time: event.timeStamp };
+		this.open(course, path, pinned);
+		if ('pointerType' in event && event.pointerType === 'touch') {
+			event.preventDefault();
+			clearTimeout(this.touchNavigation);
+			if (pinned) void goto(fileRoute(course, path));
+			else
+				this.touchNavigation = setTimeout(() => {
+					void goto(fileRoute(course, path));
+				}, 300);
+		}
+	}
 
 	restore() {
 		try {
@@ -46,6 +73,8 @@ class FileWorkspace {
 	}
 
 	clear() {
+		clearTimeout(this.touchNavigation);
+		this.lastClick = undefined;
 		this.tabs = [];
 		this.save();
 	}

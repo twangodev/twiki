@@ -44,8 +44,8 @@
 					href={fileRoute(course, node.path)}
 					title={node.name}
 					aria-current={current === node.path ? 'page' : undefined}
-					ondblclick={() => {
-						if (node.file) workspace.open(course, node.path, true);
+					onclick={(event) => {
+						if (node.file) workspace.activate(event, course, node.path);
 					}}
 				>
 					<FileIcon name={node.name} folder={!!node.children} expanded={open(node)} />
