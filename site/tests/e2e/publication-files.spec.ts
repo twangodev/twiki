@@ -15,7 +15,9 @@ test('a course can publish only project files without exposing its notes or requ
 		await page.goto('/sp99-cs101/files/p01/Main.java');
 		await expect(page.locator('.cm-content')).toContainText('class Main');
 		const graph = await (await context.request.get('/graph.json')).json();
-		expect(graph.nodes).toEqual([]);
+		expect(graph.nodes.some((node: { id: string }) => node.id === 'sp99-cs101/notes/slides')).toBe(
+			true
+		);
 		const locked = await context.request.get('/sp99-cs101/notes/public');
 		expect(locked.status()).toBe(200);
 		expect(await locked.text()).toContain('Content locked');

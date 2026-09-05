@@ -45,7 +45,7 @@ export function publicationFixture() {
 	);
 	write(
 		'content/sp99-cs101/notes/slides.md',
-		'# Private lecture slides\n\nlectureprivatecanary\n\n## Public heading outline\n\nlectureprivatecanary\n\n### Nested heading\n\n[[public]]'
+		'---\ntags: [lectures, systems/distributed]\n---\n# Private lecture slides\n\nlectureprivatecanary\n\n## Public heading outline\n\nlectureprivatecanary\n\n### Nested heading\n\n[[public]]'
 	);
 	write(
 		'content/sp99-cs101/notes/figure.svg',

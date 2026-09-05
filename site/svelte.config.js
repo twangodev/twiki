@@ -34,7 +34,7 @@ const config = {
 			handleUnseenRoutes: ({ routes, message }) => {
 				if (
 					process.env.VITE_PUBLIC_EDITION === 'true' &&
-					routes.every((route) => ['/tags/[tag]', '/[course]/files/[...file]'].includes(route))
+					routes.every((route) => ['/tags/[...tag]', '/[course]/files/[...file]'].includes(route))
 				)
 					return;
 				throw new Error(message);

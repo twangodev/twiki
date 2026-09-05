@@ -8,6 +8,43 @@ const note = '/sp99-cs101/notes/public';
 const privateNote = '/sp99-cs101/notes/slides';
 const canaries = /(?:root|lecture|overview|history|answer|exam|draft)privatecanary/;
 
+test('the public graph includes locked notes, their tags and their connections', async ({
+	browser,
+	baseURL,
+	request
+}) => {
+	const context = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
+	try {
+		const graph = await (await context.request.get('/graph.json')).json();
+		expect(graph).toEqual(await (await request.get('/graph.json')).json());
+		expect(graph.nodes).toContainEqual({
+			id: 'sp99-cs101/notes/slides',
+			title: 'Private lecture slides',
+			tags: ['lectures', 'systems/distributed', 'cs101']
+		});
+		expect(graph.links).toContainEqual({
+			source: 'sp99-cs101/notes/slides',
+			target: 'sp99-cs101/notes/public'
+		});
+		expect(graph.links).toContainEqual({
+			source: 'sp99-cs101/notes/public',
+			target: 'sp99-cs101/notes/slides'
+		});
+		expect(JSON.stringify(graph)).not.toMatch(canaries);
+		const page = await context.newPage();
+		await page.goto('/tags/systems/distributed');
+		await expect(
+			page.getByRole('link', { name: 'Private lecture slides', exact: true }).last()
+		).toBeVisible();
+		expect(await page.content()).not.toMatch(canaries);
+		expect(await page.content()).not.toContain('Invalid Date');
+		await page.getByRole('link', { name: 'Private lecture slides', exact: true }).last().click();
+		await expect(page.getByText('Content locked', { exact: true })).toBeVisible();
+	} finally {
+		await context.close();
+	}
+});
+
 test('locked previews expose titles and headings without bodies, downloads or history', async ({
 	browser,
 	baseURL,

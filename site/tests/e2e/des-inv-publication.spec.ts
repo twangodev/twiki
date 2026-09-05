@@ -34,8 +34,7 @@ test('des-inv is public with attribution while other courses and Git history sta
 		for (const file of files)
 			expect((await context.request.get(file.download!)).status(), file.path).toBe(200);
 		const graph = await (await context.request.get('/graph.json')).json();
-		expect(graph.nodes).toHaveLength(notes.length);
-		expect(graph.nodes.every((node: { id: string }) => node.id.startsWith('des-inv/'))).toBe(true);
+		expect(graph).toEqual(manifest.graph);
 		for (const url of [
 			'/sp26-cs544/README',
 			'/sp26-cs544/README/__data.json',

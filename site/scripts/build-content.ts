@@ -891,7 +891,7 @@ async function main() {
 			folderSet.add(parts.slice(0, i).join('/'));
 		}
 	}
-	const allTags = new Set<string>(pages.flatMap((p) => p.tags.flatMap(getAllSegmentPrefixes)));
+	const allTags = new Set<string>(catalog.flatMap((p) => p.tags.flatMap(getAllSegmentPrefixes)));
 	const emittedSlugs = new Set<string>([
 		...pageSlugSet,
 		...assetsSrc.map((a) => a.slug as string),
@@ -906,15 +906,11 @@ async function main() {
 	const droppedSlugs = new Set<string>(otherSrc.map((f) => f.slug as string));
 	const catalogSlugs = new Set([...emittedSlugs, ...catalog.map((page) => page.slug as string)]);
 	const outgoingBySlug = new Map<string, SimpleSlug[]>();
-	for (const page of pages) {
-		const outgoing = crawlLinks(page, transformOptions, emittedSlugs, droppedSlugs);
-		if (publicEdition) protectPublicLinks(page.tree, page.slug, emittedSlugs, catalogSlugs);
-		outgoingBySlug.set(
-			page.slug,
-			publicEdition
-				? outgoing.filter((slug) => emittedSlugs.has(slug) || emittedSlugs.has(`${slug}/index`))
-				: outgoing
-		);
+	for (const page of catalog) {
+		const outgoing = crawlLinks(page, transformOptions, catalogSlugs, droppedSlugs);
+		if (publicEdition && publicationFor(page.rel).public)
+			protectPublicLinks(page.tree, page.slug, emittedSlugs, catalogSlugs);
+		outgoingBySlug.set(page.slug, outgoing);
 	}
 
 	// tag pages exist for every tag (incl. hierarchical prefixes) — add them to
@@ -973,6 +969,12 @@ async function main() {
 	for (const p of pages) simpleToFull.set(simplifySlug(p.slug), p.slug);
 	const pageMeta: Record<string, unknown> = {};
 	const tagIndex = new Map<string, string[]>();
+	for (const page of catalog) {
+		for (const tag of page.tags.flatMap(getAllSegmentPrefixes)) {
+			if (!tagIndex.has(tag)) tagIndex.set(tag, []);
+			if (!tagIndex.get(tag)!.includes(page.slug)) tagIndex.get(tag)!.push(page.slug);
+		}
+	}
 
 	for (const page of pages) {
 		const dates = resolveDates({
@@ -991,11 +993,6 @@ async function main() {
 				const p = full ? pagesBySlug.get(full) : undefined;
 				return { slug: s, title: p?.title ?? s };
 			});
-
-		for (const tag of page.tags.flatMap(getAllSegmentPrefixes)) {
-			if (!tagIndex.has(tag)) tagIndex.set(tag, []);
-			if (!tagIndex.get(tag)!.includes(page.slug)) tagIndex.get(tag)!.push(page.slug);
-		}
 
 		const html = toHtml(page.tree, { allowDangerousHtml: true });
 		const meta = {
@@ -1035,7 +1032,7 @@ async function main() {
 			slug: page.slug,
 			title: page.title,
 			description: '',
-			tags: [],
+			tags: page.tags,
 			dates: { created: '', modified: '', published: '' },
 			links: [],
 			backlinks: [],
@@ -1054,15 +1051,16 @@ async function main() {
 
 	// manifest
 	const tree = buildTree(catalog);
+	const catalogNodes = new Set(catalog.map((page) => simplifySlug(page.slug)));
 	const graph = {
-		nodes: pages.map((p) => ({
+		nodes: catalog.map((p) => ({
 			id: simplifySlug(p.slug),
 			title: p.title,
 			tags: p.tags
 		})),
-		links: pages.flatMap((p) =>
+		links: catalog.flatMap((p) =>
 			(outgoingBySlug.get(p.slug) ?? [])
-				.filter((out) => simpleToFull.has(out) || out === '/')
+				.filter((out) => catalogNodes.has(out))
 				.map((out) => ({ source: simplifySlug(p.slug), target: out }))
 		)
 	};

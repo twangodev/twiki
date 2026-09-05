@@ -10,6 +10,7 @@
 	const { data }: Props = $props();
 
 	function shortDate(iso: string): string {
+		if (!iso) return '';
 		return new Date(iso).toLocaleDateString('en-US', {
 			year: 'numeric',
 			month: 'short',
