@@ -3,9 +3,13 @@ import { Database } from 'bun:sqlite';
 import { readFileSync, readdirSync } from 'node:fs';
 import { generateSQLiteDrizzleJson, generateSQLiteMigration } from 'drizzle-kit/api';
 import * as schema from '../database/schema';
-import snapshot from '../migrations/meta/0002_snapshot.json';
 
-test('Drizzle schema is baselined without a new migration', async () => {
+test('Drizzle schema matches the latest migration snapshot', async () => {
+	const latest = readdirSync('migrations/meta')
+		.filter((file) => file.endsWith('_snapshot.json'))
+		.sort()
+		.at(-1)!;
+	const snapshot = JSON.parse(readFileSync(`migrations/meta/${latest}`, 'utf8'));
 	const current = await generateSQLiteDrizzleJson(schema);
 	expect(await generateSQLiteMigration(snapshot, current)).toEqual([]);
 });

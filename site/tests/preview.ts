@@ -6,6 +6,8 @@ import { getPlatformProxy } from 'wrangler';
 import { betterAuth } from 'better-auth';
 import { testUtils } from 'better-auth/plugins';
 import { createAuth, type AuthEnv } from '../worker/auth';
+import { database } from '../database';
+import { siteAccess } from '../database/schema';
 
 const directory = mkdtempSync(join(tmpdir(), 'wisconsin-auth-e2e-'));
 const configPath = join(directory, 'wrangler.json');
@@ -65,9 +67,9 @@ try {
 		'.generated/logout-state.json',
 		JSON.stringify({ cookies: logoutSession.cookies, origins: [] })
 	);
-	await proxy.env.DB.prepare('INSERT INTO siteAccess VALUES (?, ?, ?)')
-		.bind('123456', 'fixture-member', Date.now())
-		.run();
+	await database(proxy.env.DB)
+		.insert(siteAccess)
+		.values({ githubId: '123456', githubLogin: 'fixture-member', createdAt: Date.now() });
 	const member = await ctx.test.saveUser(ctx.test.createUser());
 	await ctx.internalAdapter.createAccount({
 		userId: member.id,

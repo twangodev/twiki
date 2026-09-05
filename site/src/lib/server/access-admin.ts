@@ -1,12 +1,9 @@
 import { error, type RequestEvent } from '@sveltejs/kit';
 import { createAuth, type AuthEnv } from '../../../worker/auth';
 import { isOwner } from '../../../worker/access';
-
-export interface AccessGrant {
-	githubId: string;
-	githubLogin: string;
-	createdAt: number;
-}
+import { and, eq, inArray } from 'drizzle-orm';
+import { database } from '../../../database';
+import { account, session, siteAccess } from '../../../database/schema';
 
 export async function requireOwner(event: RequestEvent) {
 	const env = event.platform?.env;
@@ -63,12 +60,17 @@ export async function lookupGithubUser(
 
 export async function revokeAccess(env: AuthEnv, githubId: string) {
 	if (githubId === env.OWNER_GITHUB_ID) error(400, 'Owner access cannot be revoked.');
-	await env.DB.batch([
-		env.DB.prepare('DELETE FROM siteAccess WHERE githubId = ?').bind(githubId),
-		env.DB.prepare(
-			`DELETE FROM session WHERE userId IN (
-			SELECT userId FROM account WHERE providerId = 'github' AND accountId = ?
-		)`
-		).bind(githubId)
+	const db = database(env.DB);
+	await db.batch([
+		db.delete(siteAccess).where(eq(siteAccess.githubId, githubId)),
+		db.delete(session).where(
+			inArray(
+				session.userId,
+				db
+					.select({ userId: account.userId })
+					.from(account)
+					.where(and(eq(account.providerId, 'github'), eq(account.accountId, githubId)))
+			)
+		)
 	]);
 }
