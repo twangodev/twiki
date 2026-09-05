@@ -37,6 +37,14 @@ test('files stay secondary and open a highlighted source viewer', async ({ page 
 	await expect(page.locator('.file-code .line').first()).toBeVisible();
 	await expect(page.locator('.file-code span[style]').first()).toBeVisible();
 	await expect(drawer.locator('[aria-current="page"]')).toHaveText('ElectionManager.java');
+	await expect(drawer.locator('[aria-current="page"] img').first()).toHaveAttribute(
+		'src',
+		'/_files/icons/java.svg'
+	);
+	await expect(page.locator('main header [data-file-icon] img').first()).toHaveAttribute(
+		'src',
+		'/_files/icons/java.svg'
+	);
 	await expect(drawer.locator('[aria-current="page"]')).toBeInViewport();
 	await expect(page.getByRole('link', { name: 'Download', exact: true })).toHaveAttribute(
 		'download',
@@ -83,9 +91,11 @@ test('Markdown links back to notes, PDFs embed, images preview, and missing path
 	expect((await request.get(pdf.download!)).headers()['x-frame-options']).toBe('SAMEORIGIN');
 	const image = files.find((file) => file.kind === 'image')!;
 	await page.goto(fileRoute(course, image.path));
-	await expect(page.locator('main img')).toBeVisible();
+	await expect(page.locator('.file-content img')).toBeVisible();
 	expect(
-		await page.locator('main img').evaluate((image) => (image as HTMLImageElement).naturalWidth)
+		await page
+			.locator('.file-content img')
+			.evaluate((image) => (image as HTMLImageElement).naturalWidth)
 	).toBeGreaterThan(0);
 	expect((await request.get(fileRoute(course, 'does-not-exist.java'))).status()).toBe(404);
 });

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { ChevronRight, File, Folder } from '@lucide/svelte';
+	import { ChevronRight } from '@lucide/svelte';
+	import FileIcon from './FileIcon.svelte';
 	import { fileRoute, type FileNode } from '$lib/files';
 	import Self from './FileTree.svelte';
 	let {
@@ -42,10 +43,7 @@
 					title={node.name}
 					aria-current={current === node.path ? 'page' : undefined}
 				>
-					{#if node.children}<Folder size={13} class="shrink-0" />{:else}<File
-							size={13}
-							class="shrink-0"
-						/>{/if}
+					<FileIcon name={node.name} folder={!!node.children} expanded={open(node)} />
 					<span class="truncate">{node.name}</span>
 				</a>
 			</div>

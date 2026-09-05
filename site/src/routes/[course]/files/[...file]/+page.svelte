@@ -6,10 +6,10 @@
 		Copy,
 		Download,
 		File,
-		Folder,
 		ArrowUpRight
 	} from '@lucide/svelte';
 	import { fileRoute, fileSize } from '$lib/files';
+	import FileIcon from '$lib/components/files/FileIcon.svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 	let copied = $state(false);
@@ -61,10 +61,7 @@
 			class="order-first flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border bg-surface pr-2"
 		>
 			<div class="flex min-w-0 items-center gap-2 border-r border-border bg-bg px-3 py-2">
-				{#if data.file}<File size={14} class="shrink-0 text-muted" />{:else}<Folder
-						size={14}
-						class="shrink-0 text-muted"
-					/>{/if}
+				<FileIcon {name} folder={!data.file} expanded={!data.file} />
 				<h1 class="m-0 break-all font-mono text-xs font-medium">{name}</h1>
 			</div>
 			{#if data.file}
@@ -128,10 +125,7 @@
 							class="flex min-w-0 items-center gap-3 px-3 py-2.5 text-sm text-text no-underline hover:bg-surface"
 							href={fileRoute(data.course, entry.path)}
 						>
-							{#if entry.children}<Folder class="shrink-0 text-muted" size={16} />{:else}<File
-									class="shrink-0 text-muted"
-									size={16}
-								/>{/if}
+							<FileIcon name={entry.name} folder={!!entry.children} />
 							<span class="min-w-0 flex-1 truncate">{entry.name}</span><span
 								class="shrink-0 text-xs text-muted"
 								>{entry.file ? fileSize(entry.file.size) : `${entry.children?.length} items`}</span
