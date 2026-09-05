@@ -13,11 +13,17 @@ test('files stay secondary and open a highlighted source viewer', async ({ page 
 	});
 	await page.goto(`/${course}/README`);
 	const drawer = page.getByRole('region', { name: 'Course files' });
-	const toggle = drawer.getByRole('button', { name: 'Files', exact: true });
-	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	const toggle = page
+		.getByRole('group', { name: 'Explorer view' })
+		.getByRole('button', { name: 'Files', exact: true });
+	await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+	await expect(drawer).toHaveCount(0);
 	expect(indexes).toHaveLength(0);
 	await toggle.click();
 	await expect(drawer.getByRole('link', { name: /Browse directory/ })).toBeVisible();
+	await page.getByRole('button', { name: 'Notes', exact: true }).click();
+	await expect(drawer).toHaveCount(0);
+	await toggle.click();
 	await drawer.getByRole('link', { name: /Browse directory/ }).click();
 	await expect(page).toHaveURL(fileRoute(course));
 	await page
@@ -44,15 +50,16 @@ test('files stay secondary and open a highlighted source viewer', async ({ page 
 		const style = getComputedStyle(main);
 		return main.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
 	});
-	expect((await page.locator('.file-code').boundingBox())!.width).toBeCloseTo(availableWidth, 0);
+	expect((await page.locator('.file-content').boundingBox())!.width).toBeCloseTo(availableWidth, 0);
+	expect(await page.locator('main').evaluate((main) => getComputedStyle(main).padding)).toBe('0px');
+	expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(
+		true
+	);
 	await page.screenshot({ path: '.generated/file-viewer-desktop.png', animations: 'disabled' });
 	await page.setViewportSize({ width: 390, height: 844 });
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 	await page.getByRole('button', { name: 'Toggle navigation', exact: true }).click();
-	await expect(drawer.getByRole('button', { name: 'Files', exact: true })).toHaveAttribute(
-		'aria-expanded',
-		'true'
-	);
+	await expect(toggle).toHaveAttribute('aria-pressed', 'true');
 	await page.screenshot({ path: '.generated/file-viewer-mobile.png', animations: 'disabled' });
 });
 

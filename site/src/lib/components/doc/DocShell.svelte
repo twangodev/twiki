@@ -37,6 +37,7 @@
 <div
 	class={[
 		'doc-shell min-h-screen',
+		railPageData.kind === 'file-browser' && 'doc-shell-files',
 		!showContentRail && 'doc-shell-listing',
 		readerMode.enabled && 'doc-shell-reader'
 	]}
@@ -83,8 +84,8 @@
 		></button>
 	{/if}
 
-	<main class="doc-main min-w-0">
-		<div class={railPageData.kind === 'file-browser' ? 'w-full' : 'mx-auto max-w-3xl'}>
+	<main class="doc-main min-w-0" class:doc-main-files={railPageData.kind === 'file-browser'}>
+		<div class={railPageData.kind === 'file-browser' ? 'h-full w-full' : 'mx-auto max-w-3xl'}>
 			{@render children()}
 			<DocPager {nav} />
 		</div>

@@ -23,6 +23,14 @@
 	grid-area: main;
 	padding: 2rem 2rem 3rem;
 }
+.doc-shell.doc-shell-files {
+	height: 100dvh;
+	min-height: 0;
+}
+.doc-main.doc-main-files {
+	min-height: 0;
+	padding: 0;
+}
 .doc-sidebar-right {
 	position: sticky;
 	top: 0;

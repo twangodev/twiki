@@ -3,7 +3,7 @@
 	import { tick, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { ChevronsUpDown, LogOut } from '@lucide/svelte';
+	import { BookOpen, FolderCode, ChevronsUpDown, LogOut } from '@lucide/svelte';
 	import type { NavNode } from '$lib/types';
 	import { site } from '$lib/config';
 	import { ThemeToggle } from '$lib/components/ui';
@@ -11,7 +11,7 @@
 	import NavTree from './NavTree.svelte';
 	import ReaderModeToggle from './ReaderModeToggle.svelte';
 	import AccessLink from './AccessLink.svelte';
-	import FileDrawer from '$lib/components/files/FileDrawer.svelte';
+	import FileExplorer from '$lib/components/files/FileExplorer.svelte';
 	import { SearchButton } from '$lib/components/search';
 
 	const { nav }: { nav: NavNode[] } = $props();
@@ -39,6 +39,10 @@
 			.sort((a, b) => Number(b.segment === 'README') - Number(a.segment === 'README'))
 	);
 	let choosing = $state(false);
+	let explorer = $state<'notes' | 'files'>(page.data.kind === 'file-browser' ? 'files' : 'notes');
+	$effect(() => {
+		explorer = page.data.kind === 'file-browser' ? 'files' : 'notes';
+	});
 	let query = $state('');
 	let search = $state<HTMLInputElement>();
 	let switcher: HTMLButtonElement;
@@ -147,6 +151,24 @@
 		>
 		<ChevronsUpDown size={15} />
 	</button>
+	{#if course && !choosing}
+		<div
+			class="flex shrink-0 gap-1 rounded-md bg-surface p-1"
+			role="group"
+			aria-label="Explorer view"
+		>
+			{#each ['notes', 'files'] as view}
+				<button
+					class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded px-2 py-1.5 text-xs text-muted aria-pressed:bg-bg aria-pressed:text-text"
+					aria-pressed={explorer === view}
+					aria-controls={`${uid}-courses`}
+					onclick={() => (explorer = view as 'notes' | 'files')}
+				>
+					{#if view === 'notes'}<BookOpen size={14} />Notes{:else}<FolderCode size={14} />Files{/if}
+				</button>
+			{/each}
+		</div>
+	{/if}
 	<nav
 		id={`${uid}-courses`}
 		class="course-navigation min-h-0 flex-1 overflow-y-auto"
@@ -190,15 +212,16 @@
 			</div>
 		{:else}
 			{#key course.segment}
-				<div in:fade={{ duration: prefersReducedMotion.current ? 0 : 120 }}>
-					<NavTree nodes={courseNodes} bind:expanded />
-				</div>
+				{#if explorer === 'notes'}
+					<div in:fade={{ duration: prefersReducedMotion.current ? 0 : 120 }}>
+						<NavTree nodes={courseNodes} bind:expanded />
+					</div>
+				{:else}
+					<FileExplorer course={course.segment} />
+				{/if}
 			{/key}
 		{/if}
 	</nav>
-	{#if course && !choosing}
-		{#key course.segment}<FileDrawer course={course.segment} />{/key}
-	{/if}
 	<div class="flex shrink-0 items-center justify-between border-t border-border pt-3">
 		<ThemeToggle /><ReaderModeToggle />
 		<AccessLink />
