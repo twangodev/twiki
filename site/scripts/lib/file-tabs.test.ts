@@ -1,5 +1,18 @@
 import { expect, test } from 'bun:test';
-import { openFile, restoreTabs, tabLabel } from '../../src/lib/file-tabs';
+import { moveTab, openFile, restoreTabs, tabLabel } from '../../src/lib/file-tabs';
+
+test('reordering pins previews and preserves identity and scroll positions', () => {
+	const tabs = [
+		...openFile([], 'cs300', 'Main.java', true),
+		{ course: 'cs300', path: 'Test.java', pinned: false, top: 200, left: 20 }
+	];
+	const moved = moveTab(tabs, tabs[1], 0);
+	expect(moved.map((tab) => tab.path)).toEqual(['Test.java', 'Main.java']);
+	expect(moved[0]).toEqual({ ...tabs[1], pinned: true });
+	expect(tabs[1].pinned).toBe(false);
+	expect(moveTab(moved, moved[0], 99).map((tab) => tab.path)).toEqual(['Main.java', 'Test.java']);
+	expect(moveTab(tabs, tabs[0], NaN)).toBe(tabs);
+});
 
 test('previews replace previews without replacing pinned tabs', () => {
 	let tabs = openFile([], 'cs300', 'Main.java');

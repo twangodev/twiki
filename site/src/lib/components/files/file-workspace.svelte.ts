@@ -1,7 +1,7 @@
 import { getContext, setContext } from 'svelte';
 import { goto } from '$app/navigation';
 import { fileRoute } from '$lib/files';
-import { openFile, restoreTabs, sameFile, type FileTab } from '$lib/file-tabs';
+import { moveTab, openFile, restoreTabs, sameFile, type FileTab } from '$lib/file-tabs';
 
 const context = Symbol('file-workspace');
 const storageKey = 'wisconsin-file-tabs';
@@ -70,6 +70,14 @@ class FileWorkspace {
 		this.tabs = this.tabs.filter((item) => !sameFile(item, tab));
 		this.save();
 		return this.tabs[Math.min(index, this.tabs.length - 1)];
+	}
+
+	move(tab: FileTab, destination: number) {
+		this.lastClick = undefined;
+		const reordered = moveTab(this.tabs, tab, destination);
+		if (reordered === this.tabs) return;
+		this.tabs = reordered;
+		this.save();
 	}
 
 	clear() {

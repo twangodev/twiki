@@ -4,6 +4,102 @@ const directory = '/fa24-cs300/files/p01/src/main/java';
 const first = `${directory}/ElectionManager.java`;
 const second = `${directory}/ElectionManagerTester.java`;
 
+test.describe('touch tab reordering', () => {
+	test.use({ hasTouch: true, viewport: { width: 1440, height: 900 } });
+	test('touch capture transfers to the strip without ending the drag', async ({ page }) => {
+		await page.goto(first);
+		await page.getByRole('button', { name: 'Keep file open' }).click();
+		await page.getByRole('region', { name: 'Course files' }).locator(`a[href="${second}"]`).click();
+		const links = page.getByRole('navigation', { name: 'Open files' }).getByRole('link');
+		await expect(links).toHaveCount(2);
+		const start = (await links.first().boundingBox())!;
+		const end = (await links.last().boundingBox())!;
+		const cdp = await page.context().newCDPSession(page);
+		const x = start.x + start.width / 2;
+		const y = start.y + start.height / 2;
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+		for (let step = 1; step <= 12; step++) {
+			await cdp.send('Input.dispatchTouchEvent', {
+				type: 'touchMove',
+				touchPoints: [{ x: x + ((end.x + end.width / 2 - x) * step) / 12, y }]
+			});
+		}
+		await expect(page.locator('[data-drag-preview]')).toBeVisible();
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+		await expect(links.first()).toHaveText('ElectionManagerTester.java');
+		await expect(page.locator('[data-drag-preview]')).toHaveCount(0);
+		await expect(page).toHaveURL(second);
+	});
+});
+
+test('one drag crosses several tabs, holds still, and reverses without losing capture', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await page.addInitScript(() => {
+		sessionStorage.setItem(
+			'wisconsin-file-tabs',
+			JSON.stringify(
+				[
+					'p01/src/main/java/ElectionManager.java',
+					'p01/src/main/java/ElectionManagerTester.java',
+					'p01/README.md',
+					'p01/build.gradle'
+				].map((path) => ({ course: 'fa24-cs300', path, pinned: true, top: 0, left: 0 }))
+			)
+		);
+	});
+	await page.goto(first);
+	const strip = page.getByRole('navigation', { name: 'Open files' });
+	const links = strip.getByRole('link');
+	await expect(links).toHaveCount(4);
+	const start = (await links.first().boundingBox())!;
+	const end = (await links.last().boundingBox())!;
+	const x = start.x + start.width / 2;
+	const y = start.y + start.height / 2;
+	await page.mouse.move(x, y);
+	await page.mouse.down();
+	await page.mouse.move(end.x + end.width / 2, y, { steps: 30 });
+	await expect(links.last()).toHaveText('ElectionManager.java');
+	await page.waitForTimeout(300);
+	await expect(links.last()).toHaveText('ElectionManager.java');
+	await expect(page.locator('[data-drag-preview]')).toBeVisible();
+	await page.mouse.move(x, y, { steps: 30 });
+	await expect(links.first()).toHaveText('ElectionManager.java');
+	await page.mouse.up();
+	await expect(page.locator('[data-drag-preview]')).toHaveCount(0);
+	await expect(page).toHaveURL(first);
+	expect(await page.evaluate(() => window.getSelection()?.toString())).toBe('');
+});
+
+test('tabs reorder by dragging and keyboard without navigating, and persist on reload', async ({
+	page
+}) => {
+	await page.goto(first);
+	await page.getByRole('button', { name: 'Keep file open' }).click();
+	await page.getByRole('region', { name: 'Course files' }).locator(`a[href="${second}"]`).click();
+	const tabs = page.getByRole('navigation', { name: 'Open files' });
+	const source = tabs.getByRole('link', { name: 'ElectionManager.java', exact: true });
+	const target = tabs.getByRole('link', { name: 'ElectionManagerTester.java', exact: true });
+	const start = (await source.boundingBox())!;
+	const end = (await target.boundingBox())!;
+	await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2, { steps: 12 });
+	await page.mouse.up();
+	await expect(tabs.getByRole('link').first()).toHaveText('ElectionManagerTester.java');
+	await expect(page).toHaveURL(second);
+	expect(await page.evaluate(() => window.getSelection()?.toString())).toBe('');
+	await page.reload();
+	await expect(tabs.getByRole('link').first()).toHaveText('ElectionManagerTester.java');
+	await target.focus();
+	await target.press('Alt+ArrowRight');
+	await expect(tabs.getByRole('link').first()).toHaveText('ElectionManager.java');
+	await expect(target).toBeFocused();
+	await expect(target).not.toHaveClass(/italic/);
+	await expect(page).toHaveURL(second);
+});
+
 test('navigation keeps the second click on the same explorer row', async ({ page }) => {
 	await page.goto(first);
 	const row = page.getByRole('region', { name: 'Course files' }).locator(`a[href="${second}"]`);

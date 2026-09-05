@@ -50,6 +50,19 @@ export function restoreTabs(value: string | null): FileTab[] {
 	}
 }
 
+export function moveTab(tabs: FileTab[], tab: FileTab, destination: number): FileTab[] {
+	const index = tabs.findIndex((item) => sameFile(item, tab));
+	if (index < 0 || !Number.isInteger(destination)) return tabs;
+	if (index === destination && tabs[index].pinned) return tabs;
+	const reordered = [...tabs];
+	const [moved] = reordered.splice(index, 1);
+	reordered.splice(Math.max(0, Math.min(destination, reordered.length)), 0, {
+		...moved,
+		pinned: true
+	});
+	return reordered;
+}
+
 export function tabLabel(tab: FileTab, tabs: FileTab[]) {
 	const name = tab.path.split('/').at(-1)!;
 	const duplicate = tabs.some(
