@@ -96,7 +96,10 @@ describe('private Worker gate', () => {
 		const html = await response.text();
 		expect(response.status).toBe(200);
 		expect(html).toContain('Continue with GitHub');
-		expect(html).not.toMatch(/_app|pagefind|graph.json|<script/);
+		expect(html).not.toMatch(/_app|pagefind|graph.json|<script src/);
+		const nonce = html.match(/<script nonce="([^"]+)"/)?.[1];
+		expect(nonce).toBeTruthy();
+		expect(response.headers.get('content-security-policy')).toContain(`'nonce-${nonce}'`);
 	});
 	test('owner sessions permit assets without public caching', async () => {
 		const response = await request('/graph.json', { headers: { cookie } });

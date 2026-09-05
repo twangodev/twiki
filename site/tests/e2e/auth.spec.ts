@@ -1,4 +1,56 @@
 import { test, expect } from '@playwright/test';
+import { siGithub } from 'simple-icons';
+
+for (const mode of ['light', 'dark'] as const) {
+	test(`login matches the ${mode} site theme and uses the Simple Icons mark`, async ({
+		browser,
+		baseURL
+	}) => {
+		const owner = await browser.newContext({ baseURL, storageState: '.generated/auth-state.json' });
+		const anonymous = await browser.newContext({
+			baseURL,
+			colorScheme: mode === 'light' ? 'dark' : 'light',
+			storageState: { cookies: [], origins: [] }
+		});
+		try {
+			for (const context of [owner, anonymous])
+				await context.addInitScript(
+					(value) => localStorage.setItem('mode-watcher-mode', value),
+					mode
+				);
+			const article = await owner.newPage();
+			await article.goto('/');
+			if (mode === 'dark') await expect(article.locator('html')).toHaveClass(/dark/);
+			else await expect(article.locator('html')).not.toHaveClass(/dark/);
+			const colors = await article
+				.locator('body')
+				.evaluate((node) => ({
+					background: getComputedStyle(node).backgroundColor,
+					text: getComputedStyle(node).color,
+					font: getComputedStyle(node).fontFamily
+				}));
+			const login = await anonymous.newPage();
+			await login.goto('/login');
+			await expect(login.locator('html')).toHaveCSS('background-color', colors.background);
+			await expect(login.locator('html')).toHaveCSS('color', colors.text);
+			await expect(login.locator('html')).toHaveCSS('font-family', colors.font);
+			await login.evaluate(() => document.fonts.ready);
+			expect(await login.evaluate(() => document.fonts.check('16px "Overused Grotesk"'))).toBe(
+				true
+			);
+			await expect(
+				login.getByRole('button', { name: 'Continue with GitHub' }).locator('svg path')
+			).toHaveAttribute('d', siGithub.path);
+			expect((await anonymous.request.get('/fonts/OverusedGrotesk-VF.woff2')).status()).toBe(200);
+			expect((await anonymous.request.get('/fonts/JetBrainsMono-VF.woff2')).status()).toBe(401);
+			await login.setViewportSize({ width: 390, height: 844 });
+			await login.screenshot({ path: `.generated/login-${mode}.png` });
+		} finally {
+			await owner.close();
+			await anonymous.close();
+		}
+	});
+}
 
 test('anonymous visitors cannot fetch built content, even after the owner warms it', async ({
 	browser,
@@ -34,7 +86,7 @@ test('anonymous visitors cannot fetch built content, even after the owner warms 
 		await page.goto('/');
 		await expect(page).toHaveURL(/\/login\?next=/);
 		await expect(page.getByRole('button', { name: 'Continue with GitHub' })).toBeVisible();
-		expect(await page.locator('script').count()).toBe(0);
+		expect(await page.locator('script[src]').count()).toBe(0);
 		await page.screenshot({ path: '.generated/login.png' });
 		const login = await anonymous.request.post('/login', {
 			headers: { Origin: baseURL! },

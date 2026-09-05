@@ -34,6 +34,12 @@ export async function authenticateRequest(
 		if (url.origin !== env.ORIGIN)
 			return privateResponse(new Response('Misdirected request', { status: 421 }));
 		const auth = createAuth(env);
+		if (
+			url.pathname === '/fonts/OverusedGrotesk-VF.woff2' &&
+			(request.method === 'GET' || request.method === 'HEAD')
+		) {
+			return privateResponse(await serve());
+		}
 		if (url.pathname.startsWith('/api/auth/')) {
 			if (!publicAuthPaths.has(url.pathname))
 				return privateResponse(new Response('Not found', { status: 404 }));
