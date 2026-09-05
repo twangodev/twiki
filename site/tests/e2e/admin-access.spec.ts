@@ -2,10 +2,11 @@ import { expect, test } from '@playwright/test';
 
 test('only the owner can manage access, and revocation blocks existing sessions', async ({
 	page,
-	browser
+	browser,
+	baseURL
 }) => {
 	const member = await browser.newContext({ storageState: '.generated/member-state.json' });
-	const origin = 'http://127.0.0.1:4174';
+	const origin = baseURL!;
 	try {
 		expect((await member.request.get(`${origin}/graph.json`)).status()).toBe(200);
 		expect((await member.request.get(`${origin}/admin/access`)).status()).toBe(403);
@@ -58,9 +59,9 @@ test('only the owner can manage access, and revocation blocks existing sessions'
 			'Access revoked. Existing sessions have been signed out.'
 		);
 		await expect(page.getByText('@fixture-member', { exact: true })).toHaveCount(0);
-		expect(await (await member.request.get(`${origin}/sp26-cs544/README`)).text()).toContain(
-			'Content locked'
-		);
+		expect(
+			await (await member.request.get(`${origin}/sp26-cs544/lectures/lecture-01`)).text()
+		).toContain('Content locked');
 		expect((await member.request.get(`${origin}/api/access`)).status()).toBe(401);
 		expect((await page.request.get('/graph.json')).status()).toBe(200);
 	} finally {

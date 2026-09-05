@@ -13,7 +13,8 @@ const directory = mkdtempSync(join(tmpdir(), 'wisconsin-auth-e2e-'));
 const configPath = join(directory, 'wrangler.json');
 const persistPath = join(directory, 'state');
 const config = JSON.parse(readFileSync('wrangler.jsonc', 'utf8'));
-const origin = 'http://127.0.0.1:4174';
+const port = process.env.TEST_PORT ?? '4174';
+const origin = `http://127.0.0.1:${port}`;
 writeFileSync(
 	configPath,
 	JSON.stringify({
@@ -96,7 +97,7 @@ const server = spawn(
 		'--persist-to',
 		persistPath,
 		'--port',
-		'4174',
+		port,
 		'--ip',
 		'127.0.0.1',
 		'--local'

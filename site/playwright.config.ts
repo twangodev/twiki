@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const baseURL = `http://127.0.0.1:${process.env.TEST_PORT ?? '4174'}`;
+
 export default defineConfig({
 	testDir: './tests/e2e',
 	fullyParallel: true,
@@ -7,7 +9,7 @@ export default defineConfig({
 	retries: process.env.CI ? 1 : 0,
 	reporter: process.env.CI ? 'github' : 'list',
 	use: {
-		baseURL: 'http://127.0.0.1:4174',
+		baseURL,
 		storageState: '.generated/auth-state.json',
 		colorScheme: 'light',
 		trace: 'retain-on-failure',
@@ -15,7 +17,7 @@ export default defineConfig({
 	},
 	webServer: {
 		command: 'bun tests/preview.ts',
-		url: 'http://127.0.0.1:4174/login',
+		url: `${baseURL}/login`,
 		reuseExistingServer: false,
 		timeout: 120_000
 	},

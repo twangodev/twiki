@@ -120,7 +120,10 @@ test('file catalogs stay public while file bodies remain authenticated after war
 			}
 		}
 		const catalog: CourseFile[] = await (await anonymous.request.get(fileIndexUrl(course))).json();
-		expect(catalog.every((file) => file.locked && !file.download && !file.history)).toBe(true);
+		expect(catalog.filter((file) => !file.locked).map((file) => file.path)).toEqual(['README.md']);
+		expect(
+			catalog.filter((file) => file.locked).every((file) => !file.download && !file.history)
+		).toBe(true);
 		const page = await anonymous.newPage();
 		await page.goto(fileRoute(course, java.path));
 		await expect(page.getByText('Content locked', { exact: true })).toBeVisible();

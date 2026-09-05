@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import type { CourseFile } from '../../src/lib/files';
 
 const publicAssets = JSON.parse(readFileSync('.generated/public-assets.json', 'utf8'));
-const privatePage = '/sp26-cs544/README';
+const privatePage = '/sp26-cs544/lectures/lecture-01';
 
 for (const mode of ['light', 'dark'] as const) {
 	test(`login matches the ${mode} site theme and uses the Simple Icons mark`, async ({

@@ -74,7 +74,7 @@ test('graph survives navigation, fullscreen, and theme changes without browser e
 	await expect(page.locator('[role="dialog"] canvas')).toBeVisible();
 	await page.getByRole('button', { name: 'Close' }).click();
 
-	const link = page.locator('article a.internal[href="/sp26-cs544/lectures/lecture-01"]').first();
+	const link = page.locator('article a.internal[href="/sp26-cs544/lectures"]').first();
 	await link.hover();
 	await expect(page.locator('.popover.active-popover')).toBeVisible();
 	await page
@@ -83,7 +83,7 @@ test('graph survives navigation, fullscreen, and theme changes without browser e
 		.first()
 		.click();
 	await link.click();
-	await page.waitForURL('**/sp26-cs544/lectures/lecture-01');
+	await page.waitForURL('**/sp26-cs544/lectures');
 	await page.waitForTimeout(500);
 	expect(errors).toEqual([]);
 });

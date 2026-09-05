@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import type { ContentManifest } from '../../src/lib/types';
 import type { CourseFile } from '../../src/lib/files';
 
-test('des-inv is public with attribution while other courses and Git history stay private', async ({
+test('des-inv is public with attribution while course materials and Git history stay private', async ({
 	browser,
 	baseURL,
 	request
@@ -36,22 +36,26 @@ test('des-inv is public with attribution while other courses and Git history sta
 		const graph = await (await context.request.get('/graph.json')).json();
 		expect(graph).toEqual(manifest.graph);
 		for (const url of [
-			'/sp26-cs544/README',
-			'/sp26-cs544/README/__data.json',
+			'/sp26-cs544/lectures/lecture-01',
+			'/sp26-cs544/lectures/lecture-01/__data.json',
 			'/_files/index/sp26-cs544.json'
 		])
 			expect((await context.request.get(url)).status()).toBe(200);
 		const lockedFiles: CourseFile[] = await (
 			await context.request.get('/_files/index/sp26-cs544.json')
 		).json();
-		expect(lockedFiles.every((file) => file.locked && !file.download && !file.history)).toBe(true);
+		expect(
+			lockedFiles
+				.filter((file) => file.path !== 'README.md')
+				.every((file) => file.locked && !file.download && !file.history)
+		).toBe(true);
 		const full: CourseFile[] = await (await request.get('/_files/index/des-inv.json')).json();
 		const history = full.find((file) => file.history)!.history!;
 		expect((await request.get(history)).status()).toBe(200);
 		expect((await context.request.get(history)).status()).toBe(401);
 		const sitemap = await (await context.request.get('/sitemap.xml')).text();
 		expect(sitemap).toContain('/des-inv/cnc/cnc-1');
-		expect(sitemap).not.toContain('sp26-cs544/README');
+		expect(sitemap).not.toContain('sp26-cs544/lectures/lecture-01');
 		const page = await context.newPage();
 		await page.goto('/des-inv/cnc/cnc-1');
 		await expect(page.getByRole('complementary', { name: 'Content license' })).toBeVisible();
@@ -69,7 +73,7 @@ test('des-inv is public with attribution while other courses and Git history sta
 			.toBeLessThanOrEqual(0);
 		await page.getByRole('complementary', { name: 'Content license' }).scrollIntoViewIfNeeded();
 		await page.screenshot({ path: '/tmp/wisconsin-des-inv-license.png' });
-		await page.goto('/sp26-cs544/README');
+		await page.goto('/sp26-cs544/lectures/lecture-01');
 		await expect(page.getByText('Content locked', { exact: true })).toBeVisible();
 		await page.screenshot({ path: '/tmp/wisconsin-catalog-mobile.png' });
 	} finally {

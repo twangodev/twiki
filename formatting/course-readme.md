@@ -5,19 +5,21 @@ in the course should be reachable from it.
 
 ## Sections, in order
 
-1. `# <DEPT NNN>: <Course Title>` — single H1
-2. **Course details callout** — term, instructor, credits, meeting time:
+1. YAML `title` and matching single H1: `<DEPT NNN>: <Course Title>`.
+   Set `description` to the short introduction for search metadata.
+2. Term and institution: `Spring 2026 · UW–Madison`.
+3. A short, independently written description.
+4. **Topics** — a few broad concepts, not copied syllabus prose.
+5. **Notes** — wikilinks to existing hubs and material.
+6. **Resources** — official course pages and external references.
 
-   ```markdown
-   > [!info] Course Details
-   > **Term:** Fall 2025 · **Instructor:** Name · **Credits:** 3
-   ```
+Omit unknown information and empty sections. Keep required source attribution
+and license notices on the page.
 
-3. **Description** — a paragraph, in the student's own words when possible
-4. **Content index** — wikilinked lists or tables pointing into `lectures/`,
-   `exams/`, `homework/`, `p<N>/`, `a<N>/`
-5. **Grading** — table of components and weights
-6. **Resources** — textbook (link `[[textbook]]` if converted), office hours,
-   course pages
+Landing pages are public. Keep schedules, grading, copied policies, and personal
+information in a linked, private `course-details.md`. Preserve the existing full
+index there when condensing an older landing page. Unless a course has a broader
+reviewed publication policy, its `publish.yaml` includes only `README.md`, not
+nested project READMEs or course details.
 
 Keep it current: when filing new content, add its link here in the same commit.
