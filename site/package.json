@@ -13,14 +13,15 @@
 		"dev": "bun scripts/prepare-static.ts && vite dev",
 		"dev:host": "bun scripts/prepare-static.ts && vite dev --host",
 		"build": "bun scripts/prepare-static.ts && vite build",
-		"preview": "wrangler dev .svelte-kit/cloudflare/_worker.js --port 4173",
+		"preview": "wrangler dev --port 4173",
 		"prepare": "svelte-kit sync || echo ''",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc -p worker/tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check .",
 		"format": "prettier --write ."
 	},
 	"devDependencies": {
+		"@cloudflare/workers-types": "^5.20260904.1",
 		"@floating-ui/dom": "^1",
 		"@lucide/svelte": "^1.17.0",
 		"@playwright/test": "1.61.1",
@@ -76,5 +77,8 @@
 		"unist-util-visit": "^5.1.0",
 		"vite": "^8.0.16",
 		"wrangler": "^4.100.0"
+	},
+	"dependencies": {
+		"better-auth": "1.7.2"
 	}
 }
