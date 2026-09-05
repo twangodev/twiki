@@ -218,9 +218,10 @@ export function transformLink(src: FullSlug, target: string, opts: TransformOpti
 	if (opts.strategy === 'relative') {
 		return targetSlug as RelativeURL;
 	} else {
-		const folderTail = isFolderPath(targetSlug) ? '/' : '';
+		const folderTail = isFolderPath(splitAnchor(targetSlug)[0]) ? '/' : '';
 		const canonicalSlug = stripSlashes(targetSlug.slice('.'.length));
 		let [targetCanonical, targetAnchor] = splitAnchor(canonicalSlug);
+		targetCanonical = stripSlashes(targetCanonical);
 
 		if (opts.strategy === 'shortest') {
 			// match by full path suffix on a "/" boundary; for basename-only targets
@@ -228,7 +229,8 @@ export function transformLink(src: FullSlug, target: string, opts: TransformOpti
 			// path-prefix wikilinks like [[folder/file]] it finds slugs whose path
 			// ends in folder/file (mirrors Obsidian's shortest-path resolution).
 			const matchingFileNames = opts.allSlugs.filter((slug) => {
-				return slug === targetCanonical || slug.endsWith('/' + targetCanonical);
+				const candidate = folderTail ? stripSlashes(simplifySlug(slug)) : slug;
+				return candidate === targetCanonical || candidate.endsWith('/' + targetCanonical);
 			});
 
 			// only match, just use it

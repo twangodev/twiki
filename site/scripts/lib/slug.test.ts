@@ -165,12 +165,26 @@ describe('transformLink (fork nearest-match resolution)', () => {
 		);
 	});
 
-	test("folder-index wikilink quirk: [[textbook/index]] trims to 'textbook', zero-matches, falls to root-absolute", () => {
-		// fork behavior preserved verbatim: the trailing index is trimmed before
-		// matching, so the candidate set is empty and the link goes root-absolute
+	test('folder-index wikilinks retain their course path', () => {
 		expect(transformLink(fs('sp26-cs537/p1/README'), 'textbook/index', opts)).toBe(
-			'../../textbook/'
+			'../../sp26-cs537/textbook/'
 		);
+	});
+
+	test('duplicate folder indexes select the nearest course and preserve anchors', () => {
+		const folders = {
+			strategy: 'shortest' as const,
+			allSlugs: ['sp26-cs537/lectures/index', 'sp26-cs544/lectures/index'].map(fs)
+		};
+		for (const target of [
+			'lectures/index#Overview',
+			'lectures/index.md#Overview',
+			'lectures/#Overview'
+		]) {
+			expect(transformLink(fs('sp26-cs544/README'), target, folders)).toBe(
+				'../sp26-cs544/lectures/#overview'
+			);
+		}
 	});
 
 	test('asset link with spaces resolves to slugified asset path', () => {
