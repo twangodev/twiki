@@ -3,10 +3,11 @@
 	import { tick, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { ChevronsUpDown } from '@lucide/svelte';
+	import { ChevronsUpDown, LogOut } from '@lucide/svelte';
 	import type { NavNode } from '$lib/types';
 	import { site } from '$lib/config';
 	import { ThemeToggle } from '$lib/components/ui';
+	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import NavTree from './NavTree.svelte';
 	import ReaderModeToggle from './ReaderModeToggle.svelte';
 	import { SearchButton } from '$lib/components/search';
@@ -195,6 +196,11 @@
 	</nav>
 	<div class="flex shrink-0 items-center justify-between border-t border-border pt-3">
 		<ThemeToggle /><ReaderModeToggle />
+		<form method="post" action="/logout">
+			<IconButton type="submit" aria-label="Sign out" title="Sign out"
+				><LogOut size={16} /></IconButton
+			>
+		</form>
 	</div>
 </div>
 

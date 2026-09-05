@@ -216,6 +216,32 @@ describe('private Worker gate', () => {
 			globalThis.fetch = originalFetch;
 		}
 	});
+	test('session refresh cookies survive the Worker gate', async () => {
+		await env.DB.prepare('UPDATE session SET updatedAt = ?, expiresAt = ? WHERE token = ?')
+			.bind(Date.now() - 2 * 86400000, Date.now() + 5 * 86400000, token)
+			.run();
+		const response = await request('/graph.json', { headers: { cookie } });
+		expect(response.status).toBe(200);
+		expect(response.headers.getSetCookie().some((value) => value.includes('session_token='))).toBe(
+			true
+		);
+	});
+	test('database-backed rate limits persist across auth instances', async () => {
+		let response: Response;
+		for (let index = 0; index <= 100; index++) {
+			response = await request('/api/auth/get-session', {
+				headers: { 'cf-connecting-ip': '198.51.100.44' }
+			});
+		}
+		expect(response!.status).toBe(429);
+		expect(Number(response!.headers.get('x-retry-after'))).toBeGreaterThan(0);
+	}, 10_000);
+	test('production session cookies are secure and host-only', async () => {
+		const ctx = await createAuth({ ...env, ORIGIN: 'https://wisconsin.twango.dev' }).$context;
+		expect(ctx.authCookies.sessionToken.attributes.secure).toBe(true);
+		expect(ctx.authCookies.sessionToken.attributes.httpOnly).toBe(true);
+		expect(ctx.authCookies.sessionToken.attributes.domain).toBeUndefined();
+	});
 	test('tampered and expired sessions cannot read assets', async () => {
 		expect(
 			(await request('/graph.json', { headers: { cookie: cookie + 'tampered' } })).status
@@ -229,6 +255,7 @@ test('return URLs cannot leave the origin or inject markup', async () => {
 	for (const value of [
 		'https://evil.invalid',
 		'//evil.invalid',
+		'/x/..//evil.invalid',
 		'/\\evil.invalid',
 		'/%2f%2fevil.invalid',
 		'/login',

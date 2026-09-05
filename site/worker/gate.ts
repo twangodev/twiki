@@ -66,7 +66,13 @@ export async function authenticateRequest(
 					}
 				)
 			);
-			if (!response.ok) return privateResponse(loginPage(next, true));
+			if (!response.ok) {
+				const page = loginPage(next, true);
+				const result = new Response(page.body, { status: response.status, headers: page.headers });
+				const retryAfter = response.headers.get('x-retry-after');
+				if (retryAfter) result.headers.set('Retry-After', retryAfter);
+				return privateResponse(result, response.headers);
+			}
 			const data = login ? ((await response.json()) as { url: string }) : null;
 			return privateResponse(redirect(data?.url ?? '/login'), response.headers);
 		}

@@ -9,6 +9,7 @@ export function returnPath(value: unknown): string {
 		return '/';
 	const path = new URL(value, 'https://local.invalid');
 	if (
+		path.pathname.startsWith('//') ||
 		path.pathname === '/login' ||
 		path.pathname.startsWith('/api/auth/') ||
 		path.pathname === '/logout'
@@ -43,7 +44,7 @@ ${failed ? '<p class="error" role="alert">Sign-in was unsuccessful. Please use y
 			headers: {
 				'Content-Type': 'text/html; charset=utf-8',
 				'Content-Security-Policy':
-					"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+					"default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://github.com; frame-ancestors 'none'; base-uri 'none'"
 			}
 		}
 	);

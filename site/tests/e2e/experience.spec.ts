@@ -225,11 +225,11 @@ test('Cloudflare asset headers and canonical URLs are configured', async ({ requ
 	expect(pageResponse.headers()['x-robots-tag']).toContain('noindex');
 
 	const graphResponse = await request.get('/graph.json');
-	expect(graphResponse.headers()['cache-control']).toContain('max-age=300');
+	expect(graphResponse.headers()['cache-control']).toBe('private, no-store');
 
 	const pagefindFilter = readdirSync('.svelte-kit/cloudflare/pagefind/filter')[0];
 	const filterResponse = await request.get(`/pagefind/filter/${pagefindFilter}`);
-	expect(filterResponse.headers()['cache-control']).toContain('immutable');
+	expect(filterResponse.headers()['cache-control']).toBe('private, no-store');
 
 	const trailing = await request.get('/sp26-cs544/README/', { maxRedirects: 0 });
 	expect(trailing.status()).toBe(307);
