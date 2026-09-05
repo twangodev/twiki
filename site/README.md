@@ -38,9 +38,9 @@ Before publishing this version:
    in `wrangler.jsonc`. CI needs D1 edit permission to apply checked-in migrations.
 2. Create a GitHub OAuth application with homepage `https://wisconsin.twango.dev`
    and callback `https://wisconsin.twango.dev/api/auth/callback/github`.
-3. Set Worker secrets using `bunx wrangler secret put` for `GITHUB_CLIENT_ID`,
-   `GITHUB_CLIENT_SECRET`, and `BETTER_AUTH_SECRET` (at least 32 random characters).
-   These are Worker secrets, not GitHub Actions secrets.
+3. Keep `GITHUB_CLIENT_ID` in Wrangler's `vars`. Set Worker secrets using
+   `bunx wrangler secret put` for `GITHUB_CLIENT_SECRET` and `BETTER_AUTH_SECRET`
+   (at least 32 random characters). These are not GitHub Actions secrets.
 4. Keep Cloudflare Access enabled until real sign-in, sign-out, and anonymous
    asset blocking have been verified. Removing Access is a separate operation.
 

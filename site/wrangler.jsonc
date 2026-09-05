@@ -6,7 +6,8 @@
 	"main": ".svelte-kit/worker.js",
 	"vars": {
 		"ORIGIN": "https://wisconsin.twango.dev",
-		"OWNER_GITHUB_ID": "48845764"
+		"OWNER_GITHUB_ID": "48845764",
+		"GITHUB_CLIENT_ID": "Ov23liFBHrg7CX5yA0ko"
 	},
 	"d1_databases": [
 		{
