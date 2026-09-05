@@ -54,6 +54,7 @@
 		"hast-util-to-html": "^9.0.5",
 		"hast-util-to-string": "^3.0.1",
 		"katex": "^0.17.0",
+		"material-icon-theme": "^5.38.1",
 		"mdast-util-find-and-replace": "^3.0.2",
 		"mdast-util-to-hast": "^13.2.1",
 		"mdast-util-to-string": "^4.0.0",

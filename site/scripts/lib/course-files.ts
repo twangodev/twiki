@@ -16,6 +16,7 @@ import type { BundledLanguage } from 'shiki';
 import type { CourseFile, FilePreview } from '../../src/lib/files';
 import { parseGitmodules } from './lastmod';
 import { slugifyFilePath, type FilePath } from './slug';
+import { buildFileIcons } from './file-icons';
 
 const excludedDirectories = new Set([
 	'node_modules',
@@ -171,6 +172,10 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 		}
 		for (const [course, files] of courses)
 			writeFileSync(path.join(output, 'index', `${course}.json`), JSON.stringify(files));
+		buildFileIcons(
+			siteDir,
+			[...courses.values()].flatMap((files) => files.map((file) => file.path))
+		);
 	} finally {
 		highlighter.dispose();
 	}
