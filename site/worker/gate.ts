@@ -3,11 +3,17 @@ import { accessForUser } from './access';
 import { copyCookies, handleAuthEndpoint, redirect, signIn, signOut } from './auth-routes';
 import { loginPage, returnPath } from './login';
 
-function privateResponse(response: Response, cookies: Headers) {
+function privateResponse(response: Response, cookies: Headers, request: Request) {
 	const result = new Response(response.body, response);
+	const pathname = new URL(request.url).pathname;
+	const embeddedPdf = /^\/_files\/blobs\/[a-f0-9]{64}\.pdf$/.test(pathname);
 	result.headers.set('Cache-Control', 'private, no-store');
 	result.headers.set('X-Content-Type-Options', 'nosniff');
-	result.headers.set('X-Frame-Options', 'DENY');
+	result.headers.set('X-Frame-Options', embeddedPdf ? 'SAMEORIGIN' : 'DENY');
+	if (/^\/_files\/blobs\/[a-f0-9]{64}\.bin$/.test(pathname)) {
+		result.headers.set('Content-Type', 'application/octet-stream');
+		result.headers.set('Content-Disposition', 'attachment');
+	}
 	result.headers.set('Referrer-Policy', 'same-origin');
 	result.headers.set('X-Robots-Tag', 'noindex, nofollow');
 	copyCookies(cookies, result.headers);
@@ -82,5 +88,5 @@ export async function authenticateRequest(
 			response = new Response('Content temporarily unavailable', { status: 500 });
 		}
 	}
-	return privateResponse(response, cookies);
+	return privateResponse(response, cookies, request);
 }

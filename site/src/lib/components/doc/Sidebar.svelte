@@ -11,6 +11,7 @@
 	import NavTree from './NavTree.svelte';
 	import ReaderModeToggle from './ReaderModeToggle.svelte';
 	import AccessLink from './AccessLink.svelte';
+	import FileDrawer from '$lib/components/files/FileDrawer.svelte';
 	import { SearchButton } from '$lib/components/search';
 
 	const { nav }: { nav: NavNode[] } = $props();
@@ -195,6 +196,9 @@
 			{/key}
 		{/if}
 	</nav>
+	{#if course && !choosing}
+		{#key course.segment}<FileDrawer course={course.segment} />{/key}
+	{/if}
 	<div class="flex shrink-0 items-center justify-between border-t border-border pt-3">
 		<ThemeToggle /><ReaderModeToggle />
 		<AccessLink />
