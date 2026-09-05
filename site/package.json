@@ -4,6 +4,7 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
+		"publish:check": "bun scripts/publish-check.ts",
 		"db:generate": "drizzle-kit generate",
 		"build:content": "bun scripts/build-content.ts",
 		"build:search": "pagefind --site .svelte-kit/cloudflare",
@@ -89,6 +90,7 @@
 		"unified": "^11.0.5",
 		"unist-util-visit": "^5.1.0",
 		"vite": "^8.0.16",
-		"wrangler": "^4.100.0"
+		"wrangler": "^4.100.0",
+		"yaml": "^2.9.0"
 	}
 }
