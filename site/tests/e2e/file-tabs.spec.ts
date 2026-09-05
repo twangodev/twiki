@@ -4,6 +4,28 @@ const directory = '/fa24-cs300/files/p01/src/main/java';
 const first = `${directory}/ElectionManager.java`;
 const second = `${directory}/ElectionManagerTester.java`;
 
+test('navigation keeps the second click on the same explorer row', async ({ page }) => {
+	await page.goto(first);
+	const row = page.getByRole('region', { name: 'Course files' }).locator(`a[href="${second}"]`);
+	await expect(row).toBeVisible();
+	await row.scrollIntoViewIfNeeded();
+	const bounds = (await row.boundingBox())!;
+	const point = { x: bounds.x + 40, y: bounds.y + 12 };
+	await page.mouse.click(point.x, point.y);
+	await page.waitForTimeout(120);
+	expect(
+		await page.evaluate(
+			({ x, y }) => document.elementFromPoint(x, y)?.closest('a')?.getAttribute('href'),
+			point
+		)
+	).toBe(second);
+	await page.mouse.click(point.x, point.y, { clickCount: 2 });
+	await expect(
+		page.getByRole('navigation', { name: 'Open files' }).getByRole('link')
+	).not.toHaveClass(/italic/);
+	expect(await page.evaluate(() => window.getSelection()?.toString())).toBe('');
+});
+
 test.describe('touch file activation', () => {
 	test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
 	test('double tapping a file pins it before the mobile explorer closes', async ({ page }) => {

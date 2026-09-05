@@ -26,11 +26,11 @@
 		void tick().then(() => {
 			if (cancelled || !viewport) return;
 			const active = viewport.querySelector<HTMLElement>('[aria-current="page"]');
-			if (active)
-				viewport.scrollTop +=
-					active.getBoundingClientRect().top -
-					viewport.getBoundingClientRect().top -
-					viewport.clientHeight / 2;
+			if (!active) return;
+			const bounds = viewport.getBoundingClientRect();
+			const row = active.getBoundingClientRect();
+			if (row.top < bounds.top) viewport.scrollTop += row.top - bounds.top;
+			else if (row.bottom > bounds.bottom) viewport.scrollTop += row.bottom - bounds.bottom;
 		});
 		return () => {
 			cancelled = true;

@@ -23,6 +23,11 @@
 	// no-ops in browsers without document.startViewTransition, and skipped
 	// for users who prefer reduced motion. Duration is tuned in foundation.css.
 	onNavigate((navigation) => {
+		if (
+			navigation.from?.route.id?.includes('/files/') &&
+			navigation.to?.route.id?.includes('/files/')
+		)
+			return;
 		if (!document.startViewTransition) return;
 		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 

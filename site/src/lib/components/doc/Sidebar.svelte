@@ -117,7 +117,7 @@
 	});
 	$effect(() => {
 		path;
-		if (!viewport) return;
+		if (!viewport || explorer !== 'notes') return;
 		const timer = setTimeout(() => {
 			const link = viewport?.querySelector<HTMLElement>('[aria-current="page"]');
 			if (!link || !viewport || !link.getClientRects().length) return;
