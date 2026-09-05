@@ -24,9 +24,7 @@ const excludedDirectories = new Set([
 	'build',
 	'dist',
 	'target',
-	'__pycache__',
-	'private',
-	'templates'
+	'__pycache__'
 ]);
 const excludedNames =
 	/^(?:credentials?|secrets?|id_rsa|id_ed25519)(?:[._-]|$)|\.(?:pem|key|p12|pfx|keystore)$/i;
@@ -96,16 +94,9 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 	);
 	for (const tracked of paths) {
 		const relative = tracked.slice(8);
-		if (publicEdition && !isPublished(relative)) continue;
 		const [course, ...segments] = relative.split('/');
 		const files = courses.get(course);
 		if (!files || !browsablePath(segments.join('/'))) continue;
-		if (
-			publicEdition &&
-			relative.toLowerCase().endsWith('.md') &&
-			!noteSlugs.has(slugifyFilePath(relative as FilePath))
-		)
-			continue;
 		const source = path.join(repo, tracked);
 		if (!existsSync(source) || !lstatSync(source).isFile()) continue;
 		if (realpathSync(source) !== path.join(contentRoot, relative)) continue;
@@ -116,11 +107,20 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 			kind: 'binary',
 			license: licenseFor(relative)
 		};
+		const extension = path.extname(source).slice(1).toLowerCase();
+		const slug = slugifyFilePath(relative as FilePath);
+		if (extension === 'md' && noteSlugs.has(slug))
+			file.note = '/' + (slug.endsWith('/index') ? slug.slice(0, -6) : slug);
+		file.locked =
+			publicEdition && (!isPublished(relative) || (extension === 'md' && !noteSlugs.has(slug)));
 		files.push(file);
 		count++;
+		if (file.locked) {
+			delete file.license;
+			continue;
+		}
 		if (size > assetLimit) continue;
 		const bytes = readFileSync(source);
-		const extension = path.extname(source).slice(1).toLowerCase();
 		const hash = createHash('sha256').update(bytes).digest('hex');
 		const suffix = extension === 'pdf' ? 'pdf' : inlineImages.has(extension) ? extension : 'bin';
 		const blob = `${hash}.${suffix}`;
@@ -131,11 +131,6 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 		else if (inlineImages.has(suffix)) file.kind = 'image';
 		else if (previewText(bytes)) file.kind = 'text';
 		file.history = histories.get(course)?.(file, bytes);
-		if (extension === 'md') {
-			const slug = slugifyFilePath(relative as FilePath);
-			if (noteSlugs.has(slug))
-				file.note = '/' + (slug.endsWith('/index') ? slug.slice(0, -6) : slug);
-		}
 	}
 	const entries: { course: string; file: string }[] = [];
 	for (const [course, files] of courses) {

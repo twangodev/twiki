@@ -16,10 +16,13 @@ test('a course can publish only project files without exposing its notes or requ
 		await expect(page.locator('.cm-content')).toContainText('class Main');
 		const graph = await (await context.request.get('/graph.json')).json();
 		expect(graph.nodes).toEqual([]);
-		expect((await context.request.get('/sp99-cs101/notes/public')).status()).toBe(401);
+		const locked = await context.request.get('/sp99-cs101/notes/public');
+		expect(locked.status()).toBe(200);
+		expect(await locked.text()).toContain('Content locked');
+		expect(await locked.text()).not.toContain('publicsearchcanary');
 		const sitemap = await (await context.request.get('/sitemap.xml')).text();
 		expect(sitemap).toContain('https://wisconsin.twango.dev/sp99-cs101');
-		expect(sitemap).not.toContain('/notes/');
+		expect(sitemap).not.toContain('/notes/public');
 	} finally {
 		await context.close();
 	}

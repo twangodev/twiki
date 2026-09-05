@@ -1,4 +1,5 @@
 export interface CourseFile {
+	locked?: boolean;
 	license?: import('./content-license').ContentLicense;
 	path: string;
 	size: number;

@@ -8,6 +8,65 @@ const note = '/sp99-cs101/notes/public';
 const privateNote = '/sp99-cs101/notes/slides';
 const canaries = /(?:root|lecture|overview|history|answer|exam|draft)privatecanary/;
 
+test('locked previews expose titles and headings without bodies, downloads or history', async ({
+	browser,
+	baseURL,
+	request
+}) => {
+	const context = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
+	try {
+		const page = await context.newPage();
+		await page.goto(privateNote);
+		await expect(page.getByText('Content locked', { exact: true })).toBeVisible();
+		await expect(page.getByLabel('Page outline')).toContainText('Public heading outline');
+		await expect(page.getByLabel('Page outline')).toContainText('Nested heading');
+		await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+			'content',
+			'noindex, nofollow'
+		);
+		await expect(page.getByRole('link', { name: 'Sign in to read' })).toHaveAttribute(
+			'href',
+			`/login?next=${encodeURIComponent(privateNote)}`
+		);
+		expect(await page.content()).not.toMatch(canaries);
+		expect(await (await context.request.get(`${privateNote}/__data.json`)).text()).not.toMatch(
+			canaries
+		);
+		await page.setViewportSize({ width: 390, height: 844 });
+		await expect
+			.poll(() =>
+				page
+					.locator('.doc-sidebar-left')
+					.evaluate((element) => element.getBoundingClientRect().right)
+			)
+			.toBeLessThanOrEqual(0);
+		expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+			true
+		);
+		await page.screenshot({ path: '/tmp/wisconsin-locked-note.png' });
+		await page.goto('/sp99-cs101/p01/private/outline');
+		await expect(page.getByText('Content locked', { exact: true })).toBeVisible();
+		await expect(page.getByLabel('Page outline')).toContainText('Visible heading');
+		expect(await page.content()).not.toMatch(canaries);
+		await page.goto('/sp99-cs101/files/p01/private/Answer.java');
+		await expect(page.getByText('Content locked', { exact: true })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Download', exact: true })).toHaveCount(0);
+		await expect(page.locator('.cm-content')).toHaveCount(0);
+		const full = await request.get('/sp99-cs101/files/p01/private/Answer.java/__data.json');
+		expect(full.status()).toBe(200);
+		expect(await full.text()).toContain('/_files/blobs/');
+		const publicFiles: CourseFile[] = await (
+			await context.request.get('/_files/index/sp99-cs101.json')
+		).json();
+		for (const file of publicFiles.filter((file) => file.locked)) {
+			expect(file.download).toBeUndefined();
+			expect(file.history).toBeUndefined();
+		}
+	} finally {
+		await context.close();
+	}
+});
+
 test('public output contains no private content, history, or navigation bundles', () => {
 	const root = '.generated/public-site';
 	for (const file of readdirSync(root, { recursive: true, withFileTypes: true })) {
@@ -46,7 +105,10 @@ test('anonymous HTML, hydration, navigation, graphs and search use only the publ
 		await expect(page.getByLabel('Page visibility: Public')).toBeVisible();
 		expect(await html.text()).not.toContain('Included by');
 		await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
-		await expect(page.getByRole('link', { name: 'Restricted reference' })).toHaveCount(0);
+		await expect(page.getByRole('link', { name: 'Restricted reference' })).toHaveAttribute(
+			'href',
+			privateNote
+		);
 		await page.locator('article').getByRole('link', { name: 'Next derivation' }).click();
 		await expect(page.getByRole('heading', { name: 'Second derivation' })).toBeVisible();
 		const graph = await context.request.get('/graph.json');
@@ -109,12 +171,13 @@ test('public files render and download without exposing siblings or history', as
 		const response = await context.request.get('/_files/index/sp99-cs101.json');
 		expect(response.status()).toBe(200);
 		const files: CourseFile[] = await response.json();
-		expect(files).toHaveLength(6);
+		expect(files.filter((file) => !file.locked)).toHaveLength(6);
 		expect(files.every((file) => !file.history)).toBe(true);
+		expect(files.find((file) => file.path === 'p01/private/Answer.java')?.locked).toBe(true);
 		expect(
-			files.some((file) => file.path.includes('secret') || file.path.includes('private'))
-		).toBe(false);
-		for (const file of files)
+			files.filter((file) => file.locked).every((file) => !file.download && !file.history)
+		).toBe(true);
+		for (const file of files.filter((file) => !file.locked))
 			expect((await context.request.get(file.download!)).status()).toBe(200);
 		const page = await context.newPage();
 		await page.goto('/sp99-cs101/files/p01/Main.java');
@@ -128,7 +191,7 @@ test('public files render and download without exposing siblings or history', as
 		await page.goto('/sp99-cs101/files/p01/R%C3%A9sum%C3%A9%20Test.java');
 		await expect(page.locator('.cm-content')).toContainText('class Helper');
 		const full: CourseFile[] = await (await request.get('/_files/index/sp99-cs101.json')).json();
-		expect(full.length).toBeGreaterThan(files.length);
+		expect(full.length).toBe(files.length);
 		const approved = full.find((file) => file.path === 'notes/public.md')!;
 		const history = await (await request.get(approved.history!)).json();
 		for (const url of [
@@ -163,8 +226,8 @@ test('warming full content cannot leak it anonymously, including page data and g
 			expect((await request.get(url)).status()).toBe(200);
 			for (const method of ['GET', 'HEAD']) {
 				const response = await context.request.fetch(url, { method, maxRedirects: 0 });
-				expect(response.status()).toBe(401);
-				expect(response.headers()['cache-control']).toBe('private, no-store');
+				expect(response.status()).toBe(url === secret.download ? 401 : 200);
+				expect(await response.text()).not.toMatch(canaries);
 			}
 		}
 		for (const url of [

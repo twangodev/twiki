@@ -21,9 +21,10 @@ import {
 } from '../../src/lib/files';
 
 describe('course file discovery', () => {
-	test('keeps source paths and excludes private, hidden, dependency and secret paths', () => {
+	test('keeps content paths and excludes hidden, dependency and secret paths', () => {
 		for (const file of [
 			'src/Main.java',
+			'private/note.md',
 			'lecture notes/example #1.py',
 			'p1/Makefile',
 			'data/results.csv'
@@ -35,7 +36,6 @@ describe('course file discovery', () => {
 			'src/.env.local',
 			'../escape',
 			'/absolute',
-			'private/note.md',
 			'node_modules/a.js',
 			'build/Main.class',
 			'keys/server.pem',

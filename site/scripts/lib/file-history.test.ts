@@ -67,10 +67,10 @@ test('history follows renames, emits scoped diffs and blame, detects local edits
 		expect(restrictedCached.commits).toHaveLength(2);
 		expect(restrictedCached.blame).toBeUndefined();
 		expect(restrictedCached.commits[1].diff).toBeUndefined();
-		mkdirSync(path.join(repo, 'private'));
-		writeFileSync(path.join(repo, 'private/Hidden.java'), 'not for export\n');
+		mkdirSync(path.join(repo, '.private'));
+		writeFileSync(path.join(repo, '.private/Hidden.java'), 'not for export\n');
 		commit('Private file');
-		git('mv', 'private/Hidden.java', 'Visible.java');
+		git('mv', '.private/Hidden.java', 'Visible.java');
 		commit('Move into view');
 		const restrictedBuild = createFileHistoryBuilder(repo, output, cache, browsablePath)!;
 		const restricted: FileHistory = JSON.parse(
@@ -84,7 +84,7 @@ test('history follows renames, emits scoped diffs and blame, detects local edits
 		expect(restricted.commits).toHaveLength(1);
 		expect(restricted.commits[0].diff).toBeUndefined();
 		expect(restricted.blame).toBeUndefined();
-		expect(JSON.stringify(restricted)).not.toContain('private/Hidden.java');
+		expect(JSON.stringify(restricted)).not.toContain('.private/Hidden.java');
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}

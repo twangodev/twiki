@@ -67,7 +67,6 @@ const CONTENT_DIR = path.join(REPO_ROOT, 'content');
 const OUT_DIR = path.join(SITE_DIR, '.generated');
 const CACHE_DIR = path.join(OUT_DIR, 'cache');
 
-const IGNORE_SEGMENTS = new Set(['private', 'templates', '.obsidian']);
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']);
 const ASSET_EXTS = new Set([...IMAGE_EXTS, '.pdf', '.html']);
 
@@ -147,7 +146,6 @@ function discover(): { files: SourceFile[]; submoduleNames: string[] } {
 			fs.realpathSync(source) !== source
 		)
 			continue;
-		if (rel.split('/').some((seg) => IGNORE_SEGMENTS.has(seg))) continue;
 		// dot-led paths are invisible to every Quartz glob (globby dot:false)
 		if (dotLed(rel)) continue;
 		const ext = (getFileExtension(rel) ?? '').toLowerCase();
@@ -840,7 +838,7 @@ async function main() {
 	const files = publicEdition
 		? discovered.filter((file) => publicationFor(file.rel).public)
 		: discovered;
-	const pagesSrc = files.filter((f) => f.kind === 'page');
+	const pagesSrc = discovered.filter((f) => f.kind === 'page');
 	const assetsSrc = files.filter((f) => f.kind === 'asset');
 	const otherSrc = files.filter((f) => f.kind === 'other');
 	console.log(
@@ -872,7 +870,11 @@ async function main() {
 	console.log(`parse: ${parses.length} pages in ${Math.round(performance.now() - t1)}ms`);
 
 	const drafts = parses.filter((p) => p.draft);
-	const pages = parses.filter((p) => !p.draft);
+	const catalog = parses.filter((p) => !p.draft);
+	const lockedPages = publicEdition
+		? catalog.filter((page) => !publicationFor(page.rel).public)
+		: [];
+	const pages = publicEdition ? catalog.filter((page) => publicationFor(page.rel).public) : catalog;
 	if (drafts.length > 0) {
 		console.log(`drafts skipped: ${drafts.length} (${drafts.map((d) => d.rel).join(', ')})`);
 	}
@@ -902,10 +904,11 @@ async function main() {
 	]);
 
 	const droppedSlugs = new Set<string>(otherSrc.map((f) => f.slug as string));
+	const catalogSlugs = new Set([...emittedSlugs, ...catalog.map((page) => page.slug as string)]);
 	const outgoingBySlug = new Map<string, SimpleSlug[]>();
 	for (const page of pages) {
 		const outgoing = crawlLinks(page, transformOptions, emittedSlugs, droppedSlugs);
-		if (publicEdition) protectPublicLinks(page.tree, page.slug, emittedSlugs);
+		if (publicEdition) protectPublicLinks(page.tree, page.slug, emittedSlugs, catalogSlugs);
 		outgoingBySlug.set(
 			page.slug,
 			publicEdition
@@ -1025,8 +1028,32 @@ async function main() {
 		checkSize(outPath);
 	}
 
+	for (const page of lockedPages) {
+		const meta = {
+			locked: true,
+			publication: { public: false },
+			slug: page.slug,
+			title: page.title,
+			description: '',
+			tags: [],
+			dates: { created: '', modified: '', published: '' },
+			links: [],
+			backlinks: [],
+			wordCount: 0,
+			readingTime: 0,
+			hasMermaid: false,
+			relativePath: page.rel
+		};
+		pageMeta[page.slug] = meta;
+		const outPath = path.join(OUT_DIR, 'pages', page.slug + '.json');
+		fs.mkdirSync(path.dirname(outPath), { recursive: true });
+		fs.writeFileSync(outPath, JSON.stringify({ ...meta, toc: page.toc, html: '' }));
+		const parts = page.slug.split('/');
+		for (let i = 1; i < parts.length; i++) folderSet.add(parts.slice(0, i).join('/'));
+	}
+
 	// manifest
-	const tree = buildTree(pages);
+	const tree = buildTree(catalog);
 	const graph = {
 		nodes: pages.map((p) => ({
 			id: simplifySlug(p.slug),

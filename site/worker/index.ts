@@ -30,8 +30,6 @@ export default {
 				if (request.method === 'GET' || request.method === 'HEAD') {
 					const asset = await env.ASSETS.fetch(request);
 					if (asset.status !== 404) return asset;
-					const published = await servePublic();
-					if (published) return published;
 				}
 				return app.fetch(request, env, ctx);
 			},

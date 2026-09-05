@@ -102,6 +102,7 @@ function toNavNode(node: TreeNode): NavNode {
 		.filter((p) => p.slug !== indexSlug)
 		.map(
 			(p): NavNode => ({
+				locked: getManifest().pages[p.slug]?.locked,
 				title: p.title,
 				route: `/${displayRoute(p.slug)}`,
 				children: [],
@@ -110,6 +111,7 @@ function toNavNode(node: TreeNode): NavNode {
 		)
 		.sort((a, b) => collator.compare(a.title, b.title));
 	return {
+		locked: getManifest().pages[indexSlug]?.locked,
 		// Explorer shows folder names (matching the live Quartz explorer), not
 		// index-page titles — those can be long ("Midterm 1 - Practice Questions").
 		title: node.name,
@@ -221,6 +223,7 @@ function absoluteUrl(route: string): string {
 export function rssXml(): string {
 	const m = getManifest();
 	const items = Object.values(m.pages)
+		.filter((page) => !page.locked)
 		.sort((a, b) => Date.parse(b.dates.modified) - Date.parse(a.dates.modified))
 		.slice(0, 10)
 		.map((p) => {
@@ -251,6 +254,7 @@ export function rssXml(): string {
 export function sitemapXml(): string {
 	const m = getManifest();
 	const urls = Object.values(m.pages)
+		.filter((page) => !page.locked)
 		.map(
 			(p) => `<url>
     <loc>${escapeXml(absoluteUrl(displayRoute(p.slug)))}</loc>

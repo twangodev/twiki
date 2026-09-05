@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import type { CourseFile } from '../../src/lib/files';
 
 test.skip(process.env.PUBLICATION_TEST !== 'revoked', 'Uses the revoked publication fixture');
@@ -9,8 +9,8 @@ test('removing publication rules closes old pages, data, files and derivatives a
 	baseURL,
 	request
 }) => {
-	expect(JSON.parse(readFileSync('.generated/public-assets.json', 'utf8'))).toEqual({});
-	expect(existsSync('.svelte-kit/cloudflare/_published')).toBe(false);
+	const assets = JSON.parse(readFileSync('.generated/public-assets.json', 'utf8'));
+	expect(Object.keys(assets).some((url) => url.startsWith('/_files/blobs/'))).toBe(false);
 	const anonymous = await browser.newContext({
 		baseURL,
 		storageState: { cookies: [], origins: [] }
@@ -33,10 +33,22 @@ test('removing publication rules closes old pages, data, files and derivatives a
 			expect((await request.get(url)).status()).toBe(200);
 			for (const method of ['GET', 'HEAD']) {
 				const response = await anonymous.request.fetch(url, { method, maxRedirects: 0 });
-				expect(response.status()).toBe(401);
-				expect(response.headers()['cache-control']).toBe('private, no-store');
+				expect(response.status()).toBe(url === download ? 401 : 200);
+				expect(await response.text()).not.toMatch(
+					/publicsearchcanary|class Main|lectureprivatecanary/
+				);
 			}
 		}
+		const page = await anonymous.newPage();
+		await page.goto('/sp99-cs101/notes/public');
+		await expect(page.getByText('Content locked', { exact: true })).toBeVisible();
+		await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+			'content',
+			'noindex, nofollow'
+		);
+		expect(await (await anonymous.request.get('/sitemap.xml')).text()).not.toContain(
+			'/notes/public'
+		);
 	} finally {
 		await anonymous.close();
 	}

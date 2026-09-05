@@ -100,7 +100,7 @@ test('Markdown links back to notes, PDFs embed, images preview, and missing path
 	expect((await request.get(fileRoute(course, 'does-not-exist.java'))).status()).toBe(404);
 });
 
-test('file pages, indexes, previews and downloads remain authenticated after warming', async ({
+test('file catalogs stay public while file bodies remain authenticated after warming', async ({
 	request,
 	browser,
 	baseURL
@@ -114,10 +114,17 @@ test('file pages, indexes, previews and downloads remain authenticated after war
 			expect((await request.get(path)).status()).toBe(200);
 			for (const method of ['GET', 'HEAD']) {
 				const response = await anonymous.request.fetch(path, { method });
-				expect(response.status()).toBe(401);
-				expect(response.headers()['cache-control']).toBe('private, no-store');
+				expect(response.status()).toBe(path === java.download ? 401 : 200);
+				if (path === java.download)
+					expect(response.headers()['cache-control']).toBe('private, no-store');
 			}
 		}
+		const catalog: CourseFile[] = await (await anonymous.request.get(fileIndexUrl(course))).json();
+		expect(catalog.every((file) => file.locked && !file.download && !file.history)).toBe(true);
+		const page = await anonymous.newPage();
+		await page.goto(fileRoute(course, java.path));
+		await expect(page.getByText('Content locked', { exact: true })).toBeVisible();
+		await expect(page.locator('.cm-content')).toHaveCount(0);
 		expect((await request.get(java.download!)).headers()['content-type']).toContain(
 			'application/octet-stream'
 		);

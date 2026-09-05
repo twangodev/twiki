@@ -45,13 +45,17 @@ export function publicationFixture() {
 	);
 	write(
 		'content/sp99-cs101/notes/slides.md',
-		'# Private lecture slides\n\nlectureprivatecanary\n\n[[public]]'
+		'# Private lecture slides\n\nlectureprivatecanary\n\n## Public heading outline\n\nlectureprivatecanary\n\n### Nested heading\n\n[[public]]'
 	);
 	write(
 		'content/sp99-cs101/notes/figure.svg',
 		'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="8"/></svg>'
 	);
 	write('content/sp99-cs101/README.md', '# Restricted overview\n\noverviewprivatecanary');
+	write(
+		'content/sp99-cs101/p01/private/outline.md',
+		'# Private directory note\n\n## Visible heading\n\nlectureprivatecanary'
+	);
 	write(
 		'content/sp99-cs101/p01/Main.java',
 		'class Main { public static void main(String[] args) {} }\n'

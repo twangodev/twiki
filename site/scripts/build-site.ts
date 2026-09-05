@@ -1,15 +1,12 @@
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-import { coursePolicies } from './lib/publishing';
 import { publicAssetManifest } from './lib/public-assets';
 
 const site = path.resolve(import.meta.dir, '..');
-const repo = process.env.WISCONSIN_CONTENT_REPO ?? path.dirname(site);
 const output = path.join(site, '.svelte-kit/cloudflare');
 const staged = path.join(site, '.generated/public-site');
 const manifestPath = path.join(site, '.generated/public-assets.json');
-const published = [...coursePolicies(repo).values()].some((policy) => policy.include.length > 0);
 let publicAssets: Record<string, string> = {};
 mkdirSync(path.dirname(manifestPath), { recursive: true });
 writeFileSync(manifestPath, '{}');
@@ -29,7 +26,7 @@ function build(publicEdition: boolean) {
 	}
 }
 
-if (published) {
+{
 	build(true);
 	const pages = JSON.parse(readFileSync(path.join(site, '.generated/public-routes.json'), 'utf8'));
 	const content = JSON.parse(
@@ -41,5 +38,5 @@ if (published) {
 	console.log(`publishing: ${Object.keys(pages).length} public pages; history remains private`);
 }
 build(false);
-if (published) cpSync(staged, path.join(output, '_published'), { recursive: true });
+cpSync(staged, path.join(output, '_published'), { recursive: true });
 writeFileSync(manifestPath, JSON.stringify(publicAssets));

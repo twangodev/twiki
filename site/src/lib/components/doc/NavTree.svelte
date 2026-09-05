@@ -4,7 +4,7 @@
 	import { page } from '$app/state';
 	import { slide } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { ChevronRight } from '@lucide/svelte';
+	import { ChevronRight, LockKeyhole } from '@lucide/svelte';
 	let {
 		nodes,
 		depth = 0,
@@ -52,6 +52,10 @@
 						class:section={node.children.length > 0}>{node.title}</a
 					>
 				{:else}<span class="label">{node.title}</span>{/if}
+				{#if node.locked}<LockKeyhole
+						class="mt-2 mr-1 ml-auto size-3 shrink-0 text-muted"
+						aria-label="Locked"
+					/>{/if}
 			</div>
 			<div id={`${uid}-${node.segment}`}>
 				{#if node.children.length && open(node)}

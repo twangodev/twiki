@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronRight } from '@lucide/svelte';
+	import { ChevronRight, LockKeyhole } from '@lucide/svelte';
 	import FileIcon from './FileIcon.svelte';
 	import { fileWorkspace } from './file-workspace.svelte';
 	import { fileRoute, type FileNode } from '$lib/files';
@@ -50,6 +50,10 @@
 				>
 					<FileIcon name={node.name} folder={!!node.children} expanded={open(node)} />
 					<span class="truncate">{node.name}</span>
+					{#if node.file?.locked}<LockKeyhole
+							class="ml-auto size-3 shrink-0"
+							aria-label="Locked"
+						/>{/if}
 				</a>
 			</div>
 			{#if node.children && open(node)}

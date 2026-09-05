@@ -45,6 +45,23 @@ test('private links lose their destination and preview metadata without rewritin
 	});
 });
 
+test('catalog links remain navigable without permitting private embeds or transclusions', () => {
+	const allowed = new Set(['course/note']);
+	const catalog = new Set([...allowed, 'course/secret']);
+	const content = tree({ properties: { href: './secret' } });
+	protectPublicLinks(content, 'course/note', allowed, catalog);
+	expect((content.children[0] as Element).properties.href).toBe('./secret');
+	for (const element of [
+		{ tagName: 'iframe', properties: { src: './secret' } },
+		{
+			tagName: 'blockquote',
+			properties: { className: ['transclude'] },
+			children: tree({ properties: { href: './secret' } }).children as Element[]
+		}
+	])
+		expect(() => protectPublicLinks(tree(element), 'course/note', allowed, catalog)).toThrow();
+});
+
 test('same-origin absolute links are checked, external links and local anchors are preserved', () => {
 	const allowed = new Set(['course/note']);
 	for (const href of ['https://example.com/source', '#proof', '/course/note#proof']) {

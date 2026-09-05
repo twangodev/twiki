@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { siGithub } from 'simple-icons';
 import { readFileSync } from 'node:fs';
+import type { CourseFile } from '../../src/lib/files';
 
 const publicAssets = JSON.parse(readFileSync('.generated/public-assets.json', 'utf8'));
 const privatePage = '/sp26-cs544/README';
@@ -68,12 +69,17 @@ test('anonymous visitors cannot fetch private content, even after the owner warm
 	const html = await homepage.text();
 	const asset = html.match(/(?:src|href)="([^"\s]*\/_app\/immutable\/[^"\s]+)"/)?.[1];
 	expect(asset).toBeTruthy();
+	const files: CourseFile[] = await (await request.get('/_files/index/sp26-cs544.json')).json();
+	const privateFile = files.find((file) => file.note === privatePage)!;
+	expect(privateFile.download).toBeTruthy();
+	expect(publicAssets[privateFile.download!]).toBeUndefined();
 	const anonymous = await browser.newContext({
 		baseURL,
 		storageState: { cookies: [], origins: [] }
 	});
 	try {
 		for (const path of [
+			privateFile.download!,
 			privatePage,
 			`${privatePage}/__data.json`,
 			'/_files/index/sp26-cs544.json',
@@ -93,6 +99,8 @@ test('anonymous visitors cannot fetch private content, even after the owner warm
 		}
 		const page = await anonymous.newPage();
 		await page.goto(privatePage);
+		await expect(page.getByText('Content locked', { exact: true })).toBeVisible();
+		await page.getByRole('link', { name: 'Sign in to read' }).click();
 		await expect(page).toHaveURL(/\/login\?next=/);
 		await expect(page.getByRole('button', { name: 'Continue with GitHub' })).toBeVisible();
 		expect(await page.locator('script[src]').count()).toBe(0);
@@ -126,10 +134,10 @@ test('sign-out removes access and invalidates the old session', async ({ browser
 		await page.getByRole('button', { name: 'Sign out', exact: true }).click();
 		await expect(page).toHaveURL(/\/login$/);
 		expect(
-			(await context.request.get(privatePage, { headers: { cookie: oldCookies } })).status()
+			(await context.request.get('/api/access', { headers: { cookie: oldCookies } })).status()
 		).toBe(401);
 		await page.goBack();
-		await expect(page.getByRole('button', { name: 'Continue with GitHub' })).toBeVisible();
+		await expect(page.getByText('Content locked', { exact: true })).toBeVisible();
 	} finally {
 		await context.close();
 	}

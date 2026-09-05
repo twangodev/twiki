@@ -5,6 +5,7 @@
 
 /** A node in the sidebar navigation tree (Explorer). */
 export interface NavNode {
+	locked?: boolean;
 	title: string;
 	/** Route if this node is itself a page (folder landing pages, or leaf docs). No trailing slash. */
 	route?: string;
@@ -54,6 +55,7 @@ export interface PagePublication {
 
 /** Per-page metadata as stored in `content-manifest.json` `pages`. */
 export interface ManifestPage {
+	locked?: boolean;
 	license?: import('./content-license').ContentLicense;
 	publication: PagePublication;
 	/** Canonical slug, e.g. `sp26-cs537/README` or `…/midterm-1/index` (no leading slash). */

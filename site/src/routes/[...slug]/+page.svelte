@@ -5,6 +5,7 @@
 	import Breadcrumbs from '$lib/components/doc/Breadcrumbs.svelte';
 	import ContentMeta from '$lib/components/doc/ContentMeta.svelte';
 	import LicenseNotice from '$lib/components/doc/LicenseNotice.svelte';
+	import LockedContent from '$lib/components/doc/LockedContent.svelte';
 	import { enhanceArticle } from '$lib/components/doc/enhancements';
 	import { linkPopovers } from '$lib/components/popover';
 	import type { PageData } from './$types';
@@ -47,13 +48,15 @@
 		description={data.page.description}
 		{canonical}
 		type="article"
+		noindex={data.page.locked}
 	/>
 
 	<Breadcrumbs route={data.route} current={data.page.title} />
 
 	<article
 		class="prose dark:prose-invert max-w-none"
-		data-pagefind-body
+		data-pagefind-body={data.page.locked ? undefined : true}
+		data-pagefind-ignore={data.page.locked ? true : undefined}
 		{@attach enhanceArticle(data.route)}
 		{@attach linkPopovers(data.route)}
 	>
@@ -79,8 +82,24 @@
 				publication={data.page.publication}
 			/>
 		</div>
-		<!-- eslint-disable-next-line svelte/no-at-html-tags -- build-time rendered, trusted corpus -->
-		{@html body}
+		{#if data.page.locked}
+			<LockedContent />
+			{#if data.page.toc.length}
+				<div class="mt-6 space-y-3" aria-label="Page outline">
+					{#each data.page.toc as heading (heading.slug)}
+						<div
+							id={heading.slug}
+							class="scroll-mt-20 border-l border-border pl-3 text-sm text-muted"
+							style:margin-left={`${heading.depth * 0.75}rem`}
+						>
+							{heading.text}
+						</div>
+					{/each}
+				</div>
+			{/if}
+		{:else}
+			{@html body}
+		{/if}
 	</article>
 	{#if data.page.license}
 		<div class="mt-6"><LicenseNotice license={data.page.license} /></div>

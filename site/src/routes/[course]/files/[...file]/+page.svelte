@@ -1,5 +1,6 @@
 <script lang="ts">
 	import LicenseNotice from '$lib/components/doc/LicenseNotice.svelte';
+	import LockedContent from '$lib/components/doc/LockedContent.svelte';
 	import {
 		BookOpen,
 		Check,
@@ -184,7 +185,9 @@
 			<span class="truncate">{diff.commit.subject} · {diff.commit.id.slice(0, 7)}</span>
 		</div>{/if}
 	<div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
-		{#if data.file?.kind === 'text' || diff}
+		{#if data.file?.locked}
+			<div class="min-w-0 flex-1 overflow-auto p-4"><LockedContent /></div>
+		{:else if data.file?.kind === 'text' || diff}
 			<div class="min-h-0 min-w-0 flex-1">
 				{#key `${data.course}/${data.path}/${diff?.commit.id ?? ''}`}
 					<FileCode
@@ -240,7 +243,9 @@
 									<span class="min-w-0 flex-1 truncate">{entry.name}</span><span
 										class="shrink-0 text-xs text-muted"
 										>{entry.file
-											? fileSize(entry.file.size)
+											? entry.file.locked
+												? 'Locked'
+												: fileSize(entry.file.size)
 											: `${entry.children?.length} items`}</span
 									>
 								</a>
