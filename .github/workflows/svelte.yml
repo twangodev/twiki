@@ -29,6 +29,11 @@ jobs:
           submodules: recursive
           token: ${{ secrets.PAT_TOKEN }}
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - run: bun install --frozen-lockfile
       - run: bun run build:content
       - run: bun run prepare:static
@@ -39,6 +44,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - run: bun install --frozen-lockfile
       - run: bun test scripts
 
@@ -53,6 +63,11 @@ jobs:
           submodules: recursive
           token: ${{ secrets.PAT_TOKEN }}
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - run: bun install --frozen-lockfile
       - run: bun run build:all
       - run: bunx playwright install --with-deps chromium
@@ -74,6 +89,11 @@ jobs:
           submodules: recursive
           token: ${{ secrets.PAT_TOKEN }}
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - run: bun install --frozen-lockfile
       - run: bun run build:all
       - run: bunx wrangler deploy
