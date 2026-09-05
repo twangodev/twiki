@@ -36,7 +36,7 @@
 </script>
 
 <nav
-	class="flex min-w-0 flex-1 overflow-x-auto [scrollbar-width:thin]"
+	class="flex min-w-0 flex-1 overflow-x-auto select-none [scrollbar-width:thin]"
 	aria-label="Open files"
 	bind:this={strip}
 >

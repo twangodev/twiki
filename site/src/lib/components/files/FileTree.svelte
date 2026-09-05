@@ -24,7 +24,7 @@
 	}
 </script>
 
-<ul class="m-0 list-none p-0">
+<ul class="m-0 list-none p-0 select-none">
 	{#each nodes as node (node.path)}
 		<li>
 			<div class="flex min-w-0 items-center rounded hover:bg-surface">

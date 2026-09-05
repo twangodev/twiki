@@ -30,6 +30,7 @@ test('single explorer clicks preview and double clicks pin across navigation', a
 	await expect(tabs.getByRole('link')).toHaveCount(1);
 	await expect(tabs.getByRole('link')).toHaveClass(/italic/);
 	await explorer.locator(`a[href="${first}"]`).dblclick();
+	expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
 	await expect(page).toHaveURL(first);
 	await expect(
 		tabs.getByRole('link', { name: 'ElectionManager.java', exact: true })
@@ -64,6 +65,7 @@ test('file tabs preview, pin, restore scrolling, survive reload, and close predi
 	const tester = tabs.getByRole('link', { name: 'ElectionManagerTester.java', exact: true });
 	await expect(tester).toHaveClass(/italic/);
 	await tester.dblclick();
+	expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
 	await expect(tester).not.toHaveClass(/italic/);
 	await explorer.locator(`a[href="${first}"]`).click();
 	await expect(page).toHaveURL(first);
