@@ -13,7 +13,7 @@
 		{
 			"binding": "DB",
 			"database_name": "wisconsin",
-			"database_id": "00000000-0000-0000-0000-000000000000",
+			"database_id": "adbf2cf8-5c57-497b-bfae-8ffd82042d41",
 			"migrations_dir": "migrations"
 		}
 	],
