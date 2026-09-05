@@ -178,9 +178,13 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
 					behavior: 'instant'
 				});
 			}, id);
-			// The outgoing slide dispatches its cleanup on the next animation frame.
-			await expect(toc.locator('a[aria-current="location"]')).toHaveCount(1);
-			await expect(toc.locator('a[aria-current="location"]')).toHaveAttribute('href', `#${id}`);
+			await expect
+				.poll(() =>
+					toc
+						.locator('a[aria-current="location"]')
+						.evaluateAll((links) => links.map((link) => link.getAttribute('href')))
+				)
+				.toEqual([`#${id}`]);
 		}
 		await readSection('bonus-features');
 		await expect(technical).toHaveAttribute('aria-expanded', 'true');
