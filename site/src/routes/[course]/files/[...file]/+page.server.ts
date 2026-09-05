@@ -1,11 +1,5 @@
 import { error } from '@sveltejs/kit';
-import {
-	directoryEntries,
-	fileIndexUrl,
-	fileTree,
-	type CourseFile,
-	type FilePreview
-} from '$lib/files';
+import { directoryEntries, fileIndexUrl, fileTree, type CourseFile } from '$lib/files';
 import { dev } from '$app/environment';
 import type { PageServerLoad } from './$types';
 
@@ -20,12 +14,6 @@ export const load: PageServerLoad = async ({ params, fetch, platform, url }) => 
 	const file = files.find((entry) => entry.path === params.file);
 	const entries = file ? undefined : directoryEntries(fileTree(files), params.file);
 	if (!file && !entries) error(404, 'File not found');
-	let preview: FilePreview | undefined;
-	if (file?.kind === 'text' && file.download) {
-		const response = await fetchAsset(file.download);
-		if (!response.ok) error(503, 'Preview unavailable');
-		preview = { text: await response.text() };
-	}
 	return {
 		kind: 'file-browser' as const,
 		course: params.course,
@@ -33,7 +21,6 @@ export const load: PageServerLoad = async ({ params, fetch, platform, url }) => 
 		files,
 		file,
 		entries,
-		preview,
 		toc: []
 	};
 };

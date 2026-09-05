@@ -8,8 +8,22 @@ import {
 	syntaxHighlighting
 } from '@codemirror/language';
 import { languages } from '@codemirror/language-data';
+import type { FileBlame } from '$lib/file-history';
+import { blameGutter } from './blame-gutter';
 
 const theme = EditorView.theme({
+	'.file-blame-line': {
+		display: 'block',
+		width: '13rem',
+		height: '19.8px',
+		padding: '0 8px',
+		overflow: 'hidden',
+		textOverflow: 'ellipsis',
+		whiteSpace: 'nowrap',
+		textAlign: 'left',
+		cursor: 'pointer',
+		font: 'inherit'
+	},
 	'&': {
 		height: '100%',
 		fontSize: '12px',
@@ -44,6 +58,7 @@ const theme = EditorView.theme({
 
 export function createCodeView(parent: HTMLElement, text: string, filename: string) {
 	const language = new Compartment();
+	const blame = new Compartment();
 	const view = new EditorView({
 		parent,
 		state: EditorState.create({
@@ -52,6 +67,7 @@ export function createCodeView(parent: HTMLElement, text: string, filename: stri
 				EditorState.readOnly.of(true),
 				EditorView.editable.of(false),
 				EditorView.contentAttributes.of({ tabindex: '0', 'aria-label': 'Source code' }),
+				blame.of([]),
 				lineNumbers(),
 				drawSelection(),
 				search({ top: true }),
@@ -72,6 +88,8 @@ export function createCodeView(parent: HTMLElement, text: string, filename: stri
 		.catch(() => {});
 	return {
 		view,
+		setBlame: (data: FileBlame | undefined, select: (id: string) => void) =>
+			view.dispatch({ effects: blame.reconfigure(data ? blameGutter(data, select) : []) }),
 		destroy: () => {
 			disposed = true;
 			view.destroy();

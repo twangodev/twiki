@@ -3,11 +3,8 @@ export interface CourseFile {
 	size: number;
 	kind: 'text' | 'image' | 'pdf' | 'binary';
 	download?: string;
+	history?: string;
 	note?: string;
-}
-
-export interface FilePreview {
-	text: string;
 }
 
 export interface FileNode {

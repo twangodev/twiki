@@ -15,6 +15,7 @@ import type { CourseFile } from '../../src/lib/files';
 import { parseGitmodules } from './lastmod';
 import { slugifyFilePath, type FilePath } from './slug';
 import { buildFileIcons } from './file-icons';
+import { createFileHistoryBuilder } from './file-history';
 
 const excludedDirectories = new Set([
 	'node_modules',
@@ -76,6 +77,18 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 		.split('\0')
 		.filter(Boolean);
 	let count = 0;
+	const histories = new Map(
+		[...courses.keys()].map((course) => [
+			course,
+			createFileHistoryBuilder(
+				path.join(contentRoot, course),
+				output,
+				path.join(siteDir, '.generated/cache/file-history', course),
+				browsablePath,
+				JSON.stringify([...excludedDirectories, excludedNames.source, browsablePath.toString()])
+			)
+		])
+	);
 	for (const tracked of paths) {
 		const relative = tracked.slice(8);
 		const [course, ...segments] = relative.split('/');
@@ -100,6 +113,7 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 		if (suffix === 'pdf') file.kind = 'pdf';
 		else if (inlineImages.has(suffix)) file.kind = 'image';
 		else if (previewText(bytes)) file.kind = 'text';
+		file.history = histories.get(course)?.(file, bytes);
 		if (extension === 'md') {
 			const slug = slugifyFilePath(relative as FilePath);
 			if (noteSlugs.has(slug))

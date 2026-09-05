@@ -7,12 +7,17 @@
 		Download,
 		Pin,
 		File,
-		ArrowUpRight
+		ArrowUpRight,
+		History,
+		GitCommitHorizontal,
+		ArrowLeft
 	} from '@lucide/svelte';
 	import { fileRoute, fileSize } from '$lib/files';
 	import FileIcon from '$lib/components/files/FileIcon.svelte';
 	import FileTabs from '$lib/components/files/FileTabs.svelte';
 	import FileCode from '$lib/components/files/FileCode.svelte';
+	import FileHistory from '$lib/components/files/FileHistory.svelte';
+	import type { FileBlame, FileChange } from '$lib/file-history';
 	import { fileWorkspace } from '$lib/components/files/file-workspace.svelte';
 	import { sameFile } from '$lib/file-tabs';
 	import { beforeNavigate } from '$app/navigation';
@@ -21,9 +26,23 @@
 	let { data }: { data: PageData } = $props();
 	const workspace = fileWorkspace();
 	let viewport = $state<HTMLElement>();
+	let historyOpen = $state(false);
+	let blaming = $state(false);
+	let blame = $state<FileBlame>();
+	let selectedCommit = $state('');
+	let sourceText = $state<string>();
+	let diff = $state<{ text: string; commit: FileChange }>();
+	$effect(() => {
+		data.course;
+		data.path;
+		diff = undefined;
+		blame = undefined;
+		selectedCommit = '';
+		sourceText = undefined;
+	});
 	const activeTab = $derived(workspace.tabs.find((tab) => sameFile(tab, data)));
 	function rememberPosition() {
-		if (data.file && viewport) workspace.remember(data.course, data.path, viewport);
+		if (data.file && viewport && !diff) workspace.remember(data.course, data.path, viewport);
 	}
 	beforeNavigate(rememberPosition);
 	onMount(() => {
@@ -59,7 +78,7 @@
 	});
 	async function copy() {
 		try {
-			await navigator.clipboard.writeText(data.preview?.text ?? '');
+			await navigator.clipboard.writeText(diff?.text ?? sourceText ?? '');
 			copied = true;
 			copyFailed = false;
 		} catch {
@@ -101,6 +120,22 @@
 			<FileTabs course={data.course} path={data.path} isFile={!!data.file} />
 			{#if data.file}
 				<div class="flex shrink-0 items-center gap-1">
+					{#if data.file.history}
+						{#if data.file.kind === 'text'}<button
+								class={action}
+								title="Toggle blame"
+								aria-label="Toggle blame"
+								aria-pressed={blaming}
+								onclick={() => (blaming = !blaming)}><GitCommitHorizontal size={14} /></button
+							>{/if}
+						<button
+							class={action}
+							title="File history"
+							aria-label="File history"
+							aria-expanded={historyOpen}
+							onclick={() => (historyOpen = !historyOpen)}><History size={14} /></button
+						>
+					{/if}
 					{#if !activeTab?.pinned}<button
 							class={action}
 							title="Keep this preview open"
@@ -111,7 +146,10 @@
 					{#if data.file.note}<a class={action} href={data.file.note}
 							><BookOpen size={14} />Read note</a
 						>{/if}
-					{#if data.preview}<button class={action} onclick={copy}
+					{#if data.file.kind === 'text' || diff}<button
+							class={action}
+							disabled={!diff && sourceText === undefined}
+							onclick={copy}
 							>{#if copied}<Check size={14} />Copied{:else}<Copy size={14} />Copy{/if}</button
 						>{/if}
 					{#if data.file.download}
@@ -132,71 +170,114 @@
 	{#if copyFailed}<p class="px-3 py-2 text-xs text-muted" role="status">
 			Clipboard unavailable. Select and copy the code below.
 		</p>{/if}
-	{#if data.preview}
-		<div class="min-h-0 min-w-0 flex-1">
+	{#if diff}<div
+			class="flex items-center gap-2 border-b border-border px-3 py-1.5 text-xs text-muted"
+		>
+			<button
+				class="flex shrink-0 items-center gap-1 text-accent"
+				onclick={() => {
+					diff = undefined;
+					selectedCommit = '';
+				}}><ArrowLeft size={12} />Back to file</button
+			>
+			<span class="truncate">{diff.commit.subject} · {diff.commit.id.slice(0, 7)}</span>
+		</div>{/if}
+	<div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
+		{#if data.file?.kind === 'text' || diff}
+			<div class="min-h-0 min-w-0 flex-1">
+				{#key `${data.course}/${data.path}/${diff?.commit.id ?? ''}`}
+					<FileCode
+						text={diff?.text}
+						url={data.file?.download}
+						onload={(text) => {
+							if (!diff) sourceText = text;
+						}}
+						filename={diff ? 'change.diff' : name}
+						blame={diff ? undefined : blame}
+						oncommit={(id) => {
+							selectedCommit = id;
+							historyOpen = true;
+						}}
+						onready={(element) => {
+							if (!diff) viewport = element;
+						}}
+					/>
+				{/key}
+			</div>
+		{:else}
+			<div class="file-content min-h-0 flex-1 overflow-auto" bind:this={viewport}>
+				{#if data.file?.kind === 'pdf'}
+					<iframe class="block h-full w-full border-0" title={name} src={data.file.download}
+					></iframe>
+				{:else if data.file?.kind === 'image'}
+					<div class="flex h-full justify-center bg-surface">
+						<img class="max-h-full max-w-full object-contain" src={data.file.download} alt={name} />
+					</div>
+				{:else if data.file}
+					<div
+						class="flex h-full flex-col items-center justify-center px-3 text-center text-sm text-muted"
+					>
+						<File class="mx-auto mb-3" size={28} />
+						<p>
+							{data.file.download
+								? 'No preview for this file type. Download it to open locally.'
+								: 'This file exceeds the hosting size limit and is not available for download.'}
+						</p>
+					</div>
+				{:else}
+					<ul class="m-0 list-none divide-y divide-border p-0" aria-label="Directory contents">
+						{#each data.entries ?? [] as entry (entry.path)}
+							<li>
+								<a
+									class="flex min-w-0 items-center gap-3 px-3 py-2.5 text-sm text-text no-underline hover:bg-surface"
+									href={fileRoute(data.course, entry.path)}
+									onclick={(event) => {
+										if (entry.file) workspace.activate(event, data.course, entry.path);
+									}}
+								>
+									<FileIcon name={entry.name} folder={!!entry.children} />
+									<span class="min-w-0 flex-1 truncate">{entry.name}</span><span
+										class="shrink-0 text-xs text-muted"
+										>{entry.file
+											? fileSize(entry.file.size)
+											: `${entry.children?.length} items`}</span
+									>
+								</a>
+							</li>
+						{:else}<li class="p-4 text-sm text-muted">No browsable files in this course.</li>{/each}
+					</ul>
+				{/if}
+			</div>
+		{/if}
+		{#if data.file?.history}
 			{#key `${data.course}/${data.path}`}
-				<FileCode
-					text={data.preview.text}
-					filename={name}
-					onready={(element) => (viewport = element)}
+				<FileHistory
+					url={data.file.history}
+					bind:open={historyOpen}
+					bind:blaming
+					bind:selected={selectedCommit}
+					onblame={(value) => (blame = value)}
+					onview={(text, commit) => {
+						rememberPosition();
+						diff = { text, commit };
+					}}
 				/>
 			{/key}
-		</div>
-	{:else}
-		<div class="file-content min-h-0 flex-1 overflow-auto" bind:this={viewport}>
-			{#if data.file?.kind === 'pdf'}
-				<iframe class="block h-full w-full border-0" title={name} src={data.file.download}></iframe>
-			{:else if data.file?.kind === 'image'}
-				<div class="flex h-full justify-center bg-surface">
-					<img class="max-h-full max-w-full object-contain" src={data.file.download} alt={name} />
-				</div>
-			{:else if data.file}
-				<div
-					class="flex h-full flex-col items-center justify-center px-3 text-center text-sm text-muted"
-				>
-					<File class="mx-auto mb-3" size={28} />
-					<p>
-						{data.file.download
-							? 'No preview for this file type. Download it to open locally.'
-							: 'This file exceeds the hosting size limit and is not available for download.'}
-					</p>
-				</div>
-			{:else}
-				<ul class="m-0 list-none divide-y divide-border p-0" aria-label="Directory contents">
-					{#each data.entries ?? [] as entry (entry.path)}
-						<li>
-							<a
-								class="flex min-w-0 items-center gap-3 px-3 py-2.5 text-sm text-text no-underline hover:bg-surface"
-								href={fileRoute(data.course, entry.path)}
-								onclick={(event) => {
-									if (entry.file) workspace.activate(event, data.course, entry.path);
-								}}
-							>
-								<FileIcon name={entry.name} folder={!!entry.children} />
-								<span class="min-w-0 flex-1 truncate">{entry.name}</span><span
-									class="shrink-0 text-xs text-muted"
-									>{entry.file
-										? fileSize(entry.file.size)
-										: `${entry.children?.length} items`}</span
-								>
-							</a>
-						</li>
-					{:else}<li class="p-4 text-sm text-muted">No browsable files in this course.</li>{/each}
-				</ul>
-			{/if}
-		</div>
-	{/if}
+		{/if}
+	</div>
 	<footer
 		class="flex shrink-0 items-center justify-between border-t border-border bg-surface px-3 py-1 text-[0.6875rem] text-muted"
 	>
 		<span
-			>{data.preview
-				? `${data.preview.text.split('\n').length} lines · UTF-8`
-				: data.file?.kind === 'pdf'
-					? 'PDF'
-					: data.file?.kind === 'image'
-						? 'Image'
-						: 'Files'}</span
+			>{diff
+				? `${diff.text.split('\n').length} lines · Diff`
+				: sourceText !== undefined
+					? `${sourceText.split('\n').length} lines · UTF-8`
+					: data.file?.kind === 'pdf'
+						? 'PDF'
+						: data.file?.kind === 'image'
+							? 'Image'
+							: 'Files'}</span
 		>
 		<span
 			>{data.file
