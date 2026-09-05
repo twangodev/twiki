@@ -84,7 +84,7 @@
 	{/if}
 
 	<main class="doc-main min-w-0">
-		<div class={railPageData.kind === 'file-browser' ? 'mx-auto max-w-6xl' : 'mx-auto max-w-3xl'}>
+		<div class={railPageData.kind === 'file-browser' ? 'w-full' : 'mx-auto max-w-3xl'}>
 			{@render children()}
 			<DocPager {nav} />
 		</div>

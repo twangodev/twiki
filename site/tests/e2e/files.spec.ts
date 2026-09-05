@@ -39,6 +39,12 @@ test('files stay secondary and open a highlighted source viewer', async ({ page 
 	const downloadEvent = page.waitForEvent('download');
 	await page.getByRole('link', { name: 'Download', exact: true }).click();
 	expect((await downloadEvent).suggestedFilename()).toBe('ElectionManager.java');
+	await page.setViewportSize({ width: 1920, height: 1080 });
+	const availableWidth = await page.locator('main').evaluate((main) => {
+		const style = getComputedStyle(main);
+		return main.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+	});
+	expect((await page.locator('.file-code').boundingBox())!.width).toBeCloseTo(availableWidth, 0);
 	await page.screenshot({ path: '.generated/file-viewer-desktop.png', animations: 'disabled' });
 	await page.setViewportSize({ width: 390, height: 844 });
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
