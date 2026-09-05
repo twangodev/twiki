@@ -13,6 +13,7 @@ import {
 	writeFileSync
 } from 'node:fs';
 import path from 'node:path';
+import { buildCourseFiles } from './lib/course-files';
 import {
 	contentEntries,
 	displayRoute,
@@ -32,6 +33,7 @@ if (!existsSync(path.join(GENERATED, 'content-manifest.json'))) {
 }
 
 const manifest = getManifest();
+await buildCourseFiles(SITE_DIR, new Set(Object.keys(manifest.pages)));
 const WARN_BYTES = 20 * 1024 * 1024;
 const FAIL_BYTES = 25 * 1024 * 1024;
 
