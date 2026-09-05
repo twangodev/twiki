@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { ChevronRight } from '@lucide/svelte';
 	import FileIcon from './FileIcon.svelte';
+	import { fileWorkspace } from './file-workspace.svelte';
 	import { fileRoute, type FileNode } from '$lib/files';
 	import Self from './FileTree.svelte';
 	let {
@@ -17,6 +18,7 @@
 		expanded?: Record<string, boolean>;
 	} = $props();
 	const uid = $props.id();
+	const workspace = fileWorkspace();
 	function open(node: FileNode) {
 		return expanded[node.path] ?? (focus === node.path || focus.startsWith(node.path + '/'));
 	}
@@ -42,6 +44,9 @@
 					href={fileRoute(course, node.path)}
 					title={node.name}
 					aria-current={current === node.path ? 'page' : undefined}
+					ondblclick={() => {
+						if (node.file) workspace.open(course, node.path, true);
+					}}
 				>
 					<FileIcon name={node.name} folder={!!node.children} expanded={open(node)} />
 					<span class="truncate">{node.name}</span>

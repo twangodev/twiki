@@ -12,9 +12,11 @@
 	import ReaderModeToggle from './ReaderModeToggle.svelte';
 	import AccessLink from './AccessLink.svelte';
 	import FileExplorer from '$lib/components/files/FileExplorer.svelte';
+	import { fileWorkspace } from '$lib/components/files/file-workspace.svelte';
 	import { SearchButton } from '$lib/components/search';
 
 	const { nav }: { nav: NavNode[] } = $props();
+	const workspace = fileWorkspace();
 	const uid = $props.id();
 	const path = $derived(decodeURI(page.url.pathname));
 	const course = $derived(
@@ -225,7 +227,7 @@
 	<div class="flex shrink-0 items-center justify-between border-t border-border pt-3">
 		<ThemeToggle /><ReaderModeToggle />
 		<AccessLink />
-		<form method="post" action="/logout">
+		<form method="post" action="/logout" onsubmit={() => workspace.clear()}>
 			<IconButton type="submit" aria-label="Sign out" title="Sign out"
 				><LogOut size={16} /></IconButton
 			>

@@ -5,13 +5,46 @@
 		ChevronRight,
 		Copy,
 		Download,
+		Pin,
 		File,
 		ArrowUpRight
 	} from '@lucide/svelte';
 	import { fileRoute, fileSize } from '$lib/files';
 	import FileIcon from '$lib/components/files/FileIcon.svelte';
+	import FileTabs from '$lib/components/files/FileTabs.svelte';
+	import { fileWorkspace } from '$lib/components/files/file-workspace.svelte';
+	import { sameFile } from '$lib/file-tabs';
+	import { beforeNavigate } from '$app/navigation';
+	import { onMount, tick, untrack } from 'svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
+	const workspace = fileWorkspace();
+	let viewport = $state<HTMLDivElement>();
+	const activeTab = $derived(workspace.tabs.find((tab) => sameFile(tab, data)));
+	function rememberPosition() {
+		if (data.file && viewport) workspace.remember(data.course, data.path, viewport);
+	}
+	beforeNavigate(rememberPosition);
+	onMount(() => {
+		window.addEventListener('pagehide', rememberPosition);
+		return () => window.removeEventListener('pagehide', rememberPosition);
+	});
+	$effect(() => {
+		const { course, path, file } = data;
+		if (!workspace.ready || !viewport) return;
+		const position = untrack(() => {
+			if (file) workspace.open(course, path);
+			return workspace.tabs.find((tab) => sameFile(tab, { course, path }));
+		});
+		void tick().then(() => {
+			if (viewport && data.course === course && data.path === path)
+				viewport.scrollTo({
+					top: position?.top ?? 0,
+					left: position?.left ?? 0,
+					behavior: 'instant'
+				});
+		});
+	});
 	let copied = $state(false);
 	let copyFailed = $state(false);
 	const name = $derived(data.path.split('/').at(-1) || data.course);
@@ -57,15 +90,23 @@
 				>
 			{/each}
 		</nav>
-		<header
-			class="order-first flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border bg-surface pr-2"
-		>
-			<div class="flex min-w-0 items-center gap-2 border-r border-border bg-bg px-3 py-2">
-				<FileIcon {name} folder={!data.file} expanded={!data.file} />
-				<h1 class="m-0 break-all font-mono text-xs font-medium">{name}</h1>
-			</div>
+		<header class="order-first flex min-w-0 items-center border-b border-border bg-surface pr-2">
+			{#if !data.file && !workspace.tabs.length}<div
+					class="flex min-w-0 items-center gap-2 border-r border-border bg-bg px-3 py-2"
+				>
+					<FileIcon {name} folder={!data.file} expanded={!data.file} />
+					<h1 class="m-0 break-all font-mono text-xs font-medium">{name}</h1>
+				</div>{:else}<h1 class="sr-only">{name}</h1>{/if}
+			<FileTabs course={data.course} path={data.path} isFile={!!data.file} />
 			{#if data.file}
-				<div class="flex flex-wrap items-center gap-1">
+				<div class="flex shrink-0 items-center gap-1">
+					{#if !activeTab?.pinned}<button
+							class={action}
+							title="Keep this preview open"
+							aria-label="Keep file open"
+							disabled={!workspace.ready}
+							onclick={() => workspace.open(data.course, data.path, true)}><Pin size={14} /></button
+						>{/if}
 					{#if data.file.note}<a class={action} href={data.file.note}
 							><BookOpen size={14} />Read note</a
 						>{/if}
@@ -92,7 +133,7 @@
 	{#if copyFailed}<p class="px-3 py-2 text-xs text-muted" role="status">
 			Clipboard unavailable. Select and copy the code below.
 		</p>{/if}
-	<div class="file-content min-h-0 flex-1 overflow-auto">
+	<div class="file-content min-h-0 flex-1 overflow-auto" bind:this={viewport}>
 		{#if data.preview}
 			{#if data.preview.truncated}<p class="px-3 py-2 text-xs text-muted">
 					Showing a limited preview. Download the file for the complete content.

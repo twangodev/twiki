@@ -2,7 +2,8 @@
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Menu } from '@lucide/svelte';
-	import type { Snippet } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
+	import { provideFileWorkspace } from '$lib/components/files/file-workspace.svelte';
 	import type { NavNode } from '$lib/types';
 	import { site } from '$lib/config';
 	import { ThemeToggle } from '$lib/components/ui';
@@ -22,6 +23,8 @@
 	}
 
 	const { nav, children }: Props = $props();
+	const workspace = provideFileWorkspace();
+	onMount(() => workspace.restore());
 
 	let mobileNavOpen = $state(false);
 	type RailPageData = { kind?: string };
