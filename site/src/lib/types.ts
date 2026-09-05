@@ -47,8 +47,14 @@ export interface BacklinkRef {
 	title: string;
 }
 
+export interface PagePublication {
+	public: boolean;
+	reason?: string;
+}
+
 /** Per-page metadata as stored in `content-manifest.json` `pages`. */
 export interface ManifestPage {
+	publication: PagePublication;
 	/** Canonical slug, e.g. `sp26-cs537/README` or `…/midterm-1/index` (no leading slash). */
 	slug: string;
 	title: string;

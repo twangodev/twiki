@@ -82,10 +82,21 @@ export function coursePolicies(repo: string) {
 	return policies;
 }
 
-export function publicationFilter(repo: string) {
+export function publicationResolver(repo: string) {
 	const policies = coursePolicies(repo);
 	return (relative: string) => {
 		const [course, ...segments] = relative.split('/');
-		return publicationDecision(segments.join('/'), policies.get(course)).public;
+		if (!segments.length)
+			return {
+				public: false,
+				reason: 'Root notes are private; publish.yaml applies to course content.'
+			};
+		const decision = publicationDecision(segments.join('/'), policies.get(course));
+		return { ...decision, reason: `${course}/publish.yaml: ${decision.reason}` };
 	};
+}
+
+export function publicationFilter(repo: string) {
+	const resolve = publicationResolver(repo);
+	return (relative: string) => resolve(relative).public;
 }

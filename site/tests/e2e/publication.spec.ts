@@ -36,6 +36,8 @@ test('anonymous HTML, hydration, navigation, graphs and search use only the publ
 		page.on('pageerror', (error) => errors.push(error.message));
 		await page.goto(note);
 		await expect(page.getByRole('heading', { name: 'Public derivations' })).toBeVisible();
+		await expect(page.getByLabel('Page visibility: Public')).toBeVisible();
+		expect(await html.text()).not.toContain('Included by');
 		await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
 		await expect(page.getByRole('link', { name: 'Restricted reference' })).toHaveCount(0);
 		await page.locator('article').getByRole('link', { name: 'Next derivation' }).click();
@@ -61,6 +63,33 @@ test('anonymous HTML, hydration, navigation, graphs and search use only the publ
 	} finally {
 		await context.close();
 	}
+});
+
+test('signed-in readers see publication status and the source rule, not their login state', async ({
+	page
+}) => {
+	await page.goto(note);
+	const published = page.getByLabel('Page visibility: Public');
+	await expect(published).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Manage access' })).toBeVisible();
+	await published.focus();
+	await expect(published).toBeFocused();
+	await expect(page.getByRole('tooltip')).toHaveText(
+		'sp99-cs101/publish.yaml: Included by notes/public.md'
+	);
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('tooltip')).toHaveCount(0);
+	await page.goto(privateNote);
+	await expect(page.getByLabel('Page visibility: Private')).toBeVisible();
+	await page.getByLabel('Page visibility: Private').focus();
+	await expect(page.getByRole('tooltip')).toHaveText('sp99-cs101/publish.yaml: Not included');
+	await page.goto('/');
+	await expect(page.getByLabel('Page visibility: Private')).toBeVisible();
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto(note);
+	await expect(page.getByLabel('Page visibility: Public')).toBeVisible();
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	await page.screenshot({ path: '/tmp/wisconsin-publication-badge.png' });
 });
 
 test('public files render and download without exposing siblings or history', async ({

@@ -71,11 +71,13 @@
 		{:else if data.kind === 'page'}
 			<h1>{data.page.title}</h1>
 		{/if}
-		{#if data.route !== ''}
-			<div class="doc-meta" data-pagefind-ignore>
-				<ContentMeta modified={data.page.dates?.modified} readingTime={data.page.readingTime} />
-			</div>
-		{/if}
+		<div class="doc-meta" data-pagefind-ignore>
+			<ContentMeta
+				modified={data.route ? data.page.dates?.modified : undefined}
+				readingTime={data.route ? data.page.readingTime : undefined}
+				publication={data.page.publication}
+			/>
+		</div>
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -- build-time rendered, trusted corpus -->
 		{@html body}
 	</article>
