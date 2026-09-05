@@ -10,6 +10,7 @@
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import NavTree from './NavTree.svelte';
 	import ReaderModeToggle from './ReaderModeToggle.svelte';
+	import AccessLink from './AccessLink.svelte';
 	import { SearchButton } from '$lib/components/search';
 
 	const { nav }: { nav: NavNode[] } = $props();
@@ -196,6 +197,7 @@
 	</nav>
 	<div class="flex shrink-0 items-center justify-between border-t border-border pt-3">
 		<ThemeToggle /><ReaderModeToggle />
+		<AccessLink />
 		<form method="post" action="/logout">
 			<IconButton type="submit" aria-label="Sign out" title="Sign out"
 				><LogOut size={16} /></IconButton
