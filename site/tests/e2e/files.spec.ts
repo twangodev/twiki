@@ -34,8 +34,8 @@ test('files stay secondary and open a highlighted source viewer', async ({ page 
 	await expect(
 		page.getByRole('heading', { name: 'ElectionManager.java', exact: true })
 	).toBeVisible();
-	await expect(page.locator('.file-code .line').first()).toBeVisible();
-	await expect(page.locator('.file-code span[style]').first()).toBeVisible();
+	await expect(page.locator('.file-code .cm-line').first()).toBeVisible();
+	await expect(page.locator('.file-code .cm-line span[class]').first()).toBeVisible();
 	await expect(drawer.locator('[aria-current="page"]')).toHaveText('ElectionManager.java');
 	await expect(drawer.locator('[aria-current="page"] img').first()).toHaveAttribute(
 		'src',
@@ -110,12 +110,7 @@ test('file pages, indexes, previews and downloads remain authenticated after war
 		storageState: { cookies: [], origins: [] }
 	});
 	try {
-		for (const path of [
-			fileRoute(course, java.path),
-			fileIndexUrl(course),
-			java.preview!,
-			java.download!
-		]) {
+		for (const path of [fileRoute(course, java.path), fileIndexUrl(course), java.download!]) {
 			expect((await request.get(path)).status()).toBe(200);
 			for (const method of ['GET', 'HEAD']) {
 				const response = await anonymous.request.fetch(path, { method });

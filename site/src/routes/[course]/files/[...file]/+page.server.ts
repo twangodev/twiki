@@ -21,10 +21,10 @@ export const load: PageServerLoad = async ({ params, fetch, platform, url }) => 
 	const entries = file ? undefined : directoryEntries(fileTree(files), params.file);
 	if (!file && !entries) error(404, 'File not found');
 	let preview: FilePreview | undefined;
-	if (file?.preview) {
-		const response = await fetchAsset(file.preview);
+	if (file?.kind === 'text' && file.download) {
+		const response = await fetchAsset(file.download);
 		if (!response.ok) error(503, 'Preview unavailable');
-		preview = await response.json();
+		preview = { text: await response.text() };
 	}
 	return {
 		kind: 'file-browser' as const,

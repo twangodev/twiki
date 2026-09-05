@@ -12,6 +12,7 @@
 	import { fileRoute, fileSize } from '$lib/files';
 	import FileIcon from '$lib/components/files/FileIcon.svelte';
 	import FileTabs from '$lib/components/files/FileTabs.svelte';
+	import FileCode from '$lib/components/files/FileCode.svelte';
 	import { fileWorkspace } from '$lib/components/files/file-workspace.svelte';
 	import { sameFile } from '$lib/file-tabs';
 	import { beforeNavigate } from '$app/navigation';
@@ -19,7 +20,7 @@
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 	const workspace = fileWorkspace();
-	let viewport = $state<HTMLDivElement>();
+	let viewport = $state<HTMLElement>();
 	const activeTab = $derived(workspace.tabs.find((tab) => sameFile(tab, data)));
 	function rememberPosition() {
 		if (data.file && viewport) workspace.remember(data.course, data.path, viewport);
@@ -111,9 +112,7 @@
 							><BookOpen size={14} />Read note</a
 						>{/if}
 					{#if data.preview}<button class={action} onclick={copy}
-							>{#if copied}<Check size={14} />Copied{:else}<Copy size={14} />{data.preview.truncated
-									? 'Copy preview'
-									: 'Copy'}{/if}</button
+							>{#if copied}<Check size={14} />Copied{:else}<Copy size={14} />Copy{/if}</button
 						>{/if}
 					{#if data.file.download}
 						{#if data.file.kind === 'pdf' || data.file.kind === 'image'}<a
@@ -133,53 +132,60 @@
 	{#if copyFailed}<p class="px-3 py-2 text-xs text-muted" role="status">
 			Clipboard unavailable. Select and copy the code below.
 		</p>{/if}
-	<div class="file-content min-h-0 flex-1 overflow-auto" bind:this={viewport}>
-		{#if data.preview}
-			{#if data.preview.truncated}<p class="px-3 py-2 text-xs text-muted">
-					Showing a limited preview. Download the file for the complete content.
-				</p>{/if}
-			<div class="file-code min-h-full" role="region" aria-label="Source code">
-				{@html data.preview.html}
-			</div>
-		{:else if data.file?.kind === 'pdf'}
-			<iframe class="block h-full w-full border-0" title={name} src={data.file.download}></iframe>
-		{:else if data.file?.kind === 'image'}
-			<div class="flex h-full justify-center bg-surface">
-				<img class="max-h-full max-w-full object-contain" src={data.file.download} alt={name} />
-			</div>
-		{:else if data.file}
-			<div
-				class="flex h-full flex-col items-center justify-center px-3 text-center text-sm text-muted"
-			>
-				<File class="mx-auto mb-3" size={28} />
-				<p>
-					{data.file.download
-						? 'No preview for this file type. Download it to open locally.'
-						: 'This file exceeds the hosting size limit and is not available for download.'}
-				</p>
-			</div>
-		{:else}
-			<ul class="m-0 list-none divide-y divide-border p-0" aria-label="Directory contents">
-				{#each data.entries ?? [] as entry (entry.path)}
-					<li>
-						<a
-							class="flex min-w-0 items-center gap-3 px-3 py-2.5 text-sm text-text no-underline hover:bg-surface"
-							href={fileRoute(data.course, entry.path)}
-							onclick={(event) => {
-								if (entry.file) workspace.activate(event, data.course, entry.path);
-							}}
-						>
-							<FileIcon name={entry.name} folder={!!entry.children} />
-							<span class="min-w-0 flex-1 truncate">{entry.name}</span><span
-								class="shrink-0 text-xs text-muted"
-								>{entry.file ? fileSize(entry.file.size) : `${entry.children?.length} items`}</span
+	{#if data.preview}
+		<div class="min-h-0 min-w-0 flex-1">
+			{#key `${data.course}/${data.path}`}
+				<FileCode
+					text={data.preview.text}
+					filename={name}
+					onready={(element) => (viewport = element)}
+				/>
+			{/key}
+		</div>
+	{:else}
+		<div class="file-content min-h-0 flex-1 overflow-auto" bind:this={viewport}>
+			{#if data.file?.kind === 'pdf'}
+				<iframe class="block h-full w-full border-0" title={name} src={data.file.download}></iframe>
+			{:else if data.file?.kind === 'image'}
+				<div class="flex h-full justify-center bg-surface">
+					<img class="max-h-full max-w-full object-contain" src={data.file.download} alt={name} />
+				</div>
+			{:else if data.file}
+				<div
+					class="flex h-full flex-col items-center justify-center px-3 text-center text-sm text-muted"
+				>
+					<File class="mx-auto mb-3" size={28} />
+					<p>
+						{data.file.download
+							? 'No preview for this file type. Download it to open locally.'
+							: 'This file exceeds the hosting size limit and is not available for download.'}
+					</p>
+				</div>
+			{:else}
+				<ul class="m-0 list-none divide-y divide-border p-0" aria-label="Directory contents">
+					{#each data.entries ?? [] as entry (entry.path)}
+						<li>
+							<a
+								class="flex min-w-0 items-center gap-3 px-3 py-2.5 text-sm text-text no-underline hover:bg-surface"
+								href={fileRoute(data.course, entry.path)}
+								onclick={(event) => {
+									if (entry.file) workspace.activate(event, data.course, entry.path);
+								}}
 							>
-						</a>
-					</li>
-				{:else}<li class="p-4 text-sm text-muted">No browsable files in this course.</li>{/each}
-			</ul>
-		{/if}
-	</div>
+								<FileIcon name={entry.name} folder={!!entry.children} />
+								<span class="min-w-0 flex-1 truncate">{entry.name}</span><span
+									class="shrink-0 text-xs text-muted"
+									>{entry.file
+										? fileSize(entry.file.size)
+										: `${entry.children?.length} items`}</span
+								>
+							</a>
+						</li>
+					{:else}<li class="p-4 text-sm text-muted">No browsable files in this course.</li>{/each}
+				</ul>
+			{/if}
+		</div>
+	{/if}
 	<footer
 		class="flex shrink-0 items-center justify-between border-t border-border bg-surface px-3 py-1 text-[0.6875rem] text-muted"
 	>
@@ -199,42 +205,3 @@
 		>
 	</footer>
 </div>
-
-<style>
-	.file-code :global(pre) {
-		margin: 0;
-		padding: 0.5rem 0;
-		background: var(--color-bg) !important;
-		font-size: 0.75rem;
-		line-height: 1.65;
-		tab-size: 4;
-	}
-	.file-code :global(code) {
-		display: block;
-		min-width: max-content;
-		counter-reset: line;
-	}
-	.file-code :global(.line) {
-		display: inline-block;
-		min-width: 100%;
-		padding-right: 0.5rem;
-	}
-	.file-code :global(.line:hover) {
-		background: var(--color-surface);
-	}
-	.file-code :global(.line::before) {
-		counter-increment: line;
-		content: counter(line);
-		display: inline-block;
-		width: 3rem;
-		margin-right: 0.5rem;
-		padding-right: 0.5rem;
-		text-align: right;
-		color: var(--color-muted);
-		border-right: 1px solid var(--color-border);
-		user-select: none;
-	}
-	:global(.dark) .file-code :global(span) {
-		color: var(--shiki-dark) !important;
-	}
-</style>

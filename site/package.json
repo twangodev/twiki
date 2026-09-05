@@ -24,6 +24,12 @@
 	"devDependencies": {
 		"@better-auth/drizzle-adapter": "1.7.2",
 		"@cloudflare/workers-types": "^5.20260904.1",
+		"@codemirror/commands": "^6.11.0",
+		"@codemirror/language": "^6.12.4",
+		"@codemirror/language-data": "^6.5.2",
+		"@codemirror/search": "^6.7.2",
+		"@codemirror/state": "^6.7.4",
+		"@codemirror/view": "^6.43.11",
 		"@floating-ui/dom": "^1",
 		"@lucide/svelte": "^1.17.0",
 		"@playwright/test": "1.61.1",

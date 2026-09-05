@@ -17,8 +17,7 @@ import {
 	fileRoute,
 	fileSize,
 	fileTree,
-	type CourseFile,
-	type FilePreview
+	type CourseFile
 } from '../../src/lib/files';
 
 describe('course file discovery', () => {
@@ -46,17 +45,18 @@ describe('course file discovery', () => {
 		])
 			expect(browsablePath(file)).toBe(false);
 	});
-	test('bounds UTF-8 previews and rejects binary data', () => {
+	test('preserves complete UTF-8 files and rejects binary data anywhere in a file', () => {
 		expect(previewText(Buffer.from('hello\nworld'))).toEqual({
-			text: 'hello\nworld',
-			truncated: false
+			text: 'hello\nworld'
 		});
 		expect(previewText(Buffer.from([0, 1, 2]))).toBeUndefined();
 		expect(previewText(Buffer.from([255, 254]))).toBeUndefined();
 		const large = previewText(Buffer.from('x\n'.repeat(3000)))!;
-		expect(large.truncated).toBe(true);
-		expect(large.text.split('\n')).toHaveLength(2000);
-		expect(previewText(Buffer.from('é'.repeat(200000)))?.truncated).toBe(true);
+		expect(large.text.split('\n')).toHaveLength(3001);
+		expect(previewText(Buffer.from('é'.repeat(200000)))?.text).toBe('é'.repeat(200000));
+		expect(
+			previewText(Buffer.concat([Buffer.alloc(300000, 65), Buffer.from([0])]))
+		).toBeUndefined();
 	});
 	test('exports tracked files safely and removes stale generated artifacts', async () => {
 		const repo = mkdtempSync(path.join(tmpdir(), 'wisconsin-files-test-'));
@@ -98,16 +98,13 @@ describe('course file discovery', () => {
 			const html = files.find((file) => file.path === 'page.html')!;
 			expect(html.kind).toBe('text');
 			expect(html.download).toEndWith('.bin');
-			const preview: FilePreview = JSON.parse(
-				readFileSync(path.join(output, html.preview!), 'utf8')
+			expect(readFileSync(path.join(output, html.download!), 'utf8')).toBe(
+				'<script>alert(1)</script>'
 			);
-			expect(preview.html).not.toContain('<script>');
-			expect(preview.text).toBe('<script>alert(1)</script>');
-			expect(files.find((file) => file.path === 'binary.dat')?.preview).toBeUndefined();
+			expect(files.find((file) => file.path === 'binary.dat')?.kind).toBe('binary');
 			git('rm', '-f', 'content/test-course/page.html');
 			await buildCourseFiles(site, new Set());
 			expect(existsSync(path.join(output, html.download!))).toBe(false);
-			expect(existsSync(path.join(output, html.preview!))).toBe(false);
 		} finally {
 			rmSync(repo, { recursive: true, force: true });
 		}

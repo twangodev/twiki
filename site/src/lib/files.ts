@@ -3,14 +3,11 @@ export interface CourseFile {
 	size: number;
 	kind: 'text' | 'image' | 'pdf' | 'binary';
 	download?: string;
-	preview?: string;
 	note?: string;
 }
 
 export interface FilePreview {
-	html: string;
 	text: string;
-	truncated: boolean;
 }
 
 export interface FileNode {
