@@ -79,7 +79,7 @@ export function listingFolders(): string[] {
 export function contentEntries(): string[] {
 	const m = getManifest();
 	const routes = Object.keys(m.pages).map(displayRoute);
-	return [...routes, ...listingFolders()];
+	return [...new Set(['', ...routes, ...listingFolders()])];
 }
 
 /** Natural sort, Quartz Explorer-style (numeric, case-insensitive). */
@@ -148,7 +148,7 @@ function countPages(node: TreeNode): number {
 /** Listing data for a folder without its own index page. */
 export function folderListing(folder: string): FolderListing | undefined {
 	const m = getManifest();
-	if (!m.folders.includes(folder)) return undefined;
+	if (folder !== '' && !m.folders.includes(folder)) return undefined;
 	const node = findTreeNode(folder);
 	if (!node) return undefined;
 	const subfolders: FolderEntry[] = node.children
@@ -170,8 +170,14 @@ export function folderListing(folder: string): FolderListing | undefined {
 		);
 	return {
 		folder,
-		name: folder.split('/').pop() ?? folder,
-		entries: [...subfolders, ...pages],
+		name: folder === '' ? site.name : (folder.split('/').pop() ?? folder),
+		entries: [
+			...subfolders,
+			...pages,
+			...(m.fileCourses?.includes(folder)
+				? [{ title: 'Files', route: `/${folder}/files`, isFolder: true }]
+				: [])
+		],
 		pageCount: countPages(node)
 	};
 }
@@ -252,5 +258,11 @@ export function sitemapXml(): string {
   </url>`
 		)
 		.join('');
-	return `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">${urls}</urlset>`;
+	const folders = m.fileCourses
+		? contentEntries()
+				.filter((route) => !pageSlugForRoute(route))
+				.map((route) => `<url><loc>${escapeXml(absoluteUrl(route))}</loc></url>`)
+				.join('')
+		: '';
+	return `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">${urls}${folders}</urlset>`;
 }

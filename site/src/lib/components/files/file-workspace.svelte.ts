@@ -2,9 +2,10 @@ import { getContext, setContext } from 'svelte';
 import { goto } from '$app/navigation';
 import { fileRoute } from '$lib/files';
 import { moveTab, openFile, restoreTabs, sameFile, type FileTab } from '$lib/file-tabs';
+import { publicEdition } from '$lib/publication';
 
 const context = Symbol('file-workspace');
-const storageKey = 'wisconsin-file-tabs';
+const storageKey = publicEdition ? 'wisconsin-public-file-tabs' : 'wisconsin-file-tabs';
 
 class FileWorkspace {
 	tabs = $state<FileTab[]>([]);

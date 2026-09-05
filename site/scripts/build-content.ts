@@ -53,13 +53,16 @@ import {
 } from './lib/ofm';
 import { applyAutoTags } from './lib/autotag';
 import { buildGitDateMap, parseGitmodules, resolveDates } from './lib/lastmod';
+import { publicationFilter } from './lib/publishing';
+import { protectPublicLinks } from './lib/public-links';
 
 // ---------------------------------------------------------------------------
 // config
 // ---------------------------------------------------------------------------
 const PIPELINE_VERSION = '3'; // bump to invalidate the stage-1 cache (3: include H1-H6 in TOC)
 const SITE_DIR = path.resolve(import.meta.dir, '..');
-const REPO_ROOT = path.resolve(SITE_DIR, '..');
+const REPO_ROOT = process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(SITE_DIR, '..');
+const publicEdition = process.env.VITE_PUBLIC_EDITION === 'true';
 const CONTENT_DIR = path.join(REPO_ROOT, 'content');
 const OUT_DIR = path.join(SITE_DIR, '.generated');
 const CACHE_DIR = path.join(OUT_DIR, 'cache');
@@ -136,6 +139,14 @@ function discover(): { files: SourceFile[]; submoduleNames: string[] } {
 
 	const files: SourceFile[] = [];
 	for (const rel of rels) {
+		if (rel.split('/').includes('publish.yaml')) continue;
+		const source = path.join(CONTENT_DIR, rel);
+		if (
+			!fs.existsSync(source) ||
+			!fs.lstatSync(source).isFile() ||
+			fs.realpathSync(source) !== source
+		)
+			continue;
 		if (rel.split('/').some((seg) => IGNORE_SEGMENTS.has(seg))) continue;
 		// dot-led paths are invisible to every Quartz glob (globby dot:false)
 		if (dotLed(rel)) continue;
@@ -823,7 +834,9 @@ async function main() {
 	}
 
 	// stage 0
-	const { files } = discover();
+	const { files: discovered } = discover();
+	const isPublished = publicationFilter(REPO_ROOT);
+	const files = publicEdition ? discovered.filter((file) => isPublished(file.rel)) : discovered;
 	const pagesSrc = files.filter((f) => f.kind === 'page');
 	const assetsSrc = files.filter((f) => f.kind === 'asset');
 	const otherSrc = files.filter((f) => f.kind === 'other');
@@ -833,7 +846,7 @@ async function main() {
 
 	// resolution slug set = "**/*.*"-visible files only (matches quartz ctx.allSlugs;
 	// extensionless served files are deliberately NOT in it, same as quartz)
-	const allSlugs = files.filter((f) => f.inResolution).map((f) => f.slug);
+	const allSlugs = discovered.filter((f) => f.inResolution).map((f) => f.slug);
 
 	// git dates (one batched walk per submodule, HEAD-keyed cache)
 	const tDates = performance.now();
@@ -888,7 +901,14 @@ async function main() {
 	const droppedSlugs = new Set<string>(otherSrc.map((f) => f.slug as string));
 	const outgoingBySlug = new Map<string, SimpleSlug[]>();
 	for (const page of pages) {
-		outgoingBySlug.set(page.slug, crawlLinks(page, transformOptions, emittedSlugs, droppedSlugs));
+		const outgoing = crawlLinks(page, transformOptions, emittedSlugs, droppedSlugs);
+		if (publicEdition) protectPublicLinks(page.tree, page.slug, emittedSlugs);
+		outgoingBySlug.set(
+			page.slug,
+			publicEdition
+				? outgoing.filter((slug) => emittedSlugs.has(slug) || emittedSlugs.has(`${slug}/index`))
+				: outgoing
+		);
 	}
 
 	// tag pages exist for every tag (incl. hierarchical prefixes) — add them to

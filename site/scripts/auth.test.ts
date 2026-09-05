@@ -100,6 +100,56 @@ describe('private Worker gate', () => {
 		expect(response.status).toBe(303);
 		expect(response.headers.get('location')).toBe('/login?next=%2Fcourse%2Fnotes%3Fq%3D1');
 	});
+	test('published content bypasses authentication without opening the full collection', async () => {
+		let privateCalls = 0;
+		const serve = async () => {
+			privateCalls++;
+			return new Response('private');
+		};
+		const published = await authenticateRequest(
+			new Request(origin + '/public-note'),
+			{ ...env, DB: undefined! },
+			serve,
+			async () => new Response('public')
+		);
+		expect(await published.text()).toBe('public');
+		expect(published.headers.get('x-robots-tag')).toBeNull();
+		expect(privateCalls).toBe(0);
+		const missing = await authenticateRequest(
+			new Request(origin + '/private-note'),
+			env,
+			serve,
+			async () => null
+		);
+		expect(missing.status).toBe(401);
+		expect(privateCalls).toBe(0);
+		const forbiddenOrigin = await authenticateRequest(
+			new Request('https://wrong.invalid/public-note'),
+			env,
+			serve,
+			async () => new Response('public')
+		);
+		expect(forbiddenOrigin.status).toBe(421);
+		const internal = await authenticateRequest(
+			new Request(origin + '/_published/public-note'),
+			env,
+			serve,
+			async () => new Response('public')
+		);
+		expect(internal.status).toBe(404);
+	});
+	test('unrelated or invalid cookies do not prevent reading public content', async () => {
+		for (const cookie of ['theme=dark', 'better-auth.session_token=invalid']) {
+			const response = await authenticateRequest(
+				new Request(origin + '/public-note', { headers: { cookie } }),
+				env,
+				async () => new Response('private'),
+				async () => new Response('public')
+			);
+			expect(await response.text()).toBe('public');
+			expect(response.headers.get('set-cookie')).toBeNull();
+		}
+	});
 	test('login is public and contains no course bundles', async () => {
 		const response = await request('/login');
 		const html = await response.text();

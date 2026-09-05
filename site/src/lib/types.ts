@@ -86,6 +86,7 @@ export interface TreeNode {
 
 /** The global content manifest. */
 export interface ContentManifest {
+	fileCourses?: string[];
 	generatedAt: string;
 	counts: Record<string, number>;
 	pages: Record<string, ManifestPage>;

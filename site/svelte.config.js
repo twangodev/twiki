@@ -31,7 +31,16 @@ const config = {
 		adapter: adapter(),
 		prerender: {
 			origin: 'https://wisconsin.twango.dev',
+			handleUnseenRoutes: ({ routes, message }) => {
+				if (
+					process.env.VITE_PUBLIC_EDITION === 'true' &&
+					routes.every((route) => ['/tags/[tag]', '/[course]/files/[...file]'].includes(route))
+				)
+					return;
+				throw new Error(message);
+			},
 			handleHttpError: ({ status, path, referrer, message }) => {
+				if (status === 404 && path === '/login') return;
 				if (status === 404 && expected404.has(path)) {
 					console.warn(`[prerender] unresolved content link: ${path} <- ${referrer}`);
 					return;

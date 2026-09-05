@@ -16,6 +16,7 @@ import { parseGitmodules } from './lastmod';
 import { slugifyFilePath, type FilePath } from './slug';
 import { buildFileIcons } from './file-icons';
 import { createFileHistoryBuilder } from './file-history';
+import { publicationFilter } from './publishing';
 
 const excludedDirectories = new Set([
 	'node_modules',
@@ -35,6 +36,7 @@ export const assetLimit = 25 * 1024 * 1024;
 export function browsablePath(file: string) {
 	return (
 		!file.includes('\\') &&
+		!file.split('/').includes('publish.yaml') &&
 		!/[\x00-\x1f\x7f]/.test(file) &&
 		file
 			.split('/')
@@ -58,7 +60,9 @@ export function previewText(bytes: Uint8Array): { text: string } | undefined {
 }
 
 export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) {
-	const repo = path.dirname(siteDir);
+	const repo = process.env.WISCONSIN_CONTENT_REPO ?? path.dirname(siteDir);
+	const publicEdition = process.env.VITE_PUBLIC_EDITION === 'true';
+	const isPublished = publicationFilter(repo);
 	const contentRoot = path.join(repo, 'content');
 	const output = path.join(siteDir, '.generated/assets/_files');
 	rmSync(output, { recursive: true, force: true });
@@ -78,7 +82,7 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 		.filter(Boolean);
 	let count = 0;
 	const histories = new Map(
-		[...courses.keys()].map((course) => [
+		(publicEdition ? [] : [...courses.keys()]).map((course) => [
 			course,
 			createFileHistoryBuilder(
 				path.join(contentRoot, course),
@@ -91,9 +95,16 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 	);
 	for (const tracked of paths) {
 		const relative = tracked.slice(8);
+		if (publicEdition && !isPublished(relative)) continue;
 		const [course, ...segments] = relative.split('/');
 		const files = courses.get(course);
 		if (!files || !browsablePath(segments.join('/'))) continue;
+		if (
+			publicEdition &&
+			relative.toLowerCase().endsWith('.md') &&
+			!noteSlugs.has(slugifyFilePath(relative as FilePath))
+		)
+			continue;
 		const source = path.join(repo, tracked);
 		if (!existsSync(source) || !lstatSync(source).isFile()) continue;
 		if (realpathSync(source) !== path.join(contentRoot, relative)) continue;
@@ -120,8 +131,21 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 				file.note = '/' + (slug.endsWith('/index') ? slug.slice(0, -6) : slug);
 		}
 	}
-	for (const [course, files] of courses)
+	const entries: { course: string; file: string }[] = [];
+	for (const [course, files] of courses) {
+		if (publicEdition && !files.length) continue;
 		writeFileSync(path.join(output, 'index', `${course}.json`), JSON.stringify(files));
+		if (publicEdition) {
+			const paths = new Set(['']);
+			for (const file of files) {
+				const segments = file.path.split('/');
+				for (let i = 1; i <= segments.length; i++) paths.add(segments.slice(0, i).join('/'));
+			}
+			entries.push(...[...paths].map((file) => ({ course, file })));
+		}
+	}
+	mkdirSync(path.join(siteDir, 'src/lib/generated'), { recursive: true });
+	writeFileSync(path.join(siteDir, 'src/lib/generated/file-entries.json'), JSON.stringify(entries));
 	buildFileIcons(
 		siteDir,
 		[...courses.values()].flatMap((files) => files.map((file) => file.path))

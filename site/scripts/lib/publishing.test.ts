@@ -35,6 +35,7 @@ test('invalid policies fail closed rather than silently widening publication', (
 		'include: ["!slides/**"]',
 		'include: ["notes/{a,b}.md"]',
 		'include: []\nexclude: false',
+		'include: []\nexclude: null',
 		'include: &paths ["**"]\nexclude: *paths'
 	])
 		expect(() => parsePublishPolicy(source)).toThrow();

@@ -1,13 +1,16 @@
 import { error } from '@sveltejs/kit';
 import { directoryEntries, fileIndexUrl, fileTree, type CourseFile } from '$lib/files';
-import { dev } from '$app/environment';
-import type { PageServerLoad } from './$types';
+import { building, dev } from '$app/environment';
+import { publicEdition } from '$lib/publication';
+import fileEntries from '$lib/generated/file-entries.json';
+import type { EntryGenerator, PageServerLoad } from './$types';
 
-export const prerender = false;
+export const prerender = publicEdition;
+export const entries: EntryGenerator = () => fileEntries;
 
 export const load: PageServerLoad = async ({ params, fetch, platform, url }) => {
 	const fetchAsset = (path: string) =>
-		dev ? fetch(path) : platform!.env.ASSETS.fetch(new Request(new URL(path, url)));
+		dev || building ? fetch(path) : platform!.env.ASSETS.fetch(new Request(new URL(path, url)));
 	const response = await fetchAsset(fileIndexUrl(params.course));
 	if (!response.ok) error(response.status === 404 ? 404 : 503, 'Files unavailable');
 	const files: CourseFile[] = await response.json();

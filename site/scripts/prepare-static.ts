@@ -25,6 +25,10 @@ import {
 const SITE_DIR = path.resolve(import.meta.dir, '..');
 const GENERATED = path.join(SITE_DIR, '.generated');
 const STATIC_DIR = path.join(SITE_DIR, 'static');
+if (!existsSync(path.join(GENERATED, 'public-assets.json'))) {
+	mkdirSync(GENERATED, { recursive: true });
+	writeFileSync(path.join(GENERATED, 'public-assets.json'), '{}');
+}
 
 if (!existsSync(path.join(GENERATED, 'content-manifest.json'))) {
 	console.error('prepare-static: .generated/content-manifest.json missing.');
@@ -34,6 +38,24 @@ if (!existsSync(path.join(GENERATED, 'content-manifest.json'))) {
 
 const manifest = getManifest();
 await buildCourseFiles(SITE_DIR, new Set(Object.keys(manifest.pages)));
+if (process.env.VITE_PUBLIC_EDITION === 'true') {
+	const entries = JSON.parse(
+		readFileSync(path.join(SITE_DIR, 'src/lib/generated/file-entries.json'), 'utf8')
+	) as { course: string; file: string }[];
+	manifest.fileCourses = entries.filter((entry) => entry.file === '').map((entry) => entry.course);
+	for (const course of manifest.fileCourses) {
+		if (!manifest.folders.includes(course)) manifest.folders.push(course);
+		if (!manifest.tree.children.some((node) => node.slug === course))
+			manifest.tree.children.push({
+				name: course,
+				slug: course,
+				title: course,
+				children: [],
+				pages: []
+			});
+	}
+	writeFileSync(path.join(GENERATED, 'content-manifest.json'), JSON.stringify(manifest));
+}
 const WARN_BYTES = 20 * 1024 * 1024;
 const FAIL_BYTES = 25 * 1024 * 1024;
 
@@ -129,7 +151,17 @@ console.log(`assets: ${copied} synced, ${kept} up-to-date, ${wanted.size} total`
 
 const navOut = path.join(SITE_DIR, 'src/lib/generated/nav.json');
 mkdirSync(path.dirname(navOut), { recursive: true });
-writeFileSync(navOut, JSON.stringify(navTree()));
+const navigation = navTree();
+for (const node of navigation) {
+	if (manifest.fileCourses?.includes(node.segment) && !node.children.length)
+		node.children.push({
+			title: 'Files',
+			segment: 'files',
+			route: `/${node.segment}/files`,
+			children: []
+		});
+}
+writeFileSync(navOut, JSON.stringify(navigation));
 console.log(`nav: wrote src/lib/generated/nav.json`);
 
 // ---------------------------------------------------------------------------

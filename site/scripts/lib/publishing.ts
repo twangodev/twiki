@@ -21,7 +21,7 @@ export function parsePublishPolicy(source: string): PublishPolicy {
 	if (Object.keys(value).some((key) => !['include', 'exclude'].includes(key)))
 		throw new Error('Only include and exclude are supported');
 	for (const key of ['include', 'exclude']) {
-		const patterns = value[key] ?? (key === 'exclude' ? [] : undefined);
+		const patterns = Object.hasOwn(value, key) ? value[key] : key === 'exclude' ? [] : undefined;
 		if (!Array.isArray(patterns)) throw new Error(`${key} must be a list of paths`);
 		for (const pattern of patterns) {
 			if (

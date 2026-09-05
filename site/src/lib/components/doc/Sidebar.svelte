@@ -3,7 +3,8 @@
 	import { tick, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { BookOpen, FolderCode, ChevronsUpDown, LogOut } from '@lucide/svelte';
+	import { BookOpen, FolderCode, ChevronsUpDown, LogOut, LogIn } from '@lucide/svelte';
+	import { publicEdition } from '$lib/publication';
 	import type { NavNode } from '$lib/types';
 	import { site } from '$lib/config';
 	import { ThemeToggle } from '$lib/components/ui';
@@ -227,11 +228,22 @@
 	<div class="flex shrink-0 items-center justify-between border-t border-border pt-3">
 		<ThemeToggle /><ReaderModeToggle />
 		<AccessLink />
-		<form method="post" action="/logout" onsubmit={() => workspace.clear()}>
-			<IconButton type="submit" aria-label="Sign out" title="Sign out"
-				><LogOut size={16} /></IconButton
+		{#if publicEdition}
+			<a
+				href={`/login?next=${encodeURIComponent(page.url.pathname)}`}
+				data-sveltekit-reload
+				aria-label="Sign in"
+				title="Sign in"
+				class="inline-flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface hover:text-text"
+				><LogIn size={16} /></a
 			>
-		</form>
+		{:else}
+			<form method="post" action="/logout" onsubmit={() => workspace.clear()}>
+				<IconButton type="submit" aria-label="Sign out" title="Sign out"
+					><LogOut size={16} /></IconButton
+				>
+			</form>
+		{/if}
 	</div>
 </div>
 

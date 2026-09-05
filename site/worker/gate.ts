@@ -2,6 +2,7 @@ import { createAuth, type AuthEnv } from './auth';
 import { accessForUser } from './access';
 import { copyCookies, handleAuthEndpoint, redirect, signIn, signOut } from './auth-routes';
 import { loginPage, returnPath } from './login';
+import { publicResponse } from './publication';
 
 function privateResponse(response: Response, cookies: Headers, request: Request) {
 	const result = new Response(response.body, response);
@@ -32,12 +33,24 @@ function requireLogin(request: Request, url: URL) {
 async function routeRequest(
 	request: Request,
 	env: AuthEnv,
-	cookies: Headers
+	cookies: Headers,
+	servePublic?: () => Promise<Response | null>
 ): Promise<Response | null> {
 	const url = new URL(request.url);
 	if (url.origin !== env.ORIGIN) return new Response('Misdirected request', { status: 421 });
-	const auth = createAuth(env);
 	const reading = request.method === 'GET' || request.method === 'HEAD';
+	if (url.pathname === '/_published' || url.pathname.startsWith('/_published/'))
+		return new Response('Not found', { status: 404 });
+	if (
+		reading &&
+		servePublic &&
+		(!request.headers.has('cookie') ||
+			['/sitemap.xml', '/index.xml', '/robots.txt'].includes(url.pathname))
+	) {
+		const published = await servePublic();
+		if (published) return published;
+	}
+	const auth = createAuth(env);
 	if (reading && url.pathname === '/fonts/OverusedGrotesk-VF.woff2') return null;
 	if (url.pathname.startsWith('/api/auth/')) return handleAuthEndpoint(request, auth);
 	if (request.method === 'POST') {
@@ -57,7 +70,10 @@ async function routeRequest(
 		const page = loginPage(next, url.searchParams.has('error'));
 		return request.method === 'HEAD' ? new Response(null, page) : page;
 	}
-	if (!access) return requireLogin(request, url);
+	if (!access)
+		return reading && servePublic
+			? ((await servePublic()) ?? requireLogin(request, url))
+			: requireLogin(request, url);
 	if (url.pathname === '/api/access') {
 		if (!reading) return new Response('Method not allowed', { status: 405 });
 		return new Response(request.method === 'HEAD' ? null : JSON.stringify({ role: access }), {
@@ -70,12 +86,21 @@ async function routeRequest(
 export async function authenticateRequest(
 	request: Request,
 	env: AuthEnv,
-	serve: () => Promise<Response>
+	serve: () => Promise<Response>,
+	servePublic?: () => Promise<Response | null>
 ) {
 	const cookies = new Headers();
+	let published = false;
+	const publication =
+		servePublic &&
+		(async () => {
+			const response = await servePublic();
+			if (response) published = true;
+			return response;
+		});
 	let response: Response | null;
 	try {
-		response = await routeRequest(request, env, cookies);
+		response = await routeRequest(request, env, cookies, publication);
 	} catch {
 		console.error('Authentication request failed');
 		response = new Response('Authentication temporarily unavailable', { status: 503 });
@@ -88,5 +113,7 @@ export async function authenticateRequest(
 			response = new Response('Content temporarily unavailable', { status: 500 });
 		}
 	}
-	return privateResponse(response, cookies, request);
+	return published
+		? publicResponse(response, request)
+		: privateResponse(response, cookies, request);
 }
