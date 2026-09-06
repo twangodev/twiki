@@ -6,6 +6,15 @@
       <stop offset="1" stop-color="white"/>
     </linearGradient>
     <mask id="east"><rect width="1200" height="630" fill="url(#fade)"/></mask>
+    <linearGradient id="capitol-fade" gradientUnits="userSpaceOnUse" x1="0" y1="5" x2="0" y2="92">
+      <stop stop-color="white"/>
+      <stop offset="0.45" stop-color="white" stop-opacity="0.7"/>
+      <stop offset="0.85" stop-color="white" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="capitol-base" maskUnits="userSpaceOnUse" x="-100" y="-130" width="200" height="240">
+      <rect x="-100" y="-130" width="200" height="240" fill="url(#capitol-fade)"/>
+    </mask>
     <path id="north" d="M440-90C505 42 595 23 657 110S734 226 855 188 919 70 1042 87 1210 213 1310 121"/>
     <path id="south" d="M518 713C591 598 667 654 744 566S795 390 925 423 977 534 1097 468 1263 420 1311 504"/>
   </defs>
@@ -17,8 +26,13 @@
     <use href="#south" transform="translate(0 48)"/><use href="#south" transform="translate(0 72)"/>
     <use href="#south" transform="translate(0 96)"/><use href="#south" transform="translate(0 120)"/>
   </g>
-  <g fill="none" stroke="#e68578" stroke-width="1.2" opacity="0.19" transform="translate(974 269)">
-    <path d="M-57 106H57M-49 97H49M-41 85V97M-25 85V97M-8 85V97M8 85V97M25 85V97M41 85V97M-46 85H46L38 77H-38ZM-34 77V58H34V77M-40 58H40C37 31 20 17 8 15H-8C-20 17-37 31-40 58ZM-22 58C-20 33-9 18 0 15 9 18 20 33 22 58M0 15V58M-8 15V4H8V15M-11 4H11L5-2H-5ZM0-2V-16"/>
-    <path d="M-86 106H-65M65 106H86M0-33V-26M-106 70H-99M99 70H106" opacity="0.6"/>
+  <g mask="url(#capitol-base)" fill="none" stroke="#e68578" stroke-width="0.9" stroke-linejoin="round" opacity="0.24" transform="translate(974 285)">
+    <path d="M-3-96L-2-105 0-109 2-105 3-96ZM-1-107L-6-109-7-113M2-107L5-104 4-100M-1-111A1.8 1.8 0 1 0 2-111A1.8 1.8 0 1 0-1-111M-5-95H5L4-92H-4Z"/>
+    <path d="M-7-91Q0-99 7-91M-8-89H8M-7-89V-73M7-89V-73M-3-75V-84Q0-89 3-84V-75M-10-73Q0-77 10-73V-69H-10Z"/>
+    <path d="M-43-14C-40-42-25-62-10-69H10C25-62 40-42 43-14M-34-17C-31-42-20-61-7-69M-23-19C-21-44-12-62-4-69M-11-20C-10-46-6-62-2-69M0-20V-69M11-20C10-46 6-62 2-69M23-19C21-44 12-62 4-69M34-17C31-42 20-61 7-69M-43-14Q0-28 43-14L45-9Q0-22-45-9Z"/>
+    <path d="M-47-6Q0-22 47-6V7Q0-9-47 7ZM-40-5V1L-35-1V-7ZM-27-9V-3L-21-4V-10ZM-10-12V-6H-4V-12ZM4-12V-6H10V-12ZM21-10V-4L27-3V-9ZM35-7V-1L40 1V-5Z"/>
+    <path d="M-51 10Q0-9 51 10L55 17Q0-1-55 17ZM-55 17V21Q0 4 55 21V17M-53 22V61M-49 21V62M-42 18V60M-37 17V59M-28 14V58M-23 13V58M-10 11V56M-5 11V56M5 11V56M10 11V56M23 13V58M28 14V58M37 17V59M42 18V60M49 21V62M53 22V61"/>
+    <path d="M-33 56V31Q-33 23-29 23M-19 55V29Q-16 21-13 29V55M13 55V29Q16 21 19 29V55M29 23Q33 23 33 31V56M-57 65Q0 48 57 65V70Q0 55-57 70Z"/>
+    <path d="M-58 71L-67 79H67L58 71M-67 79V85H67V79M-77 91H77" opacity="0.65"/>
   </g>
 </svg>
