@@ -8,6 +8,9 @@ test('a course can publish only project files without exposing its notes or requ
 }) => {
 	const context = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
 	try {
+		expect((await context.request.get('/_og/notes/sp99-cs101/notes/public.png')).status()).toBe(
+			401
+		);
 		const page = await context.newPage();
 		await page.goto('/sp99-cs101');
 		await expect(page.getByRole('heading', { name: 'sp99-cs101' })).toBeVisible();

@@ -17,6 +17,27 @@ test('public metadata matches visible dates, attribution and breadcrumbs', async
 				.evaluateAll((nodes) => nodes.map((node) => JSON.parse(node.textContent!)));
 			const article = schemas.find((schema) => schema['@type'] === type);
 			expect(article).toBeTruthy();
+			const image = await page.locator('meta[property="og:image"]').getAttribute('content');
+			expect(article.image).toEqual([image]);
+			await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute(
+				'content',
+				'1200'
+			);
+			await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute(
+				'content',
+				'630'
+			);
+			await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+				'content',
+				'summary_large_image'
+			);
+			await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute('content', image!);
+			const response = await context.request.get(new URL(image!).pathname);
+			expect(response.status()).toBe(200);
+			expect(response.headers()['content-type']).toContain('image/png');
+			const png = await response.body();
+			expect(png.readUInt32BE(16)).toBe(1200);
+			expect(png.readUInt32BE(20)).toBe(630);
 			expect(article.url).toBe('https://wisconsin.twango.dev' + route);
 			expect(article.dateModified).toMatch(/^\d{4}-\d{2}-\d{2}T/);
 			await expect(page.locator('.doc-meta time').last()).toHaveAttribute(
@@ -57,6 +78,10 @@ test('public metadata matches visible dates, attribution and breadcrumbs', async
 		await expect(page.locator('meta[property^="article:"]')).toHaveCount(0);
 		await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', '');
 		await expect(page.locator('.doc-meta time')).toHaveCount(0);
+		await expect(page.locator('meta[property="og:image"]')).toHaveCount(0);
+		expect(
+			(await context.request.get('/_og/notes/sp26-cs544/lectures/lecture-01.png')).status()
+		).toBe(401);
 	} finally {
 		await context.close();
 	}

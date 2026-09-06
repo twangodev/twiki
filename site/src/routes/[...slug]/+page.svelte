@@ -10,6 +10,7 @@
 	import { linkPopovers } from '$lib/components/popover';
 	import type { PageData } from './$types';
 	import { curator, noteSchema, pageAuthor } from '$lib/metadata';
+	import { socialImageUrl } from '$lib/social-image';
 
 	interface Props {
 		data: PageData;
@@ -52,6 +53,7 @@
 		type="article"
 		noindex={!data.page.publication.public}
 		jsonLd={noteSchema(canonical, data.page)}
+		image={socialImageUrl(data.page.slug)}
 		modified={data.page.dates.modified}
 		published={data.page.dates.published}
 		{author}

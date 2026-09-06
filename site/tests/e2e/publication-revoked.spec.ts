@@ -11,11 +11,19 @@ test('removing publication rules closes old pages, data, files and derivatives a
 }) => {
 	const assets = JSON.parse(readFileSync('.generated/public-assets.json', 'utf8'));
 	expect(Object.keys(assets).some((url) => url.startsWith('/_files/blobs/'))).toBe(false);
+	expect(Object.keys(assets).some((url) => url.startsWith('/_og/notes/'))).toBe(false);
 	const anonymous = await browser.newContext({
 		baseURL,
 		storageState: { cookies: [], origins: [] }
 	});
 	try {
+		for (const method of ['GET', 'HEAD']) {
+			expect(
+				(
+					await anonymous.request.fetch('/_og/notes/sp99-cs101/notes/public.png', { method })
+				).status()
+			).toBe(401);
+		}
 		const files: CourseFile[] = await (await request.get('/_files/index/sp99-cs101.json')).json();
 		const download = files.find((file) => file.path === 'p01/Main.java')!.download!;
 		for (const url of [

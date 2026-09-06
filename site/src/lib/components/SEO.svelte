@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { site } from '$lib/config';
+	import { socialImageSize, socialImageUrl } from '$lib/social-image';
 	import {
 		canonicalUrl as resolveCanonical,
 		collectionSchema,
@@ -29,7 +30,7 @@
 		canonical,
 		type = 'website',
 		image,
-		imageAlt = title ?? site.name,
+		imageAlt = image ? (title ?? site.name) : site.description,
 		published,
 		modified,
 		author,
@@ -39,6 +40,7 @@
 	}: Props = $props();
 
 	const fullTitle = $derived(title ? `${title} | ${site.name}` : site.name);
+	const previewImage = $derived(noindex ? undefined : (image ?? socialImageUrl()));
 	const canonicalUrl = $derived(canonical ? resolveCanonical(canonical) : undefined);
 	const schemas = $derived(
 		jsonLd ?? (canonical ? collectionSchema(canonical, title ?? site.name, description) : [])
@@ -76,8 +78,12 @@
 	{#if canonicalUrl}
 		<meta property="og:url" content={canonicalUrl} />
 	{/if}
-	{#if image}
-		<meta property="og:image" content={image} />
+	{#if previewImage}
+		<meta property="og:image" content={previewImage} />
+		<meta property="og:image:secure_url" content={previewImage} />
+		<meta property="og:image:type" content="image/png" />
+		<meta property="og:image:width" content={String(socialImageSize.width)} />
+		<meta property="og:image:height" content={String(socialImageSize.height)} />
 		<meta property="og:image:alt" content={imageAlt} />
 	{/if}
 	{#if !noindex}
@@ -91,11 +97,11 @@
 	{/if}
 
 	<!-- Twitter Card -->
-	<meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
+	<meta name="twitter:card" content={previewImage ? 'summary_large_image' : 'summary'} />
 	<meta name="twitter:title" content={fullTitle} />
 	<meta name="twitter:description" content={description} />
-	{#if image}
-		<meta name="twitter:image" content={image} />
+	{#if previewImage}
+		<meta name="twitter:image" content={previewImage} />
 		<meta name="twitter:image:alt" content={imageAlt} />
 	{/if}
 

@@ -14,6 +14,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { buildCourseFiles } from './lib/course-files';
+import { buildSocialImages } from './lib/social-images';
 import {
 	contentEntries,
 	displayRoute,
@@ -265,3 +266,5 @@ console.log(
 console.log(
 	`routes: ${contentEntries().length} content + ${Object.keys(manifest.tags).length + 1} tag + 2 xml + /404`
 );
+
+await buildSocialImages(SITE_DIR, manifest);

@@ -1,4 +1,5 @@
 import { site } from './config';
+import { socialImageUrl } from './social-image';
 import type { ManifestPage } from './types';
 
 export interface ContentAuthor {
@@ -87,6 +88,7 @@ export function collectionSchema(route: string, title: string, description: stri
 		'@id': `${url}#webpage`,
 		url,
 		name: title,
+		image: socialImageUrl(),
 		description,
 		inLanguage: site.language,
 		isPartOf: { '@id': website['@id'] }
@@ -124,6 +126,7 @@ export function noteSchema(route: string, page: Omit<ManifestPage, 'backlinks'>)
 		'@id': `${url}#${collection ? 'webpage' : 'article'}`,
 		url,
 		name: page.title,
+		image: [socialImageUrl(page.slug)],
 		headline: page.title,
 		description: page.description,
 		mainEntityOfPage: url,
