@@ -40,9 +40,13 @@ jobs:
       - run: bun install --frozen-lockfile
       - uses: actions/cache/restore@v6
         with:
-          path: site/.generated/cache/social-titles
-          key: social-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}-${{ github.sha }}
-          restore-keys: social-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}-
+          path: |
+            site/.generated/cache/stage1
+            site/.generated/cache/file-history
+            site/.generated/cache/gitdates-v2-*.json
+            site/.generated/cache/social-titles
+          key: compiler-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: compiler-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-
       - run: bun run check
 
   unit-tests:
@@ -77,9 +81,13 @@ jobs:
       - run: bun install --frozen-lockfile
       - uses: actions/cache/restore@v6
         with:
-          path: site/.generated/cache/social-titles
-          key: social-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}-${{ github.sha }}
-          restore-keys: social-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}-
+          path: |
+            site/.generated/cache/stage1
+            site/.generated/cache/file-history
+            site/.generated/cache/gitdates-v2-*.json
+            site/.generated/cache/social-titles
+          key: compiler-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: compiler-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-
       - run: bunx playwright install --with-deps chromium
       - run: bun run test:content
       - run: bun run build:all
@@ -109,9 +117,13 @@ jobs:
       - run: bun install --frozen-lockfile
       - uses: actions/cache@v6
         with:
-          path: site/.generated/cache/social-titles
-          key: social-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}-${{ github.sha }}
-          restore-keys: social-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}-
+          path: |
+            site/.generated/cache/stage1
+            site/.generated/cache/file-history
+            site/.generated/cache/gitdates-v2-*.json
+            site/.generated/cache/social-titles
+          key: compiler-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: compiler-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-
       - run: bun run build:all
       - run: bunx wrangler d1 migrations apply wisconsin --remote
         env:
