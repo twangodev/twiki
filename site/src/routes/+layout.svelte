@@ -2,6 +2,7 @@
 	import 'katex/dist/katex.min.css';
 	import './layout.css';
 	import type { Snippet } from 'svelte';
+	import { dev } from '$app/environment';
 	import { onNavigate } from '$app/navigation';
 	import { ModeWatcher } from 'mode-watcher';
 	import DocShell from '$lib/components/doc/DocShell.svelte';
@@ -40,7 +41,12 @@
 	});
 </script>
 
-<svelte:head><link rel="icon" href="/favicon.png" /></svelte:head>
+<svelte:head>
+	<link rel="icon" href="/favicon.png" />
+	{#if !dev}
+		<script src="https://rybbit.twango.dev/api/script.js" data-site-id="4" defer></script>
+	{/if}
+</svelte:head>
 <ModeWatcher defaultMode="system" />
 
 <DocShell {nav}>
