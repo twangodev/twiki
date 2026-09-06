@@ -53,6 +53,7 @@ import {
 } from './lib/ofm';
 import { applyAutoTags } from './lib/autotag';
 import { buildGitDateMap, parseGitmodules, resolveDates } from './lib/lastmod';
+import { contentAuthor } from '../src/lib/metadata';
 import { publicationResolver, courseLicenseResolver } from './lib/publishing';
 import { protectPublicLinks } from './lib/public-links';
 
@@ -990,6 +991,7 @@ async function main() {
 
 		const html = toHtml(page.tree, { allowDangerousHtml: true });
 		const meta = {
+			author: contentAuthor(page.frontmatter.author),
 			license: licenseFor(page.rel),
 			publication: publicEdition ? { public: true } : publicationFor(page.rel),
 			slug: page.slug,

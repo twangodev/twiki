@@ -43,6 +43,12 @@
 
 <svelte:head>
 	<link rel="icon" href="/favicon.png" />
+	<link
+		rel="alternate"
+		type="application/rss+xml"
+		title="wisconsin — recent notes"
+		href="/index.xml"
+	/>
 	{#if !dev}
 		<script src="https://rybbit.twango.dev/api/script.js" data-site-id="4" defer></script>
 	{/if}

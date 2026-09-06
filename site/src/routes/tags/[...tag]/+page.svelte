@@ -19,9 +19,13 @@
 	}
 </script>
 
-<SEO title={`Tag: ${data.tag}`} canonical={`/tags/${data.tag}`} />
+<SEO
+	title={`Tag: ${data.tag}`}
+	description={`Browse course notes and reference material tagged ${data.tag}.`}
+	canonical={`/tags/${data.tag}`}
+/>
 
-<Breadcrumbs route={`tags/${data.tag}`} current={data.tag} />
+<Breadcrumbs route={`tags/${data.tag}`} current={`Tag: ${data.tag}`} />
 
 <article class="prose dark:prose-invert max-w-none">
 	<h1>Tag: {data.tag}</h1>

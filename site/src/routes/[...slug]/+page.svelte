@@ -9,6 +9,7 @@
 	import { enhanceArticle } from '$lib/components/doc/enhancements';
 	import { linkPopovers } from '$lib/components/popover';
 	import type { PageData } from './$types';
+	import { curator, noteSchema, pageAuthor } from '$lib/metadata';
 
 	interface Props {
 		data: PageData;
@@ -17,6 +18,7 @@
 	const { data }: Props = $props();
 
 	const canonical = $derived(data.route === '' ? '/' : `/${data.route}`);
+	const author = $derived(data.kind === 'page' ? pageAuthor(data.page) : undefined);
 	// Split only a leading H1, retaining its original markup and deep-link id.
 	const heading = $derived(
 		data.kind === 'page' ? (data.page.html.match(/^\s*<h1\b[^>]*>[\s\S]*?<\/h1>/i)?.[0] ?? '') : ''
@@ -48,7 +50,12 @@
 		description={data.page.description}
 		{canonical}
 		type="article"
-		noindex={data.page.locked}
+		noindex={!data.page.publication.public}
+		jsonLd={noteSchema(canonical, data.page)}
+		modified={data.page.dates.modified}
+		published={data.page.dates.published}
+		{author}
+		tags={data.page.tags}
 	/>
 
 	<Breadcrumbs route={data.route} current={data.page.title} />
@@ -78,6 +85,9 @@
 		<div class="doc-meta" data-pagefind-ignore>
 			<ContentMeta
 				modified={data.route ? data.page.dates?.modified : undefined}
+				published={data.route ? data.page.dates?.published : undefined}
+				author={data.page.locked ? undefined : (author ?? curator)}
+				curated={!author}
 				readingTime={data.route ? data.page.readingTime : undefined}
 				publication={data.page.publication}
 			/>
@@ -107,7 +117,11 @@
 
 	<Backlinks backlinks={data.page.backlinks} />
 {:else}
-	<SEO title={data.listing.name} {canonical} />
+	<SEO
+		title={data.listing.name}
+		description={`Browse ${data.listing.name} course notes and files. Public material is readable; other content requires access.`}
+		{canonical}
+	/>
 
 	<Breadcrumbs route={data.route} current={data.listing.name} />
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { breadcrumbs } from '$lib/metadata';
 	interface Props {
 		/** Display route of the current page, no leading slash ('' = home). */
 		route: string;
@@ -8,14 +9,7 @@
 
 	const { route, current }: Props = $props();
 
-	const crumbs = $derived.by(() => {
-		const segments = route === '' ? [] : route.split('/');
-		const parents = segments.slice(0, -1).map((segment, i) => ({
-			label: segment,
-			href: '/' + segments.slice(0, i + 1).join('/')
-		}));
-		return parents;
-	});
+	const crumbs = $derived(breadcrumbs(route, current).slice(1, -1));
 </script>
 
 {#if route !== ''}

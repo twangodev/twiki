@@ -10,7 +10,11 @@
 	const { data }: Props = $props();
 </script>
 
-<SEO title="Tag Index" canonical="/tags" />
+<SEO
+	title="Tag Index"
+	description="Browse topics across UW–Madison course notes and reference material."
+	canonical="/tags"
+/>
 
 <Breadcrumbs route="tags" current="Tag Index" />
 
