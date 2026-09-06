@@ -234,7 +234,7 @@ export function rssXml(): string {
     <link>${url}</link>
     <guid>${url}</guid>
     <description><![CDATA[ ${description} ]]></description>
-    <pubDate>${new Date(p.dates.modified).toUTCString()}</pubDate>
+    ${p.dates.published || p.dates.modified ? `<pubDate>${new Date(p.dates.published || p.dates.modified).toUTCString()}</pubDate>` : ''}
   </item>`;
 		})
 		.join('');
@@ -258,7 +258,7 @@ export function sitemapXml(): string {
 		.map(
 			(p) => `<url>
     <loc>${escapeXml(absoluteUrl(displayRoute(p.slug)))}</loc>
-    <lastmod>${p.dates.modified}</lastmod>
+    ${p.dates.modified ? `<lastmod>${p.dates.modified}</lastmod>` : ''}
   </url>`
 		)
 		.join('');

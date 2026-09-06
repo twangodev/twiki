@@ -1,24 +1,8 @@
-/**
- * Submodule-aware git modification dates.
- *
- * Ported from the wisconsin Quartz fork's `quartz/plugins/transformers/lastmod.ts`
- * design (parse .gitmodules, map file -> owning repo, ask that repo for the file's
- * latest commit date), but implemented as ONE batched
- * `git -C <repo> log --format=%H %ct --name-only` walk per repository instead of
- * one subprocess per file (@napi-rs/simple-git did the per-file walk in-process).
- *
- * Results are cached under site/.generated/cache/ keyed on the repo's HEAD sha;
- * a submodule that hasn't moved costs one `rev-parse` on rebuild.
- *
- * Date priority (same as quartz.config.ts CreatedModifiedDate):
- *   frontmatter -> git (modified only) -> filesystem.
- */
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 export interface SubmoduleInfo {
-	/** path relative to the repo root, e.g. "content/sp26-cs537" */
 	path: string;
 	fullPath: string;
 }
@@ -42,8 +26,6 @@ export function parseGitmodules(gitmodulesPath: string): SubmoduleInfo[] {
 				}
 			}
 		}
-
-		// Sort by path length (longest first) for accurate prefix matching
 		return submodules.sort((a, b) => b.fullPath.length - a.fullPath.length);
 	} catch {
 		return [];
@@ -54,17 +36,19 @@ function git(repo: string, args: string[], maxBuffer = 1024 * 1024 * 512): strin
 	return execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8', maxBuffer });
 }
 
-/**
- * One `git log --format=%H %ct --name-only` walk over a repository.
- * Returns repo-relative path -> last-modified epoch seconds (first/newest mention wins).
- * Rename note: like the fork's simple-git walk, a rename counts as a modification
- * of the new path.
- */
-function walkRepoLog(repoDir: string): Record<string, number> {
-	// -m --first-parent: merge commits diff against their first parent so files
-	// that only ever land via merges (common in these submodules) still get dates
-	const out = git(repoDir, ['log', '-m', '--first-parent', '--format=%H %ct', '--name-only']);
-	const dates: Record<string, number> = {};
+export function repositoryDates(repoDir: string): GitDateMap {
+	const out = git(repoDir, [
+		'-c',
+		'core.quotepath=false',
+		'log',
+		'--reverse',
+		'-m',
+		'--first-parent',
+		'--format=%H %ct',
+		'--name-status',
+		'-M'
+	]);
+	const dates: GitDateMap = { created: {}, modified: {} };
 	let currentEpoch: number | null = null;
 	for (const line of out.split('\n')) {
 		if (line === '') continue;
@@ -73,8 +57,19 @@ function walkRepoLog(repoDir: string): Record<string, number> {
 			currentEpoch = Number(m[1]);
 			continue;
 		}
-		if (currentEpoch !== null && dates[line] === undefined) {
-			dates[line] = currentEpoch;
+		const [status, file, renamed] = line.split('\t');
+		if (currentEpoch === null || !file) continue;
+		if (status.startsWith('R') && renamed) {
+			dates.created[renamed] = dates.created[file] ?? currentEpoch;
+			dates.modified[renamed] = currentEpoch;
+			delete dates.created[file];
+			delete dates.modified[file];
+		} else if (status === 'D') {
+			delete dates.created[file];
+			delete dates.modified[file];
+		} else {
+			if (status === 'A' || dates.created[file] === undefined) dates.created[file] = currentEpoch;
+			dates.modified[file] = currentEpoch;
 		}
 	}
 	return dates;
@@ -85,31 +80,27 @@ function headSha(repoDir: string): string {
 }
 
 export interface GitDateMap {
-	/** path relative to content/ -> last-modified epoch seconds */
+	created: Record<string, number>;
 	modified: Record<string, number>;
 }
 
-/**
- * Build the content-relative path -> last-modified-epoch map for the whole corpus.
- * @param repoRoot   superproject root (contains .gitmodules and content/)
- * @param cacheDir   directory for HEAD-keyed cache files
- */
 export function buildGitDateMap(repoRoot: string, cacheDir: string): GitDateMap {
 	fs.mkdirSync(cacheDir, { recursive: true });
 	const submodules = parseGitmodules(path.join(repoRoot, '.gitmodules')).filter((s) =>
 		s.path.startsWith('content/')
 	);
 
+	const created: Record<string, number> = {};
 	const modified: Record<string, number> = {};
 
-	const loadRepo = (repoDir: string, cacheKey: string): Record<string, number> => {
+	const loadRepo = (repoDir: string, cacheKey: string): GitDateMap => {
 		let head: string;
 		try {
 			head = headSha(repoDir);
 		} catch {
-			return {};
+			return { created: {}, modified: {} };
 		}
-		const cacheFile = path.join(cacheDir, `gitdates-${cacheKey}-${head}.json`);
+		const cacheFile = path.join(cacheDir, `gitdates-v2-${cacheKey}-${head}.json`);
 		if (fs.existsSync(cacheFile)) {
 			try {
 				return JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
@@ -117,32 +108,26 @@ export function buildGitDateMap(repoRoot: string, cacheDir: string): GitDateMap 
 				/* fall through to rebuild */
 			}
 		}
-		const dates = walkRepoLog(repoDir);
-		// drop stale caches for this repo before writing the fresh one
+		const dates = repositoryDates(repoDir);
 		for (const f of fs.readdirSync(cacheDir)) {
-			if (f.startsWith(`gitdates-${cacheKey}-`)) fs.rmSync(path.join(cacheDir, f));
+			if (f.startsWith(`gitdates-v2-${cacheKey}-`)) fs.rmSync(path.join(cacheDir, f));
 		}
 		fs.writeFileSync(cacheFile, JSON.stringify(dates));
 		return dates;
 	};
-
-	// submodules: one walk each, paths are repo-relative -> prefix with submodule dir
 	for (const sub of submodules) {
 		const name = sub.path.slice('content/'.length);
 		if (!fs.existsSync(path.join(sub.fullPath, '.git'))) continue;
 		const dates = loadRepo(sub.fullPath, name);
-		for (const [p, epoch] of Object.entries(dates)) {
+		for (const [p, epoch] of Object.entries(dates.modified)) {
 			modified[`${name}/${p}`] = epoch;
+			created[`${name}/${p}`] = dates.created[p];
 		}
 	}
-
-	// superproject: covers content/index.md, content/course-log.md, etc.
 	const superDates = loadRepo(repoRoot, 'superproject');
-	for (const [p, epoch] of Object.entries(superDates)) {
+	for (const [p, epoch] of Object.entries(superDates.modified)) {
 		if (p.startsWith('content/')) {
 			const rel = p.slice('content/'.length);
-			// submodule gitlinks show up as plain paths in the superproject log; skip
-			// anything owned by a submodule (its own walk is authoritative)
 			if (
 				!submodules.some(
 					(s) =>
@@ -151,77 +136,55 @@ export function buildGitDateMap(repoRoot: string, cacheDir: string): GitDateMap 
 				)
 			) {
 				modified[rel] = epoch;
+				created[rel] = superDates.created[p];
 			}
 		}
 	}
 
-	return { modified };
+	return { created, modified };
 }
 
-// YYYY-MM-DD
-const iso8601DateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
-
-/** verbatim from the fork's lastmod.ts (minus the console warning styling) */
-export function coerceDate(fp: string, d: unknown, warn?: (msg: string) => void): Date {
-	// check ISO8601 date-only format
-	// we treat this one as local midnight as the normal
-	// js date ctor treats YYYY-MM-DD as UTC midnight
-	if (typeof d === 'string' && iso8601DateOnlyRegex.test(d)) {
-		d = `${d}T00:00:00`;
+export function coerceDate(
+	file: string,
+	value: unknown,
+	warn?: (message: string) => void
+): Date | undefined {
+	if (value === undefined || value === null || value === '') return;
+	const dateOnly = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+	const supported =
+		value instanceof Date ||
+		typeof value === 'number' ||
+		(typeof value === 'string' &&
+			(dateOnly || /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value)));
+	const date = supported ? new Date(value as string | number) : new Date(NaN);
+	if (
+		!Number.isFinite(date.getTime()) ||
+		date.getTime() > Date.now() ||
+		(dateOnly && date.toISOString().slice(0, 10) !== value)
+	) {
+		warn?.(`${file}: ignored invalid or future date ${String(value)}`);
+		return;
 	}
-
-	const dt = new Date(d as string | number);
-	const invalidDate = isNaN(dt.getTime()) || dt.getTime() === 0;
-	if (invalidDate && d !== undefined) {
-		warn?.(`found invalid date "${d}" in \`${fp}\``);
-	}
-
-	return invalidDate ? new Date() : dt;
+	return date;
 }
 
-type MaybeDate = undefined | string | number;
-
-/**
- * Same priority semantics as the fork's CreatedModifiedDate with
- * priority: ["frontmatter", "git", "filesystem"].
- */
-export function resolveDates(args: {
-	relativePath: string; // relative to content/
-	fullPath: string;
+export function resolveDates({
+	relativePath,
+	frontmatter,
+	gitDates,
+	warn
+}: {
+	relativePath: string;
 	frontmatter: Record<string, unknown>;
 	gitDates: GitDateMap;
-	warn?: (msg: string) => void;
-}): { created: Date; modified: Date; published: Date } {
-	const { relativePath, fullPath, frontmatter, gitDates, warn } = args;
-	let created: MaybeDate = undefined;
-	let modified: MaybeDate = undefined;
-	let published: MaybeDate = undefined;
-
-	// frontmatter (frontmatter.ts already coalesced created/date, modified/lastmod/...)
-	created ||= frontmatter.created as MaybeDate;
-	modified ||= frontmatter.modified as MaybeDate;
-	published ||= frontmatter.published as MaybeDate;
-
-	// git (modified only — matches the fork)
-	const gitEpoch = gitDates.modified[relativePath];
-	if (gitEpoch !== undefined) {
-		modified ||= gitEpoch * 1000;
-	} else if (modified === undefined) {
-		warn?.(`${relativePath} isn't yet tracked by git, dates will be inaccurate`);
-	}
-
-	// filesystem
-	try {
-		const st = fs.statSync(fullPath);
-		created ||= st.birthtimeMs;
-		modified ||= st.mtimeMs;
-	} catch {
-		/* ignore */
-	}
-
-	return {
-		created: coerceDate(relativePath, created, warn),
-		modified: coerceDate(relativePath, modified, warn),
-		published: coerceDate(relativePath, published, warn)
+	warn?: (message: string) => void;
+}) {
+	const fromGit = (kind: 'created' | 'modified') => {
+		const epoch = gitDates[kind][relativePath];
+		return epoch === undefined ? undefined : coerceDate(relativePath, epoch * 1000, warn);
 	};
+	const created = coerceDate(relativePath, frontmatter.created, warn) ?? fromGit('created');
+	const modified = coerceDate(relativePath, frontmatter.modified, warn) ?? fromGit('modified');
+	const published = coerceDate(relativePath, frontmatter.published, warn);
+	return { created, modified, published };
 }

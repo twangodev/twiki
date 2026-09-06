@@ -59,7 +59,7 @@ import { protectPublicLinks } from './lib/public-links';
 // ---------------------------------------------------------------------------
 // config
 // ---------------------------------------------------------------------------
-const PIPELINE_VERSION = '3'; // bump to invalidate the stage-1 cache (3: include H1-H6 in TOC)
+const PIPELINE_VERSION = '4';
 const SITE_DIR = path.resolve(import.meta.dir, '..');
 const REPO_ROOT = process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(SITE_DIR, '..');
 const publicEdition = process.env.VITE_PUBLIC_EDITION === 'true';
@@ -392,14 +392,9 @@ async function parsePage(file: SourceFile): Promise<PageParse> {
 		);
 	}
 
-	const created = coalesceAliases(data, ['created', 'date']);
-	if (created) {
-		data.created = created;
-		data.modified ||= created;
-	}
 	const modified = coalesceAliases(data, ['modified', 'lastmod', 'updated', 'last-modified']);
 	if (modified) data.modified = modified;
-	const published = coalesceAliases(data, ['published', 'publishDate', 'date']);
+	const published = coalesceAliases(data, ['published', 'publishDate']);
 	if (published) data.published = published;
 
 	const ofmData: OfmFileData = { slug: file.slug, tags };
@@ -979,7 +974,6 @@ async function main() {
 	for (const page of pages) {
 		const dates = resolveDates({
 			relativePath: page.rel,
-			fullPath: path.join(CONTENT_DIR, page.rel),
 			frontmatter: page.frontmatter,
 			gitDates,
 			warn
@@ -1003,9 +997,9 @@ async function main() {
 			description: page.description,
 			tags: page.tags,
 			dates: {
-				created: dates.created.toISOString(),
-				modified: dates.modified.toISOString(),
-				published: dates.published.toISOString()
+				created: dates.created?.toISOString() ?? '',
+				modified: dates.modified?.toISOString() ?? '',
+				published: dates.published?.toISOString() ?? ''
 			},
 			links: outgoingBySlug.get(page.slug) ?? [],
 			backlinks: pageBacklinks.map((b) => b.slug),
