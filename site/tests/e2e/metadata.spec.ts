@@ -78,10 +78,13 @@ test('public metadata matches visible dates, attribution and breadcrumbs', async
 		await expect(page.locator('meta[property^="article:"]')).toHaveCount(0);
 		await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', '');
 		await expect(page.locator('.doc-meta time')).toHaveCount(0);
-		await expect(page.locator('meta[property="og:image"]')).toHaveCount(0);
+		await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+			'content',
+			'https://wisconsin.twango.dev/_og/notes/sp26-cs544/lectures/lecture-01.png'
+		);
 		expect(
 			(await context.request.get('/_og/notes/sp26-cs544/lectures/lecture-01.png')).status()
-		).toBe(401);
+		).toBe(200);
 	} finally {
 		await context.close();
 	}

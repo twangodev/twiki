@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SEO from '$lib/components/SEO.svelte';
 	import LicenseNotice from '$lib/components/doc/LicenseNotice.svelte';
 	import LockedContent from '$lib/components/doc/LockedContent.svelte';
 	import {
@@ -89,10 +90,12 @@
 	}
 </script>
 
-<svelte:head>
-	<title>{name} · Files · Wisconsin</title>
-	<meta name="robots" content="noindex" />
-</svelte:head>
+<SEO
+	title={`${name} · Files`}
+	description=""
+	canonical={fileRoute(data.course, data.path)}
+	noindex
+/>
 
 <div class="flex h-full min-h-0 flex-col" data-pagefind-ignore>
 	<div class="flex shrink-0 flex-col border-b border-border">

@@ -18,7 +18,6 @@ const rendererKey = createHash('sha256')
 
 interface SocialCard {
 	title: string;
-	description: string;
 	label: string;
 }
 
@@ -40,8 +39,7 @@ export async function renderSocialImage(card: SocialCard) {
 					height: '100%',
 					background: '#f8f6f1',
 					color: '#1a1916',
-					padding: '52px 64px',
-					borderTop: '10px solid #d35545',
+					padding: '64px 72px',
 					fontFamily: 'Overused Grotesk',
 					fontWeight: 600
 				},
@@ -49,20 +47,8 @@ export async function renderSocialImage(card: SocialCard) {
 					{
 						type: 'div',
 						props: {
-							style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-							children: [
-								{
-									type: 'div',
-									props: { style: { color: '#d35545', fontSize: 34 }, children: site.name }
-								},
-								{
-									type: 'div',
-									props: {
-										style: { color: '#8a8578', fontSize: 22 },
-										children: shorten(card.label, 70)
-									}
-								}
-							]
+							style: { color: '#d35545', fontSize: 24 },
+							children: shorten(card.label, 70)
 						}
 					},
 					{
@@ -72,27 +58,19 @@ export async function renderSocialImage(card: SocialCard) {
 								display: 'flex',
 								flex: 1,
 								flexDirection: 'column',
-								justifyContent: 'center',
-								gap: 24
+								justifyContent: 'center'
 							},
 							children: [
 								{
 									type: 'div',
 									props: {
 										style: {
-											fontSize: title.length > 130 ? 46 : title.length > 80 ? 56 : 68,
+											fontSize: title.length > 130 ? 48 : title.length > 80 ? 60 : 80,
 											lineHeight: 1.08,
 											letterSpacing: '-1.5px',
 											overflowWrap: 'anywhere'
 										},
 										children: title
-									}
-								},
-								{
-									type: 'div',
-									props: {
-										style: { fontSize: 26, lineHeight: 1.35, color: '#777165' },
-										children: shorten(card.description, 170)
 									}
 								}
 							]
@@ -108,8 +86,8 @@ export async function renderSocialImage(card: SocialCard) {
 								color: '#8a8578'
 							},
 							children: [
-								{ type: 'span', props: { children: new URL(site.url).host } },
-								{ type: 'span', props: { children: 'UW–Madison · course notes' } }
+								{ type: 'span', props: { children: site.name } },
+								{ type: 'span', props: { children: new URL(site.url).host } }
 							]
 						}
 					}
@@ -139,15 +117,12 @@ export async function buildSocialImages(siteDir: string, manifest: Pick<ContentM
 	rmSync(output, { recursive: true, force: true });
 	mkdirSync(cache, { recursive: true });
 	const cards = [
-		{ slug: undefined, title: site.name, description: site.description, label: 'Course notes' },
-		...Object.values(manifest.pages)
-			.filter((page) => page.publication.public && !page.locked)
-			.map((page) => ({
-				slug: page.slug,
-				title: page.title,
-				description: page.description,
-				label: courseLabel(page.slug)
-			}))
+		{ slug: undefined, title: 'Notes from UW–Madison.', label: 'Course notes' },
+		...Object.values(manifest.pages).map((page) => ({
+			slug: page.slug,
+			title: page.title,
+			label: courseLabel(page.slug)
+		}))
 	];
 	for (const card of cards) {
 		const key = createHash('sha256').update(rendererKey).update(JSON.stringify(card)).digest('hex');
@@ -161,5 +136,5 @@ export async function buildSocialImages(siteDir: string, manifest: Pick<ContentM
 		mkdirSync(path.dirname(destination), { recursive: true });
 		copyFileSync(cached, destination);
 	}
-	console.log(`social images: ${cards.length} public PNG cards`);
+	console.log(`social images: ${cards.length} title-only PNG cards`);
 }

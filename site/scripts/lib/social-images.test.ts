@@ -6,7 +6,7 @@ import { buildSocialImages } from './social-images';
 import { publicAssetManifest } from './public-assets';
 import type { ManifestPage } from '../../src/lib/types';
 
-test('share cards are valid cached PNGs and revocation removes public derivatives', async () => {
+test('title-only share cards cover locked notes without exposing their content', async () => {
 	const directory = mkdtempSync(path.join(tmpdir(), 'wisconsin-social-'));
 	const note: ManifestPage = {
 		slug: 'course/note',
@@ -37,11 +37,16 @@ test('share cards are valid cached PNGs and revocation removes public derivative
 		await buildSocialImages(directory, {
 			pages: { [note.slug]: { ...note, publication: { public: false } } }
 		});
-		expect(existsSync(filename)).toBe(false);
+		expect(readFileSync(filename)).toEqual(png);
 		expect(publicAssetManifest(path.join(directory, 'static'), {})).toEqual({
-			'/_og/default.png': '/_published/_og/default.png'
+			'/_og/default.png': '/_published/_og/default.png',
+			'/_og/notes/course/note.png': '/_published/_og/notes/course/note.png'
 		});
-		await buildSocialImages(directory, { pages: { [note.slug]: { ...note, locked: true } } });
+		await buildSocialImages(directory, {
+			pages: { [note.slug]: { ...note, locked: true, description: 'private description canary' } }
+		});
+		expect(readFileSync(filename)).toEqual(png);
+		await buildSocialImages(directory, { pages: {} });
 		expect(existsSync(filename)).toBe(false);
 	} finally {
 		rmSync(directory, { recursive: true, force: true });

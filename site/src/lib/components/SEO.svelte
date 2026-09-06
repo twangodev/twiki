@@ -40,7 +40,7 @@
 	}: Props = $props();
 
 	const fullTitle = $derived(title ? `${title} | ${site.name}` : site.name);
-	const previewImage = $derived(noindex ? undefined : (image ?? socialImageUrl()));
+	const previewImage = $derived(image ?? socialImageUrl());
 	const canonicalUrl = $derived(canonical ? resolveCanonical(canonical) : undefined);
 	const schemas = $derived(
 		jsonLd ?? (canonical ? collectionSchema(canonical, title ?? site.name, description) : [])

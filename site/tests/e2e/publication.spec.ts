@@ -310,7 +310,7 @@ test('SEO endpoints expose only public canonical URLs, even for signed-in users'
 		expect(image.status()).toBe(200);
 		expect(image.headers()['content-type']).toContain('image/png');
 		expect((await context.request.get('/_og/notes/sp99-cs101/notes/slides.png')).status()).toBe(
-			401
+			200
 		);
 		expect(sitemap).toContain(`https://wisconsin.twango.dev${note}`);
 		const head = await context.request.head(note);
