@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
-import { breadcrumbs, contentAuthor, noteSchema, serializeSchema } from '../src/lib/metadata';
-import type { ManifestPage } from '../src/lib/types';
+import { breadcrumbs, contentAuthor, noteSchema, serializeSchema } from '../../src/lib/metadata';
+import type { ManifestPage } from '../../src/lib/types';
 
 const page: ManifestPage = {
 	slug: 'course/lecture',

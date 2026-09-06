@@ -86,9 +86,9 @@ export function publicationDecision(file: string, policy?: PublishPolicy) {
 	)
 		return { public: false, reason: 'Reserved path' };
 	if (!policy) return { public: false, reason: 'No publish.yaml' };
-	const excluded = policy.exclude.find((pattern) => new Bun.Glob(pattern).match(file));
+	const excluded = policy.exclude.find((pattern) => path.posix.matchesGlob(file, pattern));
 	if (excluded) return { public: false, reason: `Excluded by ${excluded}` };
-	const included = policy.include.find((pattern) => new Bun.Glob(pattern).match(file));
+	const included = policy.include.find((pattern) => path.posix.matchesGlob(file, pattern));
 	return included
 		? { public: true, reason: `Included by ${included}` }
 		: { public: false, reason: 'Not included' };

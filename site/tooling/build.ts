@@ -1,7 +1,7 @@
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-import { publicAssetManifest } from '../tooling/lib/public-assets';
+import { publicAssetManifest } from './lib/public-assets';
 
 const site = path.resolve(import.meta.dir, '..');
 const output = path.join(site, '.svelte-kit/cloudflare');
@@ -13,17 +13,15 @@ writeFileSync(manifestPath, '{}');
 rmSync(staged, { recursive: true, force: true });
 
 function build(publicEdition: boolean) {
-	for (const task of ['build:content', 'build', 'build:search']) {
-		const result = spawnSync('bun', ['run', task], {
-			cwd: site,
-			stdio: 'inherit',
-			env: { ...process.env, VITE_PUBLIC_EDITION: String(publicEdition) }
+	const result = spawnSync('bun', ['x', 'vite', 'build'], {
+		cwd: site,
+		stdio: 'inherit',
+		env: { ...process.env, VITE_PUBLIC_EDITION: String(publicEdition) }
+	});
+	if (result.status !== 0)
+		throw new Error(`${publicEdition ? 'Public' : 'Full'} build failed`, {
+			cause: result.error
 		});
-		if (result.status !== 0)
-			throw new Error(`${publicEdition ? 'Public' : 'Full'} ${task} failed`, {
-				cause: result.error
-			});
-	}
 }
 
 {

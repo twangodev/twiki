@@ -140,7 +140,7 @@
 							{#if import.meta.env.DEV}
 								<span>No search index in dev — Pagefind indexes the built site.</span>
 								<code class="rounded-sm bg-surface px-1.5 py-0.5 text-xs"
-									>bun run build && bun run build:search</code
+									>bun run build</code
 								>
 							{:else}
 								<span>Couldn't load the search index.</span>

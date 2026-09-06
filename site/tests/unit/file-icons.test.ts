@@ -15,14 +15,14 @@ test('resolves language icons, exact filenames, compound extensions, and fallbac
 		'package.json': 'nodejs',
 		'index.d.ts': 'typescript-def'
 	})) {
-		expect(resolveIcon(name)).toBe(icon);
+		expect<unknown>(resolveIcon(name)).toBe(icon);
 	}
-	expect(resolveIcon('unknown.xyz')).toBe('file');
-	expect(resolveIcon('constructor')).toBe('file');
-	expect(resolveIcon('src', true)).toBe('folder-src');
-	expect(resolveIcon('src', true, true)).toBe('folder-src-open');
-	expect(resolveIcon('config.toml', false, false, true)).toBe('toml_light');
-	expect(resolveIcon('config.toml')).toBe('toml');
+	expect<unknown>(resolveIcon('unknown.xyz')).toBe('file');
+	expect<unknown>(resolveIcon('constructor')).toBe('file');
+	expect<unknown>(resolveIcon('src', true)).toBe('folder-src');
+	expect<unknown>(resolveIcon('src', true, true)).toBe('folder-src-open');
+	expect<unknown>(resolveIcon('config.toml', false, false, true)).toBe('toml_light');
+	expect<unknown>(resolveIcon('config.toml')).toBe('toml');
 });
 
 test('exports only used icons, theme variants, folder states, and their license', () => {
@@ -33,10 +33,10 @@ test('exports only used icons, theme variants, folder states, and their license'
 			readFileSync(path.join(site, 'src/lib/generated/file-icons.json'), 'utf8')
 		);
 		const output = path.join(site, '.generated/assets/_files/icons');
-		expect(selectFileIcon(theme, 'Main.JAVA').dark).toBe('java');
-		expect(selectFileIcon(theme, 'src', true, true).dark).toBe('folder-src-open');
-		expect(selectFileIcon(theme, 'constructor')).toEqual(theme.file);
-		expect(selectFileIcon(theme, 'unknown', true)).toEqual({
+		expect<unknown>(selectFileIcon(theme, 'Main.JAVA').dark).toBe('java');
+		expect<unknown>(selectFileIcon(theme, 'src', true, true).dark).toBe('folder-src-open');
+		expect<unknown>(selectFileIcon(theme, 'constructor')).toEqual(theme.file);
+		expect<unknown>(selectFileIcon(theme, 'unknown', true)).toEqual({
 			light: theme.folder.light,
 			dark: theme.folder.dark,
 			expanded: theme.folder.expanded
@@ -49,10 +49,10 @@ test('exports only used icons, theme variants, folder states, and their license'
 			...Object.values(theme.folders).flatMap((folder) => [folder, folder.expanded])
 		]) {
 			for (const icon of [variants.light, variants.dark])
-				expect(existsSync(path.join(output, `${icon}.svg`))).toBe(true);
+				expect<unknown>(existsSync(path.join(output, `${icon}.svg`))).toBe(true);
 		}
-		expect(readdirSync(output).length).toBeLessThan(20);
-		expect(readFileSync(path.join(output, 'LICENSE.txt'), 'utf8')).toContain('MIT');
+		expect<unknown>(readdirSync(output).length).toBeLessThan(20);
+		expect<unknown>(readFileSync(path.join(output, 'LICENSE.txt'), 'utf8')).toContain('MIT');
 	} finally {
 		rmSync(site, { recursive: true, force: true });
 	}

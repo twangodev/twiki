@@ -1,5 +1,6 @@
 import cloudflare from '@sveltejs/adapter-cloudflare';
 import { renameSync, writeFileSync } from 'node:fs';
+import { indexSearch } from './search.js';
 
 export default function () {
 	const adapter = cloudflare();
@@ -8,6 +9,7 @@ export default function () {
 		/** @param {import('@sveltejs/kit').Builder} builder */
 		async adapt(builder) {
 			await adapter.adapt(builder);
+			await indexSearch('.svelte-kit/cloudflare');
 			if (process.env.VITE_PUBLIC_EDITION === 'true') {
 				writeFileSync(
 					'.generated/public-routes.json',

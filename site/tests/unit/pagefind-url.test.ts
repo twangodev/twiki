@@ -1,4 +1,3 @@
-// Lives under scripts/ (like slug.test.ts) so `bun test scripts` picks it up
 // and svelte-check (which only includes src/**) never sees `bun:test`.
 import { describe, expect, test } from 'bun:test';
 import { cleanResultUrl } from '../../src/lib/components/search/pagefind-url';

@@ -56,9 +56,10 @@ import { buildGitDateMap, parseGitmodules, resolveDates } from './lib/lastmod';
 import { contentAuthor } from '../src/lib/metadata';
 import { publicationResolver, courseLicenseResolver } from './lib/publishing';
 import { protectPublicLinks } from './lib/public-links';
+import { pipelineFingerprint } from './fingerprint';
 
 export async function compileContent() {
-	const PIPELINE_VERSION = '4';
+	const PIPELINE_VERSION = pipelineFingerprint();
 	const SITE_DIR = path.resolve(import.meta.dirname, '..');
 	const REPO_ROOT = process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(SITE_DIR, '..');
 	const publicEdition = process.env.VITE_PUBLIC_EDITION === 'true';

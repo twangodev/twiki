@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { readFileSync, readdirSync } from 'node:fs';
 import { generateSQLiteDrizzleJson, generateSQLiteMigration } from 'drizzle-kit/api';
-import * as schema from '../database/schema';
+import * as schema from '../../database/schema';
 
 test('Drizzle schema matches the latest migration snapshot', async () => {
 	const latest = readdirSync('migrations/meta')

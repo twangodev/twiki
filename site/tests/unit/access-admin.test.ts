@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { lookupGithubUser } from '../src/lib/server/access-admin';
+import { lookupGithubUser } from '../../src/lib/server/access-admin';
 
 test('GitHub lookup normalizes usernames and stores the stable account ID', async () => {
 	const result = await lookupGithubUser(' @Example ', (async (url, init) => {
@@ -21,7 +21,7 @@ test('invalid usernames never trigger a lookup', async () => {
 	]) {
 		const result = await lookupGithubUser(value, (() => {
 			throw new Error('unexpected fetch');
-		}) as typeof fetch);
+		}) as unknown as typeof fetch);
 		expect(result).toHaveProperty('status', 400);
 	}
 });
@@ -35,7 +35,7 @@ test('GitHub failures and non-personal accounts are rejected', async () => {
 		[new Response('invalid json'), 503]
 	] as const) {
 		expect(
-			await lookupGithubUser('example', (async () => response) as typeof fetch)
+			await lookupGithubUser('example', (async () => response) as unknown as typeof fetch)
 		).toHaveProperty('status', status);
 	}
 });

@@ -4,7 +4,7 @@ import { cleanResultUrl } from './pagefind-url';
  * Lazy Pagefind client (cca's `search-client.svelte.ts` rewired from
  * minisearch to Pagefind's chunked static index).
  *
- * The index is produced AFTER `vite build` by `bun run build:search`
+ * The index is produced AFTER `vite build` by the deployment adapter
  * (`pagefind --site .svelte-kit/cloudflare`), which drops a self-contained
  * `/pagefind/` bundle into the deployed static assets. We lazy-import its JS
  * API on first palette open, so search costs nothing until used. The Vite dev

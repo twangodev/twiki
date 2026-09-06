@@ -8,19 +8,17 @@ Run from `site/`:
 
 ```sh
 bun install --frozen-lockfile
-bun run build:content
 bun run dev:host
 ```
 
-Course content is stored in Git submodules under `content/`. Rerun
-`build:content` after changing notes.
+Course content is stored in Git submodules under `content/` and watched during development.
 
 ## Checks
 
 ```sh
 bun run build:all
 bun run check
-bun test scripts
+bun run test
 bun run test:e2e
 ```
 

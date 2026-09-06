@@ -49,9 +49,11 @@ export function browsablePath(file: string) {
 }
 
 export function previewText(bytes: Uint8Array): { text: string } | undefined {
-	if (bytes.some((byte) => byte === 0 || byte < 9 || (byte > 13 && byte < 32))) return;
+	if (Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).includes(0)) return;
 	try {
-		return { text: new TextDecoder('utf-8', { fatal: true }).decode(bytes) };
+		const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+		if (/[\x00-\x08\x0e-\x1f]/.test(text)) return;
+		return { text };
 	} catch {
 		return;
 	}
@@ -88,7 +90,9 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 				output,
 				path.join(siteDir, '.generated/cache/file-history', course),
 				browsablePath,
-				JSON.stringify([...excludedDirectories, excludedNames.source, browsablePath.toString()])
+				createHash('sha256')
+					.update(readFileSync(import.meta.filename))
+					.digest('hex')
 			)
 		])
 	);

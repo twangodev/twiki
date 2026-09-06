@@ -125,12 +125,13 @@ export async function prepareAssets() {
 
 	// Prune stale synced files (never touch the hand-placed statics).
 	const KEEP = new Set(['.gitignore', 'favicon.png']);
+	let pruned = 0;
 	for (const file of walk(STATIC_DIR)) {
 		const rel = path.relative(STATIC_DIR, file).split(path.sep).join('/');
-		if (KEEP.has(rel) || rel.startsWith('fonts/')) continue;
+		if (KEEP.has(rel) || rel.startsWith('fonts/') || rel.startsWith('_og/')) continue;
 		if (!wanted.has(rel)) {
 			unlinkSync(file);
-			console.log(`pruned stale static file: ${rel}`);
+			pruned++;
 		}
 	}
 	// Remove now-empty directories.
@@ -146,6 +147,7 @@ export async function prepareAssets() {
 		return empty;
 	}
 	pruneEmptyDirs(STATIC_DIR);
+	console.log(`assets: pruned ${pruned} stale files`);
 
 	console.log(`assets: ${copied} synced, ${kept} up-to-date, ${wanted.size} total`);
 

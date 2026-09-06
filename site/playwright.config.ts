@@ -5,6 +5,7 @@ const baseURL = `http://127.0.0.1:${process.env.TEST_PORT ?? '4174'}`;
 export default defineConfig({
 	testDir: './tests/e2e',
 	fullyParallel: true,
+	workers: 2,
 	forbidOnly: Boolean(process.env.CI),
 	retries: process.env.CI ? 1 : 0,
 	reporter: process.env.CI ? 'github' : 'list',

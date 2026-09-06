@@ -38,8 +38,11 @@ jobs:
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - run: bun install --frozen-lockfile
-      - run: bun run build:content
-      - run: bun run prepare:static
+      - uses: actions/cache/restore@v6
+        with:
+          path: site/.generated/cache/social-titles
+          key: social-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}-${{ github.sha }}
+          restore-keys: social-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}-
       - run: bun run check
 
   unit-tests:
@@ -53,7 +56,7 @@ jobs:
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - run: bun install --frozen-lockfile
-      - run: bun test scripts
+      - run: bun run test
 
   browser-tests:
     runs-on: ubuntu-latest
@@ -72,8 +75,14 @@ jobs:
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - run: bun install --frozen-lockfile
-      - run: bun run build:all
+      - uses: actions/cache/restore@v6
+        with:
+          path: site/.generated/cache/social-titles
+          key: social-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}-${{ github.sha }}
+          restore-keys: social-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}-
       - run: bunx playwright install --with-deps chromium
+      - run: bun run test:content
+      - run: bun run build:all
       - run: bun run test:e2e
       - run: bun run test:publishing
 
@@ -98,6 +107,11 @@ jobs:
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - run: bun install --frozen-lockfile
+      - uses: actions/cache@v6
+        with:
+          path: site/.generated/cache/social-titles
+          key: social-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}-${{ github.sha }}
+          restore-keys: social-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}-
       - run: bun run build:all
       - run: bunx wrangler d1 migrations apply wisconsin --remote
         env:

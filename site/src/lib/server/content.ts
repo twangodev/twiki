@@ -1,6 +1,6 @@
 /**
  * Cached readers for generated content used during prerendering and development.
- * Keep imports relative: prepare-static.ts also loads this module outside SvelteKit.
+ * Keep imports relative: the content pipeline also loads this module outside SvelteKit.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -30,7 +30,7 @@ export function getManifest(): ContentManifest {
 	if (!manifestCache) {
 		const file = path.join(GENERATED_DIR, 'content-manifest.json');
 		if (!existsSync(file)) {
-			throw new Error(`Missing ${file} — run \`bun run build:content\` in site/ before building.`);
+			throw new Error(`Missing ${file} — run \`bun run content:prepare\` in site/.`);
 		}
 		manifestCache = JSON.parse(readFileSync(file, 'utf-8')) as ContentManifest;
 	}

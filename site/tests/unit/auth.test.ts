@@ -4,10 +4,10 @@ import { getPlatformProxy } from 'wrangler';
 import { betterAuth } from 'better-auth';
 import { testUtils } from 'better-auth/plugins';
 import { getMigrations } from 'better-auth/db/migration';
-import { createAuth, isOwner, type AuthEnv } from '../worker/auth';
-import { authenticateRequest } from '../worker/gate';
-import { loginPage, returnPath } from '../worker/login';
-import { revokeAccess } from '../src/lib/server/access-admin';
+import { createAuth, isOwner, type AuthEnv } from '../../worker/auth';
+import { authenticateRequest } from '../../worker/gate';
+import { loginPage, returnPath } from '../../worker/login';
+import { revokeAccess } from '../../src/lib/server/access-admin';
 
 describe('private Worker gate', () => {
 	let proxy: Awaited<ReturnType<typeof getPlatformProxy<AuthEnv>>>;

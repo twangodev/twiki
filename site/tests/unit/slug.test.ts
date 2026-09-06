@@ -15,75 +15,81 @@ const fs = (s: string) => s as FullSlug;
 
 describe('slugifyFilePath', () => {
 	test('strips md/html extensions only', () => {
-		expect(slugifyFilePath(fp('sp26-cs537/README.md'))).toBe('sp26-cs537/README');
-		expect(slugifyFilePath(fp('fa25-anthro105/assets/mystery-fossil-GREEN.html'))).toBe(
+		expect<unknown>(slugifyFilePath(fp('sp26-cs537/README.md'))).toBe('sp26-cs537/README');
+		expect<unknown>(slugifyFilePath(fp('fa25-anthro105/assets/mystery-fossil-GREEN.html'))).toBe(
 			'fa25-anthro105/assets/mystery-fossil-GREEN'
 		);
-		expect(slugifyFilePath(fp('sp26-cs544/p4/hdma-wi-2021.sql.gz'))).toBe(
+		expect<unknown>(slugifyFilePath(fp('sp26-cs544/p4/hdma-wi-2021.sql.gz'))).toBe(
 			'sp26-cs544/p4/hdma-wi-2021.sql.gz'
 		);
-		expect(slugifyFilePath(fp('fa25-cs354/cheatsheet.pdf'))).toBe('fa25-cs354/cheatsheet.pdf');
+		expect<unknown>(slugifyFilePath(fp('fa25-cs354/cheatsheet.pdf'))).toBe(
+			'fa25-cs354/cheatsheet.pdf'
+		);
 	});
 
 	test('is case-sensitive and replaces spaces with -', () => {
-		expect(slugifyFilePath(fp('fa25-cs354/homework/assets/Pasted image 20250922134012.png'))).toBe(
-			'fa25-cs354/homework/assets/Pasted-image-20250922134012.png'
-		);
+		expect<unknown>(
+			slugifyFilePath(fp('fa25-cs354/homework/assets/Pasted image 20250922134012.png'))
+		).toBe('fa25-cs354/homework/assets/Pasted-image-20250922134012.png');
 	});
 
 	test('replaces & with -and- and % with -percent', () => {
-		expect(slugifyFilePath(fp('notes/Pointers & Arrays.md'))).toBe('notes/Pointers--and--Arrays');
-		expect(slugifyFilePath(fp('notes/100% done.md'))).toBe('notes/100-percent-done');
+		expect<unknown>(slugifyFilePath(fp('notes/Pointers & Arrays.md'))).toBe(
+			'notes/Pointers--and--Arrays'
+		);
+		expect<unknown>(slugifyFilePath(fp('notes/100% done.md'))).toBe('notes/100-percent-done');
 	});
 
 	test('strips ? and #', () => {
-		expect(slugifyFilePath(fp('notes/what?.md'))).toBe('notes/what');
-		expect(slugifyFilePath(fp('notes/c# basics.md'))).toBe('notes/c-basics');
+		expect<unknown>(slugifyFilePath(fp('notes/what?.md'))).toBe('notes/what');
+		expect<unknown>(slugifyFilePath(fp('notes/c# basics.md'))).toBe('notes/c-basics');
 	});
 
 	test('treats _index as index', () => {
-		expect(slugifyFilePath(fp('folder/_index.md'))).toBe('folder/index');
+		expect<unknown>(slugifyFilePath(fp('folder/_index.md'))).toBe('folder/index');
 	});
 
 	test('html index keeps its index segment as a slug', () => {
-		expect(slugifyFilePath(fp('sp26-cs571/hw5/index.html'))).toBe('sp26-cs571/hw5/index');
+		expect<unknown>(slugifyFilePath(fp('sp26-cs571/hw5/index.html'))).toBe('sp26-cs571/hw5/index');
 	});
 });
 
 describe('simplifySlug', () => {
 	test('trims trailing index', () => {
-		expect(simplifySlug(fs('index'))).toBe('/');
-		expect(simplifySlug(fs('sp26-cs537/index'))).toBe('sp26-cs537/');
-		expect(simplifySlug(fs('sp26-cs537/README'))).toBe('sp26-cs537/README');
+		expect<unknown>(simplifySlug(fs('index'))).toBe('/');
+		expect<unknown>(simplifySlug(fs('sp26-cs537/index'))).toBe('sp26-cs537/');
+		expect<unknown>(simplifySlug(fs('sp26-cs537/README'))).toBe('sp26-cs537/README');
 		// 'index' only trimmed on a path boundary
-		expect(simplifySlug(fs('notes/reindex'))).toBe('notes/reindex');
+		expect<unknown>(simplifySlug(fs('notes/reindex'))).toBe('notes/reindex');
 	});
 });
 
 describe('splitAnchor', () => {
 	test('slugifies heading anchors with github-slugger', () => {
-		expect(splitAnchor('textbook/ch-04#The Abstraction')).toEqual([
+		expect<unknown>(splitAnchor('textbook/ch-04#The Abstraction')).toEqual([
 			'textbook/ch-04',
 			'#the-abstraction'
 		]);
 	});
 
 	test('PDF #page=N passes through raw', () => {
-		expect(splitAnchor('fa25-cs354/cheatsheet.pdf#page=3')).toEqual([
+		expect<unknown>(splitAnchor('fa25-cs354/cheatsheet.pdf#page=3')).toEqual([
 			'fa25-cs354/cheatsheet.pdf',
 			'#page=3'
 		]);
 	});
 
 	test('no anchor', () => {
-		expect(splitAnchor('sp26-cs537/README')).toEqual(['sp26-cs537/README', '']);
+		expect<unknown>(splitAnchor('sp26-cs537/README')).toEqual(['sp26-cs537/README', '']);
 	});
 });
 
 describe('transformInternalLink', () => {
 	test('keeps relative prefix and simplifies', () => {
-		expect(transformInternalLink('../exams/midterm-1/index.md')).toBe('../exams/midterm-1/');
-		expect(transformInternalLink('README.md')).toBe('./README');
+		expect<unknown>(transformInternalLink('../exams/midterm-1/index.md')).toBe(
+			'../exams/midterm-1/'
+		);
+		expect<unknown>(transformInternalLink('README.md')).toBe('./README');
 	});
 });
 
@@ -114,18 +120,18 @@ const opts = { strategy: 'shortest' as const, allSlugs };
 // (commits c508392/8399e6e) executed directly with bun
 describe('transformLink (fork nearest-match resolution)', () => {
 	test('unique basename resolves anywhere (root-relative form)', () => {
-		expect(transformLink(fs('index'), 'course-log', opts)).toBe('./course-log');
-		expect(transformLink(fs('sp26-cs537/README'), 'Instructions', opts)).toBe(
+		expect<unknown>(transformLink(fs('index'), 'course-log', opts)).toBe('./course-log');
+		expect<unknown>(transformLink(fs('sp26-cs537/README'), 'Instructions', opts)).toBe(
 			'../sp26-cs537/p1/Instructions'
 		);
 	});
 
 	test('duplicate README: longest shared dir prefix with source wins', () => {
-		expect(transformLink(fs('sp26-cs537/p1/Instructions'), 'README', opts)).toBe(
+		expect<unknown>(transformLink(fs('sp26-cs537/p1/Instructions'), 'README', opts)).toBe(
 			'../../sp26-cs537/p1/README'
 		);
 		// a README links to itself: own dir shares the longest prefix
-		expect(transformLink(fs('sp26-cs544/p1/README'), 'README', opts)).toBe(
+		expect<unknown>(transformLink(fs('sp26-cs544/p1/README'), 'README', opts)).toBe(
 			'../../sp26-cs544/p1/README'
 		);
 	});
@@ -133,7 +139,7 @@ describe('transformLink (fork nearest-match resolution)', () => {
 	test('ambiguity tie-break: shallowest path after shared-prefix', () => {
 		// src dir sp26-cs537/exams/midterm-1: both sp26-cs537/README (depth 1) and
 		// sp26-cs537/p1/README (depth 2) share 1 segment -> shallowest wins
-		expect(transformLink(fs('sp26-cs537/exams/midterm-1/review'), 'README', opts)).toBe(
+		expect<unknown>(transformLink(fs('sp26-cs537/exams/midterm-1/review'), 'README', opts)).toBe(
 			'../../../sp26-cs537/README'
 		);
 	});
@@ -141,32 +147,32 @@ describe('transformLink (fork nearest-match resolution)', () => {
 	test('zero shared prefix: shallowest then lexicographic', () => {
 		// from the homepage all courses share 0 dirs; depth-1 candidates sorted
 		// lexicographically -> fa25-cs354/README
-		expect(transformLink(fs('index'), 'README', opts)).toBe('./fa25-cs354/README');
+		expect<unknown>(transformLink(fs('index'), 'README', opts)).toBe('./fa25-cs354/README');
 	});
 
 	test('path-suffix wikilink [[folder/file]] matches on / boundary', () => {
-		expect(transformLink(fs('sp26-cs537/README'), 'textbook/ch-04', opts)).toBe(
+		expect<unknown>(transformLink(fs('sp26-cs537/README'), 'textbook/ch-04', opts)).toBe(
 			'../sp26-cs537/textbook/ch-04'
 		);
-		expect(transformLink(fs('index'), 'exam-1/review', opts)).toBe(
+		expect<unknown>(transformLink(fs('index'), 'exam-1/review', opts)).toBe(
 			'./fa25-cs354/exams/exam-1/review'
 		);
 	});
 
 	test('heading anchor carried through and slugified', () => {
-		expect(transformLink(fs('sp26-cs537/README'), 'textbook/ch-04#The Abstraction', opts)).toBe(
-			'../sp26-cs537/textbook/ch-04#the-abstraction'
-		);
+		expect<unknown>(
+			transformLink(fs('sp26-cs537/README'), 'textbook/ch-04#The Abstraction', opts)
+		).toBe('../sp26-cs537/textbook/ch-04#the-abstraction');
 	});
 
 	test('aliased link target resolves the same (alias only affects text)', () => {
-		expect(transformLink(fs('sp26-cs537/README'), 'lectures/lecture-02', opts)).toBe(
+		expect<unknown>(transformLink(fs('sp26-cs537/README'), 'lectures/lecture-02', opts)).toBe(
 			'../sp26-cs537/lectures/lecture-02'
 		);
 	});
 
 	test('folder-index wikilinks retain their course path', () => {
-		expect(transformLink(fs('sp26-cs537/p1/README'), 'textbook/index', opts)).toBe(
+		expect<unknown>(transformLink(fs('sp26-cs537/p1/README'), 'textbook/index', opts)).toBe(
 			'../../sp26-cs537/textbook/'
 		);
 	});
@@ -181,14 +187,14 @@ describe('transformLink (fork nearest-match resolution)', () => {
 			'lectures/index.md#Overview',
 			'lectures/#Overview'
 		]) {
-			expect(transformLink(fs('sp26-cs544/README'), target, folders)).toBe(
+			expect<unknown>(transformLink(fs('sp26-cs544/README'), target, folders)).toBe(
 				'../sp26-cs544/lectures/#overview'
 			);
 		}
 	});
 
 	test('asset link with spaces resolves to slugified asset path', () => {
-		expect(
+		expect<unknown>(
 			transformLink(
 				fs('fa25-cs354/exams/exam-1/review'),
 				'assets/Pasted image 20251001120000.png',
@@ -198,13 +204,13 @@ describe('transformLink (fork nearest-match resolution)', () => {
 	});
 
 	test('zero matches -> root-absolute + (caller emits warning)', () => {
-		expect(transformLink(fs('sp26-cs537/p1/README'), 'no-such-page', opts)).toBe(
+		expect<unknown>(transformLink(fs('sp26-cs537/p1/README'), 'no-such-page', opts)).toBe(
 			'../../no-such-page'
 		);
 	});
 
 	test('markdown ./ relative link resolves through suffix matching', () => {
-		expect(transformLink(fs('sp26-cs537/p1/README'), './Instructions.md', opts)).toBe(
+		expect<unknown>(transformLink(fs('sp26-cs537/p1/README'), './Instructions.md', opts)).toBe(
 			'../../sp26-cs537/p1/Instructions'
 		);
 	});
@@ -212,11 +218,13 @@ describe('transformLink (fork nearest-match resolution)', () => {
 	test("markdown ../ relative link quirk: '..' prefix survives canonicalization and zero-matches", () => {
 		// fork keeps the leading '../' inside the canonical slug ('./README'),
 		// so suffix matching never fires and the absolute fallback emits '../.././README'
-		expect(transformLink(fs('sp26-cs537/p1/README'), '../README.md', opts)).toBe('../.././README');
+		expect<unknown>(transformLink(fs('sp26-cs537/p1/README'), '../README.md', opts)).toBe(
+			'../.././README'
+		);
 	});
 
 	test('PDF target keeps raw #page anchor through resolution', () => {
-		expect(
+		expect<unknown>(
 			transformLink(fs('fa25-cs354/README'), 'cheatsheet.pdf#page=3', {
 				strategy: 'shortest',
 				allSlugs: ['fa25-cs354/cheatsheet.pdf'] as FullSlug[]
@@ -227,8 +235,8 @@ describe('transformLink (fork nearest-match resolution)', () => {
 
 describe('slugTag', () => {
 	test('case-sensitive tags', () => {
-		expect(slugTag('ELF')).toBe('ELF');
-		expect(slugTag('Placement policies')).toBe('Placement-policies');
-		expect(slugTag('cs/537')).toBe('cs/537');
+		expect<unknown>(slugTag('ELF')).toBe('ELF');
+		expect<unknown>(slugTag('Placement policies')).toBe('Placement-policies');
+		expect<unknown>(slugTag('cs/537')).toBe('cs/537');
 	});
 });

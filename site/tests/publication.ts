@@ -24,7 +24,7 @@ function buildAndTest(mode: string, specification: string) {
 try {
 	for (const embed of ['![[slides]]', '![[../exams/restricted.pdf]]']) {
 		fixture.write('content/sp99-cs101/notes/public.md', fixture.publicNote + '\n' + embed);
-		const result = spawnSync('bun', ['run', 'build:content'], {
+		const result = spawnSync('bun', ['run', 'content:prepare'], {
 			env: { ...environment, VITE_PUBLIC_EDITION: 'true' },
 			encoding: 'utf8'
 		});

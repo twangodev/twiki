@@ -1,13 +1,24 @@
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	copyFileSync,
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+	writeFileSync
+} from 'node:fs';
 import path from 'node:path';
 import type { ContentManifest } from '../../src/lib/types';
 import { site } from '../../src/lib/config';
 import { socialImagePath, socialImageSize } from '../../src/lib/social-image';
 
-const fontPath = path.resolve(import.meta.dirname, '../../assets/fonts/OverusedGrotesk-SemiBold.ttf');
+const fontPath = path.resolve(
+	import.meta.dirname,
+	'../../assets/fonts/OverusedGrotesk-SemiBold.ttf'
+);
 const font = readFileSync(fontPath);
 const rendererKey = createHash('sha256')
 	.update(readFileSync(import.meta.filename))
@@ -113,9 +124,11 @@ function courseLabel(slug: string) {
 
 export async function buildSocialImages(siteDir: string, manifest: Pick<ContentManifest, 'pages'>) {
 	const output = path.join(siteDir, 'static/_og');
-	const cache = path.join(siteDir, '.generated/cache/social');
-	rmSync(output, { recursive: true, force: true });
+	const cache = path.join(siteDir, '.generated/cache/social-titles');
+	mkdirSync(output, { recursive: true });
 	mkdirSync(cache, { recursive: true });
+	const wanted = new Set<string>();
+	let rendered = 0;
 	const cards = [
 		{ slug: undefined, title: 'Notes from UW–Madison.', label: 'Course notes' },
 		...Object.values(manifest.pages).map((page) => ({
@@ -127,14 +140,25 @@ export async function buildSocialImages(siteDir: string, manifest: Pick<ContentM
 	for (const card of cards) {
 		const key = createHash('sha256').update(rendererKey).update(JSON.stringify(card)).digest('hex');
 		const cached = path.join(cache, key + '.png');
-		if (!existsSync(cached)) writeFileSync(cached, await renderSocialImage(card));
+		if (!existsSync(cached)) {
+			writeFileSync(cached, await renderSocialImage(card));
+			rendered++;
+		}
 		const destination = path.join(
 			siteDir,
 			'static',
 			decodeURIComponent(socialImagePath(card.slug))
 		);
 		mkdirSync(path.dirname(destination), { recursive: true });
-		copyFileSync(cached, destination);
+		wanted.add(destination);
+		if (!existsSync(destination) || !readFileSync(destination).equals(readFileSync(cached)))
+			copyFileSync(cached, destination);
 	}
-	console.log(`social images: ${cards.length} title-only PNG cards`);
+	for (const file of readdirSync(output, { recursive: true, withFileTypes: true })) {
+		const filename = path.join(file.parentPath, file.name);
+		if (file.isFile() && !wanted.has(filename)) rmSync(filename);
+	}
+	console.log(
+		`social images: ${cards.length} title-only cards (${rendered} rendered, ${cards.length - rendered} cached)`
+	);
 }
