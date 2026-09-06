@@ -20,11 +20,16 @@ const fontPath = path.resolve(
 	'../../assets/fonts/OverusedGrotesk-SemiBold.ttf'
 );
 const font = readFileSync(fontPath);
+const background = readFileSync(
+	path.resolve(import.meta.dirname, '../../assets/social-background.svg')
+);
+const backgroundImage = `data:image/svg+xml;base64,${background.toString('base64')}`;
 const rendererKey = createHash('sha256')
 	.update(readFileSync(import.meta.filename))
 	.update(readFileSync(path.resolve(import.meta.dirname, '../../bun.lock')))
 	.update(JSON.stringify({ site, socialImageSize }))
 	.update(font)
+	.update(background)
 	.digest('hex');
 
 interface SocialCard {
@@ -45,21 +50,32 @@ export async function renderSocialImage(card: SocialCard) {
 			type: 'div',
 			props: {
 				style: {
+					position: 'relative',
+					overflow: 'hidden',
 					display: 'flex',
 					flexDirection: 'column',
 					width: '100%',
 					height: '100%',
-					background: '#f8f6f1',
-					color: '#1a1916',
+					background: '#1a1916',
+					color: '#e8e5df',
 					padding: '64px 72px',
 					fontFamily: 'Overused Grotesk',
 					fontWeight: 600
 				},
 				children: [
 					{
+						type: 'img',
+						props: {
+							src: backgroundImage,
+							width: socialImageSize.width,
+							height: socialImageSize.height,
+							style: { position: 'absolute', top: 0, left: 0 }
+						}
+					},
+					{
 						type: 'div',
 						props: {
-							style: { color: '#d35545', fontSize: 24 },
+							style: { color: '#e68578', fontSize: 24 },
 							children: shorten(card.label, 70)
 						}
 					},
@@ -88,7 +104,7 @@ export async function renderSocialImage(card: SocialCard) {
 								{
 									type: 'div',
 									props: {
-										style: { marginTop: 24, fontSize: 26, color: '#8a8578' },
+										style: { marginTop: 24, fontSize: 26, color: '#7a7568' },
 										children: shorten(card.subtitle ?? '', 90)
 									}
 								}
@@ -102,7 +118,7 @@ export async function renderSocialImage(card: SocialCard) {
 								display: 'flex',
 								justifyContent: 'space-between',
 								fontSize: 20,
-								color: '#8a8578'
+								color: '#7a7568'
 							},
 							children: [
 								{ type: 'span', props: { children: site.name } },

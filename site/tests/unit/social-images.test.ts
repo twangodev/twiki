@@ -2,9 +2,29 @@ import { expect, test } from 'bun:test';
 import { mkdtempSync, existsSync, readFileSync, statSync, rmSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { buildSocialImages, socialCard } from '../../tooling/lib/social-images';
+import { buildSocialImages, renderSocialImage, socialCard } from '../../tooling/lib/social-images';
+import { Resvg } from '@resvg/resvg-js';
 import { publicAssetManifest } from '../../tooling/lib/public-assets';
 import type { ManifestPage } from '../../src/lib/types';
+
+test('share cards use the dark site palette and keep background linework off the title margin', async () => {
+	const png = await renderSocialImage({
+		title: 'Operating Systems',
+		subtitle: 'README.md',
+		label: 'CS 537'
+	});
+	const { pixels } = new Resvg(
+		`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><image width="1200" height="630" href="data:image/png;base64,${png.toString('base64')}"/></svg>`
+	).render();
+	const pixel = (x: number, y: number) =>
+		pixels.subarray((y * 1200 + x) * 4, (y * 1200 + x) * 4 + 3).toString('hex');
+	expect(pixel(0, 300)).toBe('1a1916');
+	expect(pixel(72, 200)).toBe('1a1916');
+	const colors = new Set<string>();
+	for (let i = 0; i < pixels.length; i += 4) colors.add(pixels.subarray(i, i + 3).toString('hex'));
+	expect(colors.has('e8e5df')).toBe(true);
+	expect(colors.has('e68578')).toBe(true);
+});
 
 test('share cards lead with the H1 and use the actual filename as a subtitle', () => {
 	const page = {

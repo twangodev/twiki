@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="fade">
+      <stop offset="0.3" stop-color="white" stop-opacity="0"/>
+      <stop offset="0.8" stop-color="white" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="white"/>
+    </linearGradient>
+    <mask id="east"><rect width="1200" height="630" fill="url(#fade)"/></mask>
+    <path id="north" d="M440-90C505 42 595 23 657 110S734 226 855 188 919 70 1042 87 1210 213 1310 121"/>
+    <path id="south" d="M518 713C591 598 667 654 744 566S795 390 925 423 977 534 1097 468 1263 420 1311 504"/>
+  </defs>
+  <g mask="url(#east)" fill="none" stroke="#7a7568" stroke-width="1" opacity="0.3">
+    <use href="#north"/><use href="#north" transform="translate(0 -24)"/>
+    <use href="#north" transform="translate(0 -48)"/><use href="#north" transform="translate(0 -72)"/>
+    <use href="#north" transform="translate(0 -96)"/><use href="#north" transform="translate(0 -120)"/>
+    <use href="#south"/><use href="#south" transform="translate(0 24)"/>
+    <use href="#south" transform="translate(0 48)"/><use href="#south" transform="translate(0 72)"/>
+    <use href="#south" transform="translate(0 96)"/><use href="#south" transform="translate(0 120)"/>
+  </g>
+  <g fill="none" stroke="#e68578" stroke-width="1.2" opacity="0.19" transform="translate(974 269)">
+    <path d="M-57 106H57M-49 97H49M-41 85V97M-25 85V97M-8 85V97M8 85V97M25 85V97M41 85V97M-46 85H46L38 77H-38ZM-34 77V58H34V77M-40 58H40C37 31 20 17 8 15H-8C-20 17-37 31-40 58ZM-22 58C-20 33-9 18 0 15 9 18 20 33 22 58M0 15V58M-8 15V4H8V15M-11 4H11L5-2H-5ZM0-2V-16"/>
+    <path d="M-86 106H-65M65 106H86M0-33V-26M-106 70H-99M99 70H106" opacity="0.6"/>
+  </g>
+</svg>
