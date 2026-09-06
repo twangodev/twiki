@@ -166,6 +166,30 @@ describe('private Worker gate', () => {
 		expect(await response.text()).toBe('private course content');
 		expect(response.headers.get('cache-control')).toBe('private, no-store');
 	});
+	test('PDF embeds remain authenticated and allow same-origin framing for both URL forms', async () => {
+		for (const path of [
+			'/sp26-cs537/exams/midterm-1/assets/cheatsheet.pdf',
+			`/_files/blobs/${'a'.repeat(64)}.pdf`
+		]) {
+			let servedPdf = false;
+			const serve = async () => {
+				servedPdf = true;
+				return new Response('%PDF-1.7', { headers: { 'Content-Type': 'application/pdf' } });
+			};
+			const anonymous = await authenticateRequest(new Request(origin + path), env, serve);
+			expect(anonymous.status).toBe(401);
+			expect(anonymous.headers.get('X-Frame-Options')).toBe('DENY');
+			expect(servedPdf).toBe(false);
+			const member = await authenticateRequest(
+				new Request(origin + path, { headers: { cookie } }),
+				env,
+				serve
+			);
+			expect(member.headers.get('X-Frame-Options')).toBe('SAMEORIGIN');
+			expect(member.headers.get('Cache-Control')).toBe('private, no-store');
+			expect(await member.text()).toStartWith('%PDF');
+		}
+	});
 	test('sessions remain compatible across the native D1 and Drizzle adapters', async () => {
 		const drizzle = betterAuth({ ...createAuth(env).options, plugins: [testUtils()] });
 		const native = betterAuth({ ...createAuth(env).options, database: env.DB });

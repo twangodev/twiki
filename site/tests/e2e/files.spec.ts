@@ -6,6 +6,22 @@ const course = 'fa24-cs300';
 const files: CourseFile[] = JSON.parse(readFileSync(`static/_files/index/${course}.json`, 'utf8'));
 const java = files.find((file) => file.path.endsWith('/ElectionManager.java'))!;
 
+test('PDFs embedded in notes load with same-origin framing', async ({ page, request }) => {
+	const pdfPath = '/sp26-cs537/exams/midterm-1/assets/cheatsheet.pdf';
+	const loaded = page.waitForResponse((response) => new URL(response.url()).pathname === pdfPath);
+	await page.goto('/sp26-cs537/exams/midterm-1/cheatsheet');
+	await expect(page.locator('iframe.pdf')).toHaveAttribute('src', pdfPath);
+	const response = await loaded;
+	expect(response.ok()).toBe(true);
+	expect(response.headers()['content-type']).toContain('application/pdf');
+	expect(response.headers()['x-frame-options']).toBe('SAMEORIGIN');
+	expect((await (await request.get(pdfPath)).body()).subarray(0, 4).toString()).toBe('%PDF');
+	for (const suffix of ['', '/sample-1', '/sample-2', '/sample-3']) {
+		await page.goto(`/sp26-cs537/exams/midterm-1${suffix}`);
+		await expect(page.locator('iframe.pdf')).toHaveCount(0);
+	}
+});
+
 test('files stay secondary and open a highlighted source viewer', async ({ page }) => {
 	const indexes: string[] = [];
 	page.on('request', (request) => {

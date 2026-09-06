@@ -1,3 +1,5 @@
+import { frameOptions } from './framing';
+
 export type PublicAssets = Record<string, string>;
 
 export function publicTarget(request: Request, assets: PublicAssets) {
@@ -16,7 +18,7 @@ export function publicResponse(response: Response, request: Request) {
 	result.headers.delete('Set-Cookie');
 	result.headers.delete('X-Robots-Tag');
 	const pathname = new URL(request.url).pathname;
-	result.headers.set('X-Frame-Options', pathname.endsWith('.pdf') ? 'SAMEORIGIN' : 'DENY');
+	result.headers.set('X-Frame-Options', frameOptions(response));
 	if (pathname.startsWith('/_files/') || pathname.includes('/files') || response.status >= 400)
 		result.headers.set('X-Robots-Tag', 'noindex');
 	if (/^\/_files\/blobs\/[a-f0-9]{64}\.bin$/.test(pathname)) {

@@ -3,14 +3,14 @@ import { accessForUser } from './access';
 import { copyCookies, handleAuthEndpoint, redirect, signIn, signOut } from './auth-routes';
 import { loginPage, returnPath } from './login';
 import { publicResponse } from './publication';
+import { frameOptions } from './framing';
 
 function privateResponse(response: Response, cookies: Headers, request: Request) {
 	const result = new Response(response.body, response);
 	const pathname = new URL(request.url).pathname;
-	const embeddedPdf = /^\/_files\/blobs\/[a-f0-9]{64}\.pdf$/.test(pathname);
 	result.headers.set('Cache-Control', 'private, no-store');
 	result.headers.set('X-Content-Type-Options', 'nosniff');
-	result.headers.set('X-Frame-Options', embeddedPdf ? 'SAMEORIGIN' : 'DENY');
+	result.headers.set('X-Frame-Options', frameOptions(response));
 	if (/^\/_files\/blobs\/[a-f0-9]{64}\.bin$/.test(pathname)) {
 		result.headers.set('Content-Type', 'application/octet-stream');
 		result.headers.set('Content-Disposition', 'attachment');
