@@ -7,11 +7,11 @@ import type { ContentManifest } from '../../src/lib/types';
 import { site } from '../../src/lib/config';
 import { socialImagePath, socialImageSize } from '../../src/lib/social-image';
 
-const fontPath = path.resolve(import.meta.dir, '../../assets/fonts/OverusedGrotesk-SemiBold.ttf');
+const fontPath = path.resolve(import.meta.dirname, '../../assets/fonts/OverusedGrotesk-SemiBold.ttf');
 const font = readFileSync(fontPath);
 const rendererKey = createHash('sha256')
 	.update(readFileSync(import.meta.filename))
-	.update(readFileSync(path.resolve(import.meta.dir, '../../bun.lock')))
+	.update(readFileSync(path.resolve(import.meta.dirname, '../../bun.lock')))
 	.update(JSON.stringify({ site, socialImageSize }))
 	.update(font)
 	.digest('hex');

@@ -8,7 +8,7 @@ import {
 	splitAnchor,
 	transformInternalLink,
 	transformLink
-} from './slug';
+} from '../../tooling/lib/slug';
 
 const fp = (s: string) => s as FilePath;
 const fs = (s: string) => s as FullSlug;

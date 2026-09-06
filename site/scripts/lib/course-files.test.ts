@@ -11,7 +11,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { browsablePath, buildCourseFiles, previewText } from './course-files';
+import { browsablePath, buildCourseFiles, previewText } from '../../tooling/lib/course-files';
 import {
 	directoryEntries,
 	fileRoute,

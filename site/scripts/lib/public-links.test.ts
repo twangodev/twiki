@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { Element, Root } from 'hast';
-import { protectPublicLinks } from './public-links';
+import { protectPublicLinks } from '../../tooling/lib/public-links';
 
 function tree(element: Partial<Element>): Root {
 	return {

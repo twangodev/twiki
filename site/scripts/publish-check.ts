@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { coursePolicies, publicationDecision } from './lib/publishing';
+import { coursePolicies, publicationDecision } from '../tooling/lib/publishing';
 
 const repo = path.resolve(import.meta.dir, '../..');
 const policies = coursePolicies(repo);

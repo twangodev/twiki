@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { buildFileIcons, resolveIcon } from './file-icons';
+import { buildFileIcons, resolveIcon } from '../../tooling/lib/file-icons';
 import { selectFileIcon, type FileIconTheme } from '../../src/lib/file-icons';
 
 test('resolves language icons, exact filenames, compound extensions, and fallbacks', () => {

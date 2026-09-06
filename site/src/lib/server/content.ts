@@ -21,6 +21,11 @@ const GENERATED_DIR = path.resolve(process.cwd(), '.generated');
 
 let manifestCache: ContentManifest | undefined;
 
+export function resetContentCache() {
+	manifestCache = undefined;
+	pageDocCache.clear();
+}
+
 export function getManifest(): ContentManifest {
 	if (!manifestCache) {
 		const file = path.join(GENERATED_DIR, 'content-manifest.json');

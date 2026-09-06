@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { publicAssetManifest } from './public-assets';
+import { publicAssetManifest } from '../../tooling/lib/public-assets';
 import { publicResponse, publicTarget } from '../../worker/publication';
 
 const directory = mkdtempSync(path.join(tmpdir(), 'wisconsin-public-assets-'));

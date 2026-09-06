@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildGitDateMap, coerceDate, repositoryDates, resolveDates } from './lastmod';
+import { buildGitDateMap, coerceDate, repositoryDates, resolveDates } from '../../tooling/lib/lastmod';
 
 test('Git dates survive renames, checkouts, and submodule caches', () => {
 	const root = mkdtempSync(join(tmpdir(), 'wisconsin-dates-'));

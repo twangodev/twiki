@@ -2,8 +2,8 @@ import { expect, test } from 'bun:test';
 import { mkdtempSync, existsSync, readFileSync, statSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { buildSocialImages } from './social-images';
-import { publicAssetManifest } from './public-assets';
+import { buildSocialImages } from '../../tooling/lib/social-images';
+import { publicAssetManifest } from '../../tooling/lib/public-assets';
 import type { ManifestPage } from '../../src/lib/types';
 
 test('title-only share cards cover locked notes without exposing their content', async () => {

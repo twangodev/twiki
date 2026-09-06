@@ -1,7 +1,7 @@
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-import { publicAssetManifest } from './lib/public-assets';
+import { publicAssetManifest } from '../tooling/lib/public-assets';
 
 const site = path.resolve(import.meta.dir, '..');
 const output = path.join(site, '.svelte-kit/cloudflare');

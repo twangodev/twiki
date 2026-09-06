@@ -3,8 +3,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { createFileHistoryBuilder, parseBlame } from './file-history';
-import { browsablePath } from './course-files';
+import { createFileHistoryBuilder, parseBlame } from '../../tooling/lib/file-history';
+import { browsablePath } from '../../tooling/lib/course-files';
 import { blameAt, type FileHistory } from '../../src/lib/file-history';
 
 test('history follows renames, emits scoped diffs and blame, detects local edits, and reuses cached assets', () => {

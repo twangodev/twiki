@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { parsePublishPolicy, publicationDecision } from './publishing';
+import { parsePublishPolicy, publicationDecision } from '../../tooling/lib/publishing';
 
 test('publication is opt-in, relative to one course, with exclusions winning', () => {
 	const policy = parsePublishPolicy(
