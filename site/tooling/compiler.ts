@@ -176,6 +176,7 @@ export async function compileContent() {
 		slug: FullSlug;
 		rel: string;
 		frontmatter: Record<string, unknown> & { title: string };
+		heading?: string;
 		title: string;
 		description: string;
 		tags: string[];
@@ -452,18 +453,17 @@ export async function compileContent() {
 
 		const mdast = processor.parse(text) as MdRoot;
 
-		// title fallback chain (vendored from frontmatter.ts): fm title -> (README? filename : H1) -> filename
+		let heading: string | undefined;
+		visit(mdast, 'heading', (node) => {
+			if (node.depth === 1 && !heading) heading = mdastToString(node).trim() || undefined;
+		});
 		let title: string;
 		if (data.title != null && String(data.title) !== '') {
 			title = String(data.title);
 		} else {
-			let h1Title: string | null = null;
-			visit(mdast, 'heading', (node) => {
-				if (node.depth === 1 && !h1Title) h1Title = mdastToString(node);
-			});
 			const stem = path.basename(file.rel, '.md');
 			const keepFilename = stem.toLowerCase().includes('readme');
-			title = (keepFilename ? stem : h1Title) ?? stem ?? 'Untitled';
+			title = (keepFilename ? stem : heading) ?? stem ?? 'Untitled';
 		}
 		data.title = title;
 
@@ -476,6 +476,7 @@ export async function compileContent() {
 			slug: file.slug,
 			rel: file.rel,
 			frontmatter: data as PageParse['frontmatter'],
+			heading,
 			title,
 			description,
 			tags: ofmData.tags,
@@ -999,6 +1000,7 @@ export async function compileContent() {
 				slug: page.slug,
 				title: page.title,
 				description: page.description,
+				heading: page.heading,
 				tags: page.tags,
 				dates: {
 					created: dates.created?.toISOString() ?? '',
@@ -1030,6 +1032,7 @@ export async function compileContent() {
 				slug: page.slug,
 				title: page.title,
 				description: '',
+				heading: page.heading,
 				tags: page.tags,
 				dates: { created: '', modified: '', published: '' },
 				links: [],

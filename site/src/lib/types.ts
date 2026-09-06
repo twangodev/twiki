@@ -55,6 +55,7 @@ export interface PagePublication {
 
 /** Per-page metadata as stored in `content-manifest.json` `pages`. */
 export interface ManifestPage {
+	heading?: string;
 	author?: import('./metadata').ContentAuthor;
 	locked?: boolean;
 	license?: import('./content-license').ContentLicense;

@@ -11,7 +11,7 @@ import {
 	writeFileSync
 } from 'node:fs';
 import path from 'node:path';
-import type { ContentManifest } from '../../src/lib/types';
+import type { ContentManifest, ManifestPage } from '../../src/lib/types';
 import { site } from '../../src/lib/config';
 import { socialImagePath, socialImageSize } from '../../src/lib/social-image';
 
@@ -29,6 +29,7 @@ const rendererKey = createHash('sha256')
 
 interface SocialCard {
 	title: string;
+	subtitle?: string;
 	label: string;
 }
 
@@ -83,6 +84,13 @@ export async function renderSocialImage(card: SocialCard) {
 										},
 										children: title
 									}
+								},
+								{
+									type: 'div',
+									props: {
+										style: { marginTop: 24, fontSize: 26, color: '#8a8578' },
+										children: shorten(card.subtitle ?? '', 90)
+									}
 								}
 							]
 						}
@@ -122,6 +130,17 @@ function courseLabel(slug: string) {
 	return `${code} · ${term} 20${match[2]}`;
 }
 
+export function socialCard(
+	page: Pick<ManifestPage, 'slug' | 'title' | 'heading' | 'relativePath'>
+) {
+	return {
+		slug: page.slug,
+		title: page.heading?.trim() || page.title,
+		subtitle: path.posix.basename(page.relativePath),
+		label: courseLabel(page.slug)
+	};
+}
+
 export async function buildSocialImages(siteDir: string, manifest: Pick<ContentManifest, 'pages'>) {
 	const output = path.join(siteDir, 'static/_og');
 	const cache = path.join(siteDir, '.generated/cache/social-titles');
@@ -131,11 +150,7 @@ export async function buildSocialImages(siteDir: string, manifest: Pick<ContentM
 	let rendered = 0;
 	const cards = [
 		{ slug: undefined, title: 'Notes from UW–Madison.', label: 'Course notes' },
-		...Object.values(manifest.pages).map((page) => ({
-			slug: page.slug,
-			title: page.title,
-			label: courseLabel(page.slug)
-		}))
+		...Object.values(manifest.pages).map(socialCard)
 	];
 	for (const card of cards) {
 		const key = createHash('sha256').update(rendererKey).update(JSON.stringify(card)).digest('hex');

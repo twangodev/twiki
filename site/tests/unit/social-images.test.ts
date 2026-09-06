@@ -2,15 +2,34 @@ import { expect, test } from 'bun:test';
 import { mkdtempSync, existsSync, readFileSync, statSync, rmSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { buildSocialImages } from '../../tooling/lib/social-images';
+import { buildSocialImages, socialCard } from '../../tooling/lib/social-images';
 import { publicAssetManifest } from '../../tooling/lib/public-assets';
 import type { ManifestPage } from '../../src/lib/types';
+
+test('share cards lead with the H1 and use the actual filename as a subtitle', () => {
+	const page = {
+		slug: 'sp26-cs537/README',
+		title: 'README',
+		heading: 'Operating Systems',
+		relativePath: 'sp26-cs537/README.md'
+	};
+	expect(socialCard(page)).toEqual({
+		slug: page.slug,
+		title: 'Operating Systems',
+		subtitle: 'README.md',
+		label: 'CS 537 · Spring 2026'
+	});
+	expect(socialCard({ ...page, title: 'Frontmatter title' }).title).toBe('Operating Systems');
+	expect(socialCard({ ...page, heading: undefined }).title).toBe('README');
+	expect(socialCard({ ...page, heading: ' ' }).title).toBe('README');
+});
 
 test('title-only share cards cover locked notes without exposing their content', async () => {
 	const directory = mkdtempSync(path.join(tmpdir(), 'wisconsin-social-'));
 	const note: ManifestPage = {
 		slug: 'course/note',
 		title: 'Notes on systems',
+		heading: 'Understanding operating systems',
 		description: 'An introduction to systems.',
 		publication: { public: true },
 		tags: [],
@@ -48,6 +67,11 @@ test('title-only share cards cover locked notes without exposing their content',
 			pages: { [note.slug]: { ...note, locked: true, description: 'private description canary' } }
 		});
 		expect(readFileSync(filename)).toEqual(png);
+		await buildSocialImages(directory, {
+			pages: { [note.slug]: { ...note, heading: 'A different heading' } }
+		});
+		expect(readFileSync(filename)).not.toEqual(png);
+		await buildSocialImages(directory, { pages: { [note.slug]: note } });
 		await buildSocialImages(directory, { pages: {} });
 		expect(existsSync(filename)).toBe(false);
 	} finally {
