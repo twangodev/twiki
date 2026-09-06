@@ -38,15 +38,18 @@ jobs:
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - run: bun install --frozen-lockfile
-      - uses: actions/cache/restore@v6
+      - &restore-compiler-cache
+        uses: actions/cache/restore@v6
+        id: compiler-cache
         with:
-          path: |
-            site/.generated/cache/stage1
-            site/.generated/cache/file-history
-            site/.generated/cache/gitdates-v2-*.json
-            site/.generated/cache/social-titles
-          key: compiler-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: compiler-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-
+          path: site/.generated/compiler-cache.gpg
+          key: compiler-encrypted-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: compiler-encrypted-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-
+      - &decrypt-compiler-cache
+        name: Decrypt compiler cache
+        env: &cache-encryption
+          BUILD_CACHE_KEY: ${{ secrets.BUILD_CACHE_KEY }}
+        run: bun tooling/cache.ts restore
       - run: bun run check
 
   unit-tests:
@@ -79,15 +82,8 @@ jobs:
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - run: bun install --frozen-lockfile
-      - uses: actions/cache/restore@v6
-        with:
-          path: |
-            site/.generated/cache/stage1
-            site/.generated/cache/file-history
-            site/.generated/cache/gitdates-v2-*.json
-            site/.generated/cache/social-titles
-          key: compiler-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: compiler-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-
+      - *restore-compiler-cache
+      - *decrypt-compiler-cache
       - run: bunx playwright install --with-deps chromium
       - run: bun run test:content
       - run: bun run build:all
@@ -115,15 +111,8 @@ jobs:
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - run: bun install --frozen-lockfile
-      - uses: actions/cache@v6
-        with:
-          path: |
-            site/.generated/cache/stage1
-            site/.generated/cache/file-history
-            site/.generated/cache/gitdates-v2-*.json
-            site/.generated/cache/social-titles
-          key: compiler-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: compiler-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-
+      - *restore-compiler-cache
+      - *decrypt-compiler-cache
       - run: bun run build:all
       - run: bunx wrangler d1 migrations apply wisconsin --remote
         env:
@@ -133,3 +122,12 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Encrypt compiler cache
+        id: encrypted-cache
+        env: *cache-encryption
+        run: bun tooling/cache.ts save
+      - uses: actions/cache/save@v6
+        if: steps.encrypted-cache.outputs.ready == 'true'
+        with:
+          path: site/.generated/compiler-cache.gpg
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
