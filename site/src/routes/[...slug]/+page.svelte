@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { Folder, FileText } from '@lucide/svelte';
+	import NoteActions from '$lib/components/doc/NoteActions.svelte';
+	import { textExportUrl } from '$lib/text-exports';
 	import SEO from '$lib/components/SEO.svelte';
 	import Backlinks from '$lib/components/doc/Backlinks.svelte';
 	import Breadcrumbs from '$lib/components/doc/Breadcrumbs.svelte';
@@ -44,6 +46,14 @@
 			: '';
 	}
 </script>
+
+<svelte:head>
+	<link rel="alternate" type="text/plain" title="LLM index" href="/llms.txt" />
+	{#if data.kind === 'page' && !data.page.locked}
+		<link rel="alternate" type="text/markdown" href={textExportUrl(data.page.slug)} />
+		<link rel="alternate" type="text/plain" href={textExportUrl(data.page.slug, 'txt')} />
+	{/if}
+</svelte:head>
 
 {#if data.kind === 'page'}
 	<SEO
@@ -110,6 +120,9 @@
 				</div>
 			{/if}
 		{:else}
+			{#key data.page.slug}
+				<NoteActions slug={data.page.slug} />
+			{/key}
 			{@html body}
 		{/if}
 	</article>
