@@ -11,7 +11,7 @@ export const load: PageServerLoad = ({ params }) => {
 
 	const slug = pageSlugForRoute(route);
 	if (slug) {
-		const page = loadPage(slug);
+		const { markdown: _markdown, ...page } = loadPage(slug);
 		// Normalize the build-time TOC for the right-hand rail (depth is 0-based).
 		const toc: TocEntry[] = page.toc.map((t) => ({
 			id: t.slug,

@@ -173,6 +173,7 @@ export async function compileContent() {
 	}
 
 	interface PageParse {
+		markdown: string;
 		slug: FullSlug;
 		rel: string;
 		frontmatter: Record<string, unknown> & { title: string };
@@ -473,6 +474,7 @@ export async function compileContent() {
 		const wordCount = fullText.split(/\s+/).filter((w) => w.length > 0).length;
 
 		const page: PageParse = {
+			markdown: content,
 			slug: file.slug,
 			rel: file.rel,
 			frontmatter: data as PageParse['frontmatter'],
@@ -1020,7 +1022,13 @@ export async function compileContent() {
 			fs.mkdirSync(path.dirname(outPath), { recursive: true });
 			fs.writeFileSync(
 				outPath,
-				JSON.stringify({ ...meta, toc: page.toc, backlinks: pageBacklinks, html })
+				JSON.stringify({
+					...meta,
+					toc: page.toc,
+					backlinks: pageBacklinks,
+					html,
+					markdown: page.markdown
+				})
 			);
 			checkSize(outPath);
 		}

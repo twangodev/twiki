@@ -81,6 +81,7 @@ export interface PageDoc extends Omit<ManifestPage, 'backlinks'> {
 	backlinks: BacklinkRef[];
 	toc: RawTocEntry[];
 	html: string;
+	markdown?: string;
 }
 
 /** A folder-tree node from `content-manifest.json` `tree`. */

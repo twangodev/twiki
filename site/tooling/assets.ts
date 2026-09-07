@@ -13,6 +13,7 @@ import {
 	writeFileSync
 } from 'node:fs';
 import path from 'node:path';
+import { writeTextExports } from './lib/text-exports';
 import { buildCourseFiles } from './lib/course-files';
 import { buildSocialImages } from './lib/social-images';
 import {
@@ -21,6 +22,7 @@ import {
 	getManifest,
 	resetContentCache,
 	navTree,
+	loadPage,
 	pageSlugForRoute
 } from '../src/lib/server/content';
 
@@ -147,6 +149,7 @@ export async function prepareAssets() {
 		return empty;
 	}
 	pruneEmptyDirs(STATIC_DIR);
+	writeTextExports(STATIC_DIR, Object.keys(manifest.pages).map(loadPage));
 	console.log(`assets: pruned ${pruned} stale files`);
 
 	console.log(`assets: ${copied} synced, ${kept} up-to-date, ${wanted.size} total`);
