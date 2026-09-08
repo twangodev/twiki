@@ -85,6 +85,8 @@ jobs:
       - *restore-compiler-cache
       - *decrypt-compiler-cache
       - run: bunx playwright install --with-deps chromium
+      - run: bun test tests/browser-diagrams.test.ts
+      - run: bun run check:diagrams
       - run: bun run test:content
       - run: bun run build:all
       - run: bun run test:e2e

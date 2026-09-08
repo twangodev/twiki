@@ -1,3 +1,4 @@
+import { stripObsidianComments } from './comments';
 /**
  * Vendored from the wisconsin Quartz fork's `quartz/plugins/transformers/ofm.ts`,
  * reshaped as plain unified plugins for the standalone prebuild.
@@ -125,7 +126,6 @@ export const tableRegex = new RegExp(/^\|([^\n])+\|\n(\|)( ?:?-{3,}:? ?\|)+\n(\|
 export const tableWikilinkRegex = new RegExp(/(!?\[\[[^\]]*?\]\]|\[\^[^\]]*?\])/g);
 
 const highlightRegex = new RegExp(/==([^=]+)==/g);
-const commentRegex = new RegExp(/%%[\s\S]*?%%/g);
 // from https://github.com/escwxyz/remark-obsidian-callout/blob/main/src/index.ts
 const calloutRegex = new RegExp(/^\[\!([\w-]+)\|?(.+?)?\]([+-]?)/);
 const calloutLineRegex = new RegExp(/^> *\[\!\w+\|?.*?\][+-]?.*$/gm);
@@ -165,7 +165,7 @@ export interface OfmFileData {
 // ---------------------------------------------------------------------------
 export function ofmTextTransform(src: string): string {
 	// do comments at text level
-	src = src.replace(commentRegex, '');
+	src = stripObsidianComments(src);
 
 	// pre-transform blockquotes
 	src = src.replace(calloutLineRegex, (value) => {
