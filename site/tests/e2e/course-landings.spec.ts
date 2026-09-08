@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import type { ContentManifest } from '../../src/lib/types';
 import type { CourseFile } from '../../src/lib/files';
+import { parseGitmodules } from '../../tooling/lib/lastmod';
 
 const manifest: ContentManifest = JSON.parse(
 	readFileSync('.generated/content-manifest.json', 'utf8')
@@ -19,7 +20,12 @@ test('every course has an indexable public overview without opening its material
 		storageState: { cookies: [], origins: [] }
 	});
 	try {
-		expect(landings).toHaveLength(17);
+		const expectedLandings = parseGitmodules('../.gitmodules')
+			.filter(({ path }) => path.startsWith('content/'))
+			.map(({ path }) => path.slice('content/'.length) + '/README')
+			.sort();
+		expect(expectedLandings.length).toBeGreaterThan(0);
+		expect(landings.map((note) => note.slug).sort()).toEqual(expectedLandings);
 		const sitemap = await (await anonymous.request.get('/sitemap.xml')).text();
 		const page = await anonymous.newPage();
 		for (const note of landings) {
