@@ -49,3 +49,6 @@
 [submodule "content/fa26-philos244"]
 	path = content/fa26-philos244
 	url = https://github.com/twangodev/fa26-philos244
+[submodule "content/fa26-cs577"]
+	path = content/fa26-cs577
+	url = https://github.com/twangodev/fa26-cs577
