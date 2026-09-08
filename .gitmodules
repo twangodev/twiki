@@ -1,54 +1,72 @@
 [submodule "content/fa25-nutrisci132"]
 	path = content/fa25-nutrisci132
 	url = https://github.com/twangodev/fa25-nutrisci132
+	branch = main
 [submodule "content/fa25-cs354"]
 	path = content/fa25-cs354
 	url = https://github.com/twangodev/fa25-cs354
+	branch = main
 [submodule "content/fa25-anthro105"]
 	path = content/fa25-anthro105
 	url = https://github.com/twangodev/fa25-anthro105
+	branch = main
 [submodule "content/fa25-cs540"]
 	path = content/fa25-cs540
 	url = https://github.com/twangodev/fa25-cs540
+	branch = main
 [submodule "content/fa25-music113"]
 	path = content/fa25-music113
 	url = https://github.com/twangodev/fa25-music113
+	branch = main
 [submodule "content/fa25-cs502"]
 	path = content/fa25-cs502
 	url = https://github.com/twangodev/fa25-cs502
+	branch = main
 [submodule "content/fa25-cs300"]
 	path = content/fa25-cs300
 	url = https://github.com/twangodev/fa25-cs300
+	branch = main
 [submodule "content/sp25-cs400"]
 	path = content/sp25-cs400
 	url = https://github.com/twangodev/sp25-cs400
+	branch = main
 [submodule "content/fa24-cs300"]
 	path = content/fa24-cs300
 	url = https://github.com/twangodev/fa24-cs300
+	branch = main
 [submodule "content/fa24-asianam160"]
 	path = content/fa24-asianam160
 	url = https://github.com/twangodev/fa24-asianam160
+	branch = main
 [submodule "content/sp25-music113"]
 	path = content/sp25-music113
 	url = https://github.com/twangodev/sp25-music113
+	branch = main
 [submodule "content/des-inv"]
 	path = content/des-inv
 	url = https://github.com/twangodev/des-inv
+	branch = main
 [submodule "content/sp26-cs537"]
 	path = content/sp26-cs537
 	url = https://github.com/twangodev/sp26-cs537
+	branch = main
 [submodule "content/sp26-cs571"]
 	path = content/sp26-cs571
 	url = https://github.com/twangodev/sp26-cs571
+	branch = main
 [submodule "content/sp26-cs544"]
 	path = content/sp26-cs544
 	url = https://github.com/twangodev/sp26-cs544
+	branch = main
 [submodule "content/sp26-cs639"]
 	path = content/sp26-cs639
 	url = https://github.com/twangodev/sp26-cs639
+	branch = main
 [submodule "content/fa26-philos244"]
 	path = content/fa26-philos244
 	url = https://github.com/twangodev/fa26-philos244
+	branch = main
 [submodule "content/fa26-cs577"]
 	path = content/fa26-cs577
 	url = https://github.com/twangodev/fa26-cs577
+	branch = main
