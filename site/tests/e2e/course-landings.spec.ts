@@ -51,7 +51,16 @@ test('every course has an indexable public overview without opening its material
 			expect(readme.download).toBeTruthy();
 			expect((await anonymous.request.get(readme.download!)).status()).toBe(200);
 			if (course === 'des-inv') continue;
-			expect(files.filter((file) => !file.locked).map((file) => file.path)).toEqual(['README.md']);
+			const publicNotes = Object.values(manifest.pages)
+				.filter((page) => page.publication.public && page.relativePath.startsWith(`${course}/`))
+				.map((page) => page.relativePath.slice(course.length + 1))
+				.sort();
+			expect(
+				files
+					.filter((file) => !file.locked)
+					.map((file) => file.path)
+					.sort()
+			).toEqual(publicNotes);
 			expect(
 				files.filter((file) => file.locked).every((file) => !file.download && !file.history)
 			).toBe(true);
