@@ -15,6 +15,8 @@ import {
 import path from 'node:path';
 import { writeTextExports } from './lib/text-exports';
 import { buildCourseFiles } from './lib/course-files';
+import { addNotebookNavigation } from '../src/lib/notebook-nav';
+import type { CourseFile } from '../src/lib/files';
 import { buildSocialImages } from './lib/social-images';
 import {
 	contentEntries,
@@ -161,6 +163,13 @@ export async function prepareAssets() {
 	const navOut = path.join(SITE_DIR, 'src/lib/generated/nav.json');
 	mkdirSync(path.dirname(navOut), { recursive: true });
 	const navigation = navTree();
+	for (const name of readdirSync(path.join(STATIC_DIR, '_files/index'))) {
+		if (!name.endsWith('.json')) continue;
+		const files: CourseFile[] = JSON.parse(
+			readFileSync(path.join(STATIC_DIR, '_files/index', name), 'utf8')
+		);
+		addNotebookNavigation(navigation, name.slice(0, -5), files);
+	}
 	for (const node of navigation) {
 		if (manifest.fileCourses?.includes(node.segment) && !node.children.length)
 			node.children.push({

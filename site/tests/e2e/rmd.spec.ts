@@ -4,8 +4,23 @@ test('Rmd worksheets run in the browser with plots, shared state, CSV data, and 
 	page
 }) => {
 	test.setTimeout(240_000);
+	await page.goto('/fa26-stat324/README');
+	const notes = page
+		.getByRole('group', { name: 'Explorer view' })
+		.getByRole('button', { name: 'Notes', exact: true });
+	await expect(notes).toHaveAttribute('aria-pressed', 'true');
+	const navigation = page.getByRole('navigation', { name: 'Documentation', exact: true });
+	await navigation.getByRole('button', { name: 'Toggle Lectures', exact: true }).click();
+	await navigation.getByRole('button', { name: 'Toggle Worksheets', exact: true }).click();
+	await navigation.getByRole('link', { name: 'Lecture 02 (R worksheet)', exact: true }).click();
+	await expect(notes).toHaveAttribute('aria-pressed', 'true');
+	await expect(
+		navigation.getByRole('link', { name: 'Lecture 02 (R worksheet)', exact: true })
+	).toHaveAttribute('aria-current', 'page');
+	await expect(page.getByRole('button', { name: 'Run all', exact: true })).toBeVisible();
 	for (const name of ['lecture-03.Rmd', 'lecture-02.Rmd']) {
 		await page.goto(`/fa26-stat324/files/lectures/worksheets/${name}`);
+		await expect(notes).toHaveAttribute('aria-pressed', 'true');
 		await page.getByRole('button', { name: 'Run all', exact: true }).click();
 		await expect(page.getByRole('status').filter({ hasText: 'Finished.' })).toBeVisible({
 			timeout: 180_000

@@ -5,6 +5,8 @@
 
 /** A node in the sidebar navigation tree (Explorer). */
 export interface NavNode {
+	/** Executable worksheet or its file-browser folder, shown in Notes. */
+	notebook?: boolean;
 	locked?: boolean;
 	title: string;
 	/** Route if this node is itself a page (folder landing pages, or leaf docs). No trailing slash. */

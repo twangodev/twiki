@@ -6,6 +6,7 @@
 	import { BookOpen, FolderCode, ChevronsUpDown, LogOut, LogIn } from '@lucide/svelte';
 	import { publicEdition } from '$lib/publication';
 	import type { NavNode } from '$lib/types';
+	import { isNotebookRoute } from '$lib/notebook-nav';
 	import { site } from '$lib/config';
 	import { ThemeToggle } from '$lib/components/ui';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
@@ -42,9 +43,13 @@
 			.sort((a, b) => Number(b.segment === 'README') - Number(a.segment === 'README'))
 	);
 	let choosing = $state(false);
-	let explorer = $state<'notes' | 'files'>(page.data.kind === 'file-browser' ? 'files' : 'notes');
+	let explorer = $state<'notes' | 'files'>(
+		untrack(() =>
+			page.data.kind === 'file-browser' && !isNotebookRoute(nav, path) ? 'files' : 'notes'
+		)
+	);
 	$effect(() => {
-		explorer = page.data.kind === 'file-browser' ? 'files' : 'notes';
+		explorer = page.data.kind === 'file-browser' && !isNotebookRoute(nav, path) ? 'files' : 'notes';
 	});
 	let query = $state('');
 	let search = $state<HTMLInputElement>();
