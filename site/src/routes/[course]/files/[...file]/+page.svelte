@@ -19,6 +19,7 @@
 	import FileIcon from '$lib/components/files/FileIcon.svelte';
 	import FileTabs from '$lib/components/files/FileTabs.svelte';
 	import FileCode from '$lib/components/files/FileCode.svelte';
+	import FileRmd from '$lib/components/files/FileRmd.svelte';
 	import FileHistory from '$lib/components/files/FileHistory.svelte';
 	import type { FileBlame, FileChange } from '$lib/file-history';
 	import { fileWorkspace } from '$lib/components/files/file-workspace.svelte';
@@ -34,6 +35,7 @@
 	let blame = $state<FileBlame>();
 	let selectedCommit = $state('');
 	let sourceText = $state<string>();
+	let rmdPreview = $state(true);
 	let diff = $state<{ text: string; commit: FileChange }>();
 	$effect(() => {
 		data.course;
@@ -125,6 +127,12 @@
 			<FileTabs course={data.course} path={data.path} isFile={!!data.file} />
 			{#if data.file}
 				<div class="flex shrink-0 items-center gap-1">
+					{#if /\.rmd$/i.test(data.path) && !data.file.locked}<button
+							class={action}
+							aria-pressed={rmdPreview}
+							onclick={() => (rmdPreview = !rmdPreview)}
+							>{rmdPreview ? 'Source' : 'Notebook'}</button
+						>{/if}
 					{#if data.file.history}
 						{#if data.file.kind === 'text'}<button
 								class={action}
@@ -190,6 +198,18 @@
 	<div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
 		{#if data.file?.locked}
 			<div class="min-w-0 flex-1 overflow-auto p-4"><LockedContent /></div>
+		{:else if rmdPreview && /\.rmd$/i.test(data.path) && data.file?.download && !diff}
+			<div class="min-h-0 min-w-0 flex-1">
+				{#key `${data.course}/${data.path}`}
+					<FileRmd
+						url={data.file.download}
+						course={data.course}
+						path={data.path}
+						files={data.files}
+						onload={(text) => (sourceText = text)}
+					/>
+				{/key}
+			</div>
 		{:else if data.file?.kind === 'text' || diff}
 			<div class="min-h-0 min-w-0 flex-1">
 				{#key `${data.course}/${data.path}/${diff?.commit.id ?? ''}`}
