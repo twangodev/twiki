@@ -70,3 +70,7 @@
 	path = content/fa26-cs577
 	url = https://github.com/twangodev/fa26-cs577
 	branch = main
+[submodule "content/fa26-stat324"]
+	path = content/fa26-stat324
+	url = https://github.com/twangodev/fa26-stat324
+	branch = main
