@@ -1,5 +1,6 @@
 /** Render tracked notes, resolve links and transclusions, and emit pages, assets, and graph data. */
 import fs from 'node:fs';
+import { writeChanged, copyChanged, pruneOutputs } from './lib/output';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -56,10 +57,10 @@ import { buildGitDateMap, parseGitmodules, resolveDates } from './lib/lastmod';
 import { contentAuthor } from '../src/lib/metadata';
 import { publicationResolver, courseLicenseResolver } from './lib/publishing';
 import { protectPublicLinks } from './lib/public-links';
-import { pipelineFingerprint } from './fingerprint';
+import { parserFingerprint } from './fingerprint';
 
 export async function compileContent() {
-	const PIPELINE_VERSION = pipelineFingerprint();
+	const PIPELINE_VERSION = parserFingerprint();
 	const SITE_DIR = path.resolve(import.meta.dirname, '..');
 	const REPO_ROOT = process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(SITE_DIR, '..');
 	const publicEdition = process.env.VITE_PUBLIC_EDITION === 'true';
@@ -491,7 +492,7 @@ export async function compileContent() {
 		};
 
 		fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
-		fs.writeFileSync(cacheFile, JSON.stringify(page));
+		writeChanged(cacheFile, JSON.stringify(page));
 		return page;
 	}
 
@@ -825,10 +826,9 @@ export async function compileContent() {
 		const t0 = performance.now();
 		fs.mkdirSync(OUT_DIR, { recursive: true });
 		fs.mkdirSync(CACHE_DIR, { recursive: true });
-		// clean previous emit (keep cache)
-		for (const d of ['pages', 'assets']) {
-			fs.rmSync(path.join(OUT_DIR, d), { recursive: true, force: true });
-		}
+		const wantedPages = new Set<string>();
+		const wantedAssets = new Set<string>();
+		fs.mkdirSync(path.join(OUT_DIR, 'assets'), { recursive: true });
 
 		// stage 0
 		const { files: discovered } = discover();
@@ -960,7 +960,8 @@ export async function compileContent() {
 			// html assets: extensionless at slug, exactly like quartz's Assets emitter
 			const dest = path.join(OUT_DIR, 'assets', asset.slug);
 			fs.mkdirSync(path.dirname(dest), { recursive: true });
-			fs.copyFileSync(asset.abs, dest);
+			copyChanged(asset.abs, dest);
+			wantedAssets.add(dest);
 			assetBytes += fs.statSync(dest).size;
 			checkSize(dest);
 		}
@@ -1019,8 +1020,9 @@ export async function compileContent() {
 			pageMeta[page.slug] = meta;
 
 			const outPath = path.join(OUT_DIR, 'pages', page.slug + '.json');
+			wantedPages.add(outPath);
 			fs.mkdirSync(path.dirname(outPath), { recursive: true });
-			fs.writeFileSync(
+			writeChanged(
 				outPath,
 				JSON.stringify({
 					...meta,
@@ -1052,11 +1054,19 @@ export async function compileContent() {
 			};
 			pageMeta[page.slug] = meta;
 			const outPath = path.join(OUT_DIR, 'pages', page.slug + '.json');
+			wantedPages.add(outPath);
 			fs.mkdirSync(path.dirname(outPath), { recursive: true });
-			fs.writeFileSync(outPath, JSON.stringify({ ...meta, toc: page.toc, html: '' }));
+			writeChanged(outPath, JSON.stringify({ ...meta, toc: page.toc, html: '' }));
 			const parts = page.slug.split('/');
 			for (let i = 1; i < parts.length; i++) folderSet.add(parts.slice(0, i).join('/'));
 		}
+
+		pruneOutputs(path.join(OUT_DIR, 'pages'), wantedPages);
+		pruneOutputs(
+			path.join(OUT_DIR, 'assets'),
+			wantedAssets,
+			(file) => file === path.join(OUT_DIR, 'assets/_files')
+		);
 
 		// manifest
 		const tree = buildTree(catalog);
@@ -1098,14 +1108,20 @@ export async function compileContent() {
 			htmlAssets: assetsSrc.filter((a) => a.rel.toLowerCase().endsWith('.html')).map((a) => a.slug),
 			graph
 		};
-		fs.writeFileSync(
-			path.join(OUT_DIR, 'content-manifest.json'),
-			JSON.stringify(manifest, null, 1)
-		);
+		const manifestFile = path.join(OUT_DIR, 'content-manifest.json');
+		if (fs.existsSync(manifestFile)) {
+			const previous = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+			if (
+				JSON.stringify({ ...manifest, generatedAt: previous.generatedAt }) ===
+				JSON.stringify(previous)
+			)
+				manifest.generatedAt = previous.generatedAt;
+		}
+		writeChanged(manifestFile, JSON.stringify(manifest, null, 1));
 
 		// dropped-urls.txt — tracked files the old Quartz site served but the
 		// whitelist excludes.
-		fs.writeFileSync(
+		writeChanged(
 			path.join(OUT_DIR, 'dropped-urls.txt'),
 			otherSrc.map((f) => '/' + f.slug).join('\n') + '\n'
 		);
@@ -1118,7 +1134,7 @@ export async function compileContent() {
 					.join(', ')}`
 			);
 		}
-		fs.writeFileSync(path.join(OUT_DIR, 'warnings.txt'), warnings.join('\n') + '\n');
+		writeChanged(path.join(OUT_DIR, 'warnings.txt'), warnings.join('\n') + '\n');
 
 		console.log(
 			`emit: ${pages.length} page JSONs, ${assetsSrc.length} assets (${(assetBytes / 1024 / 1024).toFixed(1)}MiB) in ${Math.round(performance.now() - t3)}ms`

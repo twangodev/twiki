@@ -5,6 +5,7 @@ import {
 	mkdirSync,
 	mkdtempSync,
 	readFileSync,
+	statSync,
 	rmSync,
 	symlinkSync,
 	writeFileSync
@@ -102,8 +103,25 @@ describe('course file discovery', () => {
 				'<script>alert(1)</script>'
 			);
 			expect(files.find((file) => file.path === 'binary.dat')?.kind).toBe('binary');
+			const unchanged = statSync(path.join(output, html.download!));
+			await buildCourseFiles(
+				site,
+				new Set(['test-course/README']),
+				new Set([path.join(repo, 'content/index.md')])
+			);
+			expect(statSync(path.join(output, html.download!)).ino).toBe(unchanged.ino);
+			expect(statSync(path.join(output, html.download!)).mtimeMs).toBe(unchanged.mtimeMs);
+			rmSync(path.join(output, html.download!));
+			await buildCourseFiles(
+				site,
+				new Set(['test-course/README']),
+				new Set([path.join(repo, 'content/index.md')])
+			);
+			expect(readFileSync(path.join(output, html.download!), 'utf8')).toBe(
+				'<script>alert(1)</script>'
+			);
 			git('rm', '-f', 'content/test-course/page.html');
-			await buildCourseFiles(site, new Set());
+			await buildCourseFiles(site, new Set(), new Set([course]));
 			expect(existsSync(path.join(output, html.download!))).toBe(false);
 		} finally {
 			rmSync(repo, { recursive: true, force: true });

@@ -54,6 +54,9 @@ test('history follows renames, emits scoped diffs and blame, detects local edits
 		const cachedBuild = createFileHistoryBuilder(repo, output, cache, browsablePath)!;
 		expect(cachedBuild(file, bytes)).toBe(url);
 		expect(existsSync(path.join(output, history.blame!.replace('/_files/', '')))).toBe(true);
+		writeFileSync(path.join(repo, 'Unrelated.java'), 'unrelated');
+		commit('Unrelated change');
+		expect(createFileHistoryBuilder(repo, output, cache, browsablePath)!(file, bytes)).toBe(url);
 		const dirty: FileHistory = JSON.parse(read(cachedBuild(file, Buffer.from('local edit'))!));
 		expect(dirty.blame).toBeUndefined();
 		expect(dirty.notice).toContain('Working copy');

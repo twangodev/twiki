@@ -6,11 +6,10 @@ import {
 	mkdirSync,
 	readFileSync,
 	realpathSync,
-	writeFileSync,
-	copyFileSync,
-	rmSync
+	copyFileSync
 } from 'node:fs';
 import path from 'node:path';
+import { writeChanged, pruneOutputs } from './output';
 import type { CourseFile } from '../../src/lib/files';
 import { parseGitmodules } from './lastmod';
 import { slugifyFilePath, type FilePath } from './slug';
@@ -48,6 +47,14 @@ export function browsablePath(file: string) {
 	);
 }
 
+export function fileHistoryPolicyKey() {
+	return createHash('sha256')
+		.update(browsablePath.toString())
+		.update(JSON.stringify([...excludedDirectories].sort()))
+		.update(excludedNames.source)
+		.digest('hex');
+}
+
 export function previewText(bytes: Uint8Array): { text: string } | undefined {
 	if (Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).includes(0)) return;
 	try {
@@ -59,20 +66,67 @@ export function previewText(bytes: Uint8Array): { text: string } | undefined {
 	}
 }
 
-export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) {
+type CourseOutput = { files: CourseFile[]; outputs: Set<string>; notes: string };
+const previousBuilds = new Map<string, Map<string, CourseOutput>>();
+
+export async function buildCourseFiles(
+	siteDir: string,
+	noteSlugs: Set<string>,
+	changedInputs?: Set<string>,
+	development = false
+) {
 	const repo = process.env.WISCONSIN_CONTENT_REPO ?? path.dirname(siteDir);
 	const publicEdition = process.env.VITE_PUBLIC_EDITION === 'true';
 	const isPublished = publicationFilter(repo);
 	const licenseFor = courseLicenseResolver(repo);
 	const contentRoot = path.join(repo, 'content');
 	const output = path.join(siteDir, 'build/generated/assets/_files');
-	rmSync(output, { recursive: true, force: true });
+	const wanted = new Set<string>();
 	for (const dir of ['index', 'blobs']) mkdirSync(path.join(output, dir), { recursive: true });
 	const courses = new Map(
 		parseGitmodules(path.join(repo, '.gitmodules'))
 			.filter((course) => course.path.startsWith('content/'))
 			.map((course) => [course.path.slice(8), [] as CourseFile[]])
 	);
+	const key = JSON.stringify([siteDir, repo, publicEdition, development]);
+	const previous = previousBuilds.get(key);
+	const active = new Set(courses.keys());
+	const outputByCourse = new Map<string, Set<string>>();
+	const noteKeys = new Map(
+		[...courses.keys()].map((course) => [
+			course,
+			JSON.stringify([...noteSlugs].filter((slug) => slug.startsWith(course + '/')).sort())
+		])
+	);
+	if (
+		previous &&
+		changedInputs?.size &&
+		[...changedInputs].every((file) => file.startsWith(contentRoot + path.sep))
+	) {
+		for (const course of courses.keys()) {
+			const cached = previous.get(course);
+			if (
+				!cached ||
+				cached.notes !== noteKeys.get(course) ||
+				[...changedInputs].some(
+					(file) =>
+						file === path.join(contentRoot, course) ||
+						file.startsWith(path.join(contentRoot, course) + path.sep)
+				)
+			)
+				continue;
+			if (![...cached.outputs].every(existsSync)) continue;
+			courses.set(course, cached.files);
+			outputByCourse.set(course, cached.outputs);
+			for (const file of cached.outputs) wanted.add(file);
+			active.delete(course);
+		}
+	}
+	for (const course of active) outputByCourse.set(course, new Set());
+	const retain = (course: string, file: string) => {
+		wanted.add(file);
+		outputByCourse.get(course)!.add(file);
+	};
 	const paths = execFileSync(
 		'git',
 		['-C', repo, 'ls-files', '-z', '--recurse-submodules', '--', 'content'],
@@ -83,24 +137,31 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 		.filter(Boolean);
 	let count = 0;
 	const histories = new Map(
-		(publicEdition ? [] : [...courses.keys()]).map((course) => [
+		(publicEdition || development ? [] : [...active]).map((course) => [
 			course,
 			createFileHistoryBuilder(
 				path.join(contentRoot, course),
 				output,
 				path.join(siteDir, 'build/generated/cache/file-history', course),
 				browsablePath,
-				createHash('sha256')
-					.update(readFileSync(import.meta.filename))
-					.digest('hex')
+				fileHistoryPolicyKey(),
+				(file) => retain(course, file)
 			)
+		])
+	);
+	const revisions = new Map(
+		(development && !publicEdition ? [...active] : []).map((course) => [
+			course,
+			execFileSync('git', ['-C', path.join(contentRoot, course), 'rev-parse', 'HEAD'], {
+				encoding: 'utf8'
+			}).trim()
 		])
 	);
 	for (const tracked of paths) {
 		const relative = tracked.slice(8);
 		const [course, ...segments] = relative.split('/');
 		const files = courses.get(course);
-		if (!files || !browsablePath(segments.join('/'))) continue;
+		if (!files || !active.has(course) || !browsablePath(segments.join('/'))) continue;
 		const source = path.join(repo, tracked);
 		if (!existsSync(source) || !lstatSync(source).isFile()) continue;
 		if (realpathSync(source) !== path.join(contentRoot, relative)) continue;
@@ -129,17 +190,22 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 		const suffix = extension === 'pdf' ? 'pdf' : inlineImages.has(extension) ? extension : 'bin';
 		const blob = `${hash}.${suffix}`;
 		file.download = `/_files/blobs/${blob}`;
+		retain(course, path.join(output, 'blobs', blob));
 		if (!existsSync(path.join(output, 'blobs', blob)))
 			copyFileSync(source, path.join(output, 'blobs', blob));
 		if (suffix === 'pdf') file.kind = 'pdf';
 		else if (inlineImages.has(suffix)) file.kind = 'image';
 		else if (previewText(bytes)) file.kind = 'text';
-		file.history = histories.get(course)?.(file, bytes);
+		file.history =
+			development && !publicEdition
+				? `/__content/history?course=${encodeURIComponent(course)}&file=${encodeURIComponent(file.path)}&v=${revisions.get(course)}-${hash}`
+				: histories.get(course)?.(file, bytes);
 	}
 	const entries: { course: string; file: string }[] = [];
 	for (const [course, files] of courses) {
 		if (publicEdition && !files.length) continue;
-		writeFileSync(path.join(output, 'index', `${course}.json`), JSON.stringify(files));
+		retain(course, path.join(output, 'index', `${course}.json`));
+		writeChanged(path.join(output, 'index', `${course}.json`), JSON.stringify(files));
 		if (publicEdition) {
 			const paths = new Set(['']);
 			for (const file of files) {
@@ -149,11 +215,23 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 			entries.push(...[...paths].map((file) => ({ course, file })));
 		}
 	}
+	pruneOutputs(output, wanted, (file) => file === path.join(output, 'icons'));
 	mkdirSync(path.join(siteDir, 'src/lib/generated'), { recursive: true });
-	writeFileSync(path.join(siteDir, 'src/lib/generated/file-entries.json'), JSON.stringify(entries));
+	writeChanged(path.join(siteDir, 'src/lib/generated/file-entries.json'), JSON.stringify(entries));
 	buildFileIcons(
 		siteDir,
 		[...courses.values()].flatMap((files) => files.map((file) => file.path))
 	);
-	console.log(`files: ${count} tracked files across ${courses.size} courses`);
+	previousBuilds.set(
+		key,
+		new Map(
+			[...courses].map(([course, files]) => [
+				course,
+				{ files, outputs: outputByCourse.get(course)!, notes: noteKeys.get(course)! }
+			])
+		)
+	);
+	console.log(
+		`files: ${count} tracked files across ${active.size} changed courses (${courses.size - active.size} reused)`
+	);
 }

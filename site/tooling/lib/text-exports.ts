@@ -1,11 +1,13 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
+import { writeChanged } from './output';
 import path from 'node:path';
 import type { PageDoc } from '../../src/lib/types';
 import { site } from '../../src/lib/config';
 import { textExportUrl } from '../../src/lib/text-exports';
 
 /** Called separately for each edition; locked outlines never become text exports. */
-export function writeTextExports(directory: string, pages: PageDoc[]) {
+export function writeTextExports(directory: string, pages: PageDoc[], assets = new Set<string>()) {
+	const written = new Set<string>();
 	const index = [
 		`# ${site.title}`,
 		'',
@@ -27,15 +29,23 @@ export function writeTextExports(directory: string, pages: PageDoc[]) {
 				directory,
 				decodeURIComponent(textExportUrl(page.slug, format)).slice(1)
 			);
-			if (existsSync(file) || path.relative(directory, file) === 'llms.txt')
+			if (
+				assets.has(path.relative(directory, file)) ||
+				written.has(path.relative(directory, file)) ||
+				path.relative(directory, file) === 'llms.txt'
+			)
 				throw new Error(`Text export conflicts with an existing asset: ${page.slug}.${format}`);
 			if (Buffer.byteLength(text) > 25 * 1024 * 1024)
 				throw new Error(`Text export exceeds deployment size limit: ${page.slug}`);
 			mkdirSync(path.dirname(file), { recursive: true });
-			writeFileSync(file, text);
+			writeChanged(file, text);
+			written.add(path.relative(directory, file));
 		}
 		const title = page.title.replace(/[\r\n]/g, ' ').replace(/[\\[\]]/g, '\\$&');
 		index.push(`- [${title}](${site.url}${textExportUrl(page.slug)})`);
 	}
-	writeFileSync(path.join(directory, 'llms.txt'), index.join('\n') + '\n');
+	if (assets.has('llms.txt')) throw new Error('Text export conflicts with llms.txt');
+	writeChanged(path.join(directory, 'llms.txt'), index.join('\n') + '\n');
+	written.add('llms.txt');
+	return written;
 }

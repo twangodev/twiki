@@ -9,10 +9,10 @@ import {
 	readFileSync,
 	rmSync,
 	statSync,
-	unlinkSync,
-	writeFileSync
+	unlinkSync
 } from 'node:fs';
 import path from 'node:path';
+import { writeChanged } from './lib/output';
 import { writeTextExports } from './lib/text-exports';
 import { buildCourseFiles } from './lib/course-files';
 import { addNotebookNavigation } from '../src/lib/notebook-nav';
@@ -28,14 +28,14 @@ import {
 	pageSlugForRoute
 } from '../src/lib/server/content';
 
-export async function prepareAssets() {
+export async function prepareAssets(changedInputs?: Set<string>, development = false) {
 	resetContentCache();
 	const SITE_DIR = path.resolve(import.meta.dirname, '..');
 	const GENERATED = path.join(SITE_DIR, 'build/generated');
 	const STATIC_DIR = path.join(SITE_DIR, 'static');
 	if (!existsSync(path.join(GENERATED, 'public-assets.json'))) {
 		mkdirSync(GENERATED, { recursive: true });
-		writeFileSync(path.join(GENERATED, 'public-assets.json'), '{}');
+		writeChanged(path.join(GENERATED, 'public-assets.json'), '{}');
 	}
 
 	if (!existsSync(path.join(GENERATED, 'content-manifest.json'))) {
@@ -43,7 +43,12 @@ export async function prepareAssets() {
 	}
 
 	const manifest = getManifest();
-	await buildCourseFiles(SITE_DIR, new Set(Object.keys(manifest.pages)));
+	await buildCourseFiles(
+		SITE_DIR,
+		new Set(Object.keys(manifest.pages)),
+		changedInputs,
+		development
+	);
 	if (process.env.VITE_PUBLIC_EDITION === 'true') {
 		const entries = JSON.parse(
 			readFileSync(path.join(SITE_DIR, 'src/lib/generated/file-entries.json'), 'utf8')
@@ -62,7 +67,7 @@ export async function prepareAssets() {
 					pages: []
 				});
 		}
-		writeFileSync(path.join(GENERATED, 'content-manifest.json'), JSON.stringify(manifest));
+		writeChanged(path.join(GENERATED, 'content-manifest.json'), JSON.stringify(manifest));
 	}
 	const WARN_BYTES = 20 * 1024 * 1024;
 	const FAIL_BYTES = 25 * 1024 * 1024;
@@ -110,7 +115,7 @@ export async function prepareAssets() {
 			const destStat = statSync(dest);
 			if (
 				destStat.ino === srcStat.ino ||
-				(destStat.size === srcStat.size && destStat.mtimeMs >= srcStat.mtimeMs)
+				(destStat.size === srcStat.size && readFileSync(dest).equals(readFileSync(src)))
 			) {
 				kept++;
 				continue;
@@ -126,6 +131,13 @@ export async function prepareAssets() {
 		copied++;
 	}
 	if (oversize) throw new Error('Assets exceed the deployment size limit');
+
+	for (const file of writeTextExports(
+		STATIC_DIR,
+		Object.keys(manifest.pages).map(loadPage),
+		wanted
+	))
+		wanted.add(file);
 
 	// Prune stale synced files (never touch the hand-placed statics).
 	const KEEP = new Set(['.gitignore', 'favicon.png']);
@@ -151,7 +163,6 @@ export async function prepareAssets() {
 		return empty;
 	}
 	pruneEmptyDirs(STATIC_DIR);
-	writeTextExports(STATIC_DIR, Object.keys(manifest.pages).map(loadPage));
 	console.log(`assets: pruned ${pruned} stale files`);
 
 	console.log(`assets: ${copied} synced, ${kept} up-to-date, ${wanted.size} total`);
@@ -179,7 +190,7 @@ export async function prepareAssets() {
 				children: []
 			});
 	}
-	writeFileSync(navOut, JSON.stringify(navigation));
+	writeChanged(navOut, JSON.stringify(navigation));
 	console.log(`nav: wrote src/lib/generated/nav.json`);
 
 	// ---------------------------------------------------------------------------
@@ -225,7 +236,7 @@ export async function prepareAssets() {
 	}
 
 	const sorted = [...expected404].sort();
-	writeFileSync(path.join(GENERATED, 'expected-404.json'), JSON.stringify(sorted, null, '\t'));
+	writeChanged(path.join(GENERATED, 'expected-404.json'), JSON.stringify(sorted, null, '\t'));
 	console.log(
 		`expected-404: ${sorted.length} unresolved content link targets reported to the crawler`
 	);
@@ -279,7 +290,7 @@ export async function prepareAssets() {
 	}
 
 	const sortedIds = [...missingAnchor].sort();
-	writeFileSync(
+	writeChanged(
 		path.join(GENERATED, 'expected-missing-id.json'),
 		JSON.stringify(sortedIds, null, '\t')
 	);
@@ -290,5 +301,5 @@ export async function prepareAssets() {
 		`routes: ${contentEntries().length} content + ${Object.keys(manifest.tags).length + 1} tag + 2 xml + /404`
 	);
 
-	await buildSocialImages(SITE_DIR, manifest);
+	if (!development) await buildSocialImages(SITE_DIR, manifest);
 }

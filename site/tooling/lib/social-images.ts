@@ -157,24 +157,32 @@ export function socialCard(
 	};
 }
 
+export const defaultSocialCard = {
+	slug: undefined,
+	title: 'Notes from UW–Madison.',
+	label: 'Course notes'
+};
+
+export async function cachedSocialImage(siteDir: string, card: SocialCard & { slug?: string }) {
+	const cache = path.join(siteDir, 'build/generated/cache/social-titles');
+	mkdirSync(cache, { recursive: true });
+	const key = createHash('sha256').update(rendererKey).update(JSON.stringify(card)).digest('hex');
+	const cached = path.join(cache, key + '.png');
+	const rendered = !existsSync(cached);
+	if (rendered) writeFileSync(cached, await renderSocialImage(card));
+	return { cached, rendered };
+}
+
 export async function buildSocialImages(siteDir: string, manifest: Pick<ContentManifest, 'pages'>) {
 	const output = path.join(siteDir, 'static/_og');
-	const cache = path.join(siteDir, 'build/generated/cache/social-titles');
 	mkdirSync(output, { recursive: true });
-	mkdirSync(cache, { recursive: true });
 	const wanted = new Set<string>();
 	let rendered = 0;
-	const cards = [
-		{ slug: undefined, title: 'Notes from UW–Madison.', label: 'Course notes' },
-		...Object.values(manifest.pages).map(socialCard)
-	];
+	const cards = [defaultSocialCard, ...Object.values(manifest.pages).map(socialCard)];
 	for (const card of cards) {
-		const key = createHash('sha256').update(rendererKey).update(JSON.stringify(card)).digest('hex');
-		const cached = path.join(cache, key + '.png');
-		if (!existsSync(cached)) {
-			writeFileSync(cached, await renderSocialImage(card));
-			rendered++;
-		}
+		const result = await cachedSocialImage(siteDir, card);
+		const cached = result.cached;
+		if (result.rendered) rendered++;
 		const destination = path.join(
 			siteDir,
 			'static',

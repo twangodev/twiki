@@ -5,7 +5,9 @@ import path from 'node:path';
 import type { CourseFile } from '../../src/lib/files';
 import type { FileBlame, FileChange, FileCommit, FileHistory } from '../../src/lib/file-history';
 
-const historyVersion = '1';
+const historyVersion = createHash('sha256')
+	.update(readFileSync(import.meta.filename))
+	.digest('hex');
 const maxAssetBytes = 25 * 1024 * 1024;
 
 export function parseBlame(output: string): FileBlame {
@@ -34,12 +36,14 @@ export function createFileHistoryBuilder(
 	output: string,
 	cache: string,
 	allowed: (file: string) => boolean,
-	policyKey = allowed.toString()
+	policyKey = allowed.toString(),
+	retain?: (file: string) => void,
+	urlPrefix = '/_files/history'
 ) {
 	if (!existsSync(path.join(repo, '.git'))) return;
 	const git = (...args: string[]) =>
 		execFileSync('git', ['-C', repo, ...args], { maxBuffer: 128 * 1024 * 1024, encoding: 'utf8' });
-	const revision = git('rev-parse', 'HEAD').trim();
+	const head = git('rev-parse', 'HEAD').trim();
 	if (git('rev-parse', '--is-shallow-repository').trim() === 'true')
 		throw new Error(`Full Git history required: ${repo}`);
 	mkdirSync(cache, { recursive: true });
@@ -73,12 +77,19 @@ export function createFileHistoryBuilder(
 			if (Buffer.byteLength(serialized) > maxAssetBytes) return;
 			writeFileSync(target, serialized);
 		}
-		copyFileSync(target, path.join(output, 'history', name));
-		return `/_files/history/${name}`;
+		const destination = path.join(output, 'history', name);
+		retain?.(destination);
+		if (!existsSync(destination)) copyFileSync(target, destination);
+		return `${urlPrefix}/${name}`;
 	}
 	return (file: CourseFile, bytes: Uint8Array) => {
+		// Unrelated commits do not change this file's history or blame.
+		const revision =
+			git('log', '-1', '--first-parent', '--format=%H', head, '--', file.path).trim() || head;
 		const key = createHash('sha256')
-			.update(`${historyVersion}\0${policyKey}\0${revision}\0${file.path}\0`)
+			.update(
+				`${historyVersion}\0${policyKey}\0${urlPrefix}\0${revision}\0${file.kind}\0${file.path}\0`
+			)
 			.update(bytes)
 			.digest('hex');
 		const name = `${key}.json`;

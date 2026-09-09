@@ -1,4 +1,5 @@
-import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
+import { writeChanged, copyChanged, pruneOutputs } from './output';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateManifest } from 'material-icon-theme';
@@ -75,9 +76,17 @@ export function buildFileIcons(siteDir: string, files: string[]) {
 	mkdirSync(moduleDir, { recursive: true });
 	for (const icon of used) {
 		const source = path.basename(manifest.iconDefinitions![icon].iconPath);
-		copyFileSync(path.join(packageDir, 'icons', source), path.join(output, `${icon}.svg`));
+		copyChanged(path.join(packageDir, 'icons', source), path.join(output, `${icon}.svg`));
 	}
-	copyFileSync(path.join(packageDir, 'LICENSE'), path.join(output, 'LICENSE.txt'));
-	writeFileSync(path.join(moduleDir, 'file-icons.json'), JSON.stringify(theme));
+	copyChanged(path.join(packageDir, 'LICENSE'), path.join(output, 'LICENSE.txt'));
+	writeChanged(path.join(moduleDir, 'file-icons.json'), JSON.stringify(theme));
+	pruneOutputs(
+		output,
+		new Set(
+			[...used]
+				.map((icon) => path.join(output, `${icon}.svg`))
+				.concat(path.join(output, 'LICENSE.txt'))
+		)
+	);
 	console.log(`icons: ${used.size} local file and folder icons`);
 }
