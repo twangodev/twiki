@@ -20,6 +20,8 @@
 
 	const { data }: Props = $props();
 
+	const articleKey = $derived(data.kind === 'page' ? JSON.stringify(data.page) : '');
+
 	const canonical = $derived(data.route === '' ? '/' : `/${data.route}`);
 	const author = $derived(data.kind === 'page' ? pageAuthor(data.page) : undefined);
 	// Split only a leading H1, retaining its original markup and deep-link id.
@@ -72,60 +74,62 @@
 
 	<Breadcrumbs route={data.route} current={data.page.title} />
 
-	<article
-		class="prose dark:prose-invert max-w-none"
-		data-pagefind-body={data.page.locked ? undefined : true}
-		data-pagefind-ignore={data.page.locked ? true : undefined}
-		{@attach enhanceArticle(data.route)}
-		{@attach linkPopovers(data.route)}
-	>
-		{#if data.route !== ''}
-			<div class="hidden" data-pagefind-ignore>
-				<span data-pagefind-filter="course">{pagefindCourse}</span>
-				{#each data.page.tags as tag (tag)}
-					<span data-pagefind-filter="tag">{tag}</span>
-				{/each}
-			</div>
-			<!-- Frontmatter title beats Pagefind's h1-scraping (some pages lack an h1). -->
-			<span class="sr-only" data-pagefind-meta="title">{data.page.title}</span>
-		{/if}
-		{#if heading}
-			{@html heading}
-		{:else if data.kind === 'page'}
-			<h1>{data.page.title}</h1>
-		{/if}
-		<div class="doc-meta" data-pagefind-ignore>
-			<ContentMeta
-				modified={data.route ? data.page.dates?.modified : undefined}
-				published={data.route ? data.page.dates?.published : undefined}
-				author={data.page.locked ? undefined : (author ?? curator)}
-				curated={!author}
-				readingTime={data.route ? data.page.readingTime : undefined}
-				publication={data.page.publication}
-			/>
-		</div>
-		{#if data.page.locked}
-			<LockedContent />
-			{#if data.page.toc.length}
-				<div class="mt-6 space-y-3" aria-label="Page outline">
-					{#each data.page.toc as heading (heading.slug)}
-						<div
-							id={heading.slug}
-							class="scroll-mt-20 border-l border-border pl-3 text-sm text-muted"
-							style:margin-left={`${heading.depth * 0.75}rem`}
-						>
-							{heading.text}
-						</div>
+	{#key articleKey}
+		<article
+			class="prose dark:prose-invert max-w-none"
+			data-pagefind-body={data.page.locked ? undefined : true}
+			data-pagefind-ignore={data.page.locked ? true : undefined}
+			{@attach enhanceArticle(articleKey)}
+			{@attach linkPopovers(articleKey)}
+		>
+			{#if data.route !== ''}
+				<div class="hidden" data-pagefind-ignore>
+					<span data-pagefind-filter="course">{pagefindCourse}</span>
+					{#each data.page.tags as tag (tag)}
+						<span data-pagefind-filter="tag">{tag}</span>
 					{/each}
 				</div>
+				<!-- Frontmatter title beats Pagefind's h1-scraping (some pages lack an h1). -->
+				<span class="sr-only" data-pagefind-meta="title">{data.page.title}</span>
 			{/if}
-		{:else}
-			{#key data.page.slug}
-				<NoteActions slug={data.page.slug} />
-			{/key}
-			{@html body}
-		{/if}
-	</article>
+			{#if heading}
+				{@html heading}
+			{:else if data.kind === 'page'}
+				<h1>{data.page.title}</h1>
+			{/if}
+			<div class="doc-meta" data-pagefind-ignore>
+				<ContentMeta
+					modified={data.route ? data.page.dates?.modified : undefined}
+					published={data.route ? data.page.dates?.published : undefined}
+					author={data.page.locked ? undefined : (author ?? curator)}
+					curated={!author}
+					readingTime={data.route ? data.page.readingTime : undefined}
+					publication={data.page.publication}
+				/>
+			</div>
+			{#if data.page.locked}
+				<LockedContent />
+				{#if data.page.toc.length}
+					<div class="mt-6 space-y-3" aria-label="Page outline">
+						{#each data.page.toc as heading (heading.slug)}
+							<div
+								id={heading.slug}
+								class="scroll-mt-20 border-l border-border pl-3 text-sm text-muted"
+								style:margin-left={`${heading.depth * 0.75}rem`}
+							>
+								{heading.text}
+							</div>
+						{/each}
+					</div>
+				{/if}
+			{:else}
+				{#key data.page.slug}
+					<NoteActions slug={data.page.slug} />
+				{/key}
+				{@html body}
+			{/if}
+		</article>
+	{/key}
 	{#if data.page.license}
 		<div class="mt-6"><LicenseNotice license={data.page.license} /></div>
 	{/if}

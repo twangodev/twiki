@@ -3,7 +3,7 @@
 	import './layout.css';
 	import type { Snippet } from 'svelte';
 	import { dev } from '$app/environment';
-	import { onNavigate } from '$app/navigation';
+	import { onNavigate, invalidateAll } from '$app/navigation';
 	import { ModeWatcher } from 'mode-watcher';
 	import DocShell from '$lib/components/doc/DocShell.svelte';
 	import type { NavNode } from '$lib/types';
@@ -18,6 +18,15 @@
 
 	const { children }: Props = $props();
 	const nav = navData as NavNode[];
+
+	if (import.meta.hot) {
+		const refreshContent = ({ recovered }: { recovered: boolean }) => {
+			if (recovered) document.querySelector('vite-error-overlay')?.remove();
+			void invalidateAll();
+		};
+		import.meta.hot.on('wisconsin:content', refreshContent);
+		import.meta.hot.dispose(() => import.meta.hot?.off('wisconsin:content', refreshContent));
+	}
 
 	// Subtle crossfade between pages via the View Transitions API
 	// (https://svelte.dev/blog/view-transitions). Progressive enhancement:

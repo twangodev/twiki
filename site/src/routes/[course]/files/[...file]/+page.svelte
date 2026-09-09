@@ -279,7 +279,7 @@
 			</div>
 		{/if}
 		{#if data.file?.history}
-			{#key `${data.course}/${data.path}`}
+			{#key data.file.history}
 				<FileHistory
 					url={data.file.history}
 					bind:open={historyOpen}
