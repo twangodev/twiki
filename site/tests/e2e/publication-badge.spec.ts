@@ -4,7 +4,7 @@ import type { ContentManifest } from '../../src/lib/types';
 
 test('note visibility matches generated publication metadata', async ({ page }) => {
 	const manifest: ContentManifest = JSON.parse(
-		readFileSync('.generated/content-manifest.json', 'utf8')
+		readFileSync('build/generated/content-manifest.json', 'utf8')
 	);
 	const note = Object.values(manifest.pages).find((note) => note.slug !== 'index')!;
 	const route = '/' + (note.slug.endsWith('/index') ? note.slug.slice(0, -6) : note.slug);

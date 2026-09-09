@@ -105,13 +105,13 @@ test('locked previews expose titles and headings without bodies, downloads or hi
 });
 
 test('public output contains no private content, history, or navigation bundles', () => {
-	const root = '.generated/public-site';
+	const root = 'build/generated/public-site';
 	for (const file of readdirSync(root, { recursive: true, withFileTypes: true })) {
 		if (!file.isFile()) continue;
 		const contents = readFileSync(path.join(file.parentPath, file.name)).toString();
 		expect(contents, path.join(file.parentPath, file.name)).not.toMatch(canaries);
 	}
-	const assets = JSON.parse(readFileSync('.generated/public-assets.json', 'utf8'));
+	const assets = JSON.parse(readFileSync('build/generated/public-assets.json', 'utf8'));
 	expect(Object.keys(assets).some((url) => url.startsWith('/_files/history/'))).toBe(false);
 	expect(Object.keys(assets).some((url) => url.includes('publish.yaml'))).toBe(false);
 });
@@ -274,7 +274,7 @@ test('warming full content cannot leak it anonymously, including page data and g
 		])
 			expect((await context.request.get(url)).status()).toBe(404);
 		const assets: Record<string, string> = JSON.parse(
-			readFileSync('.generated/public-assets.json', 'utf8')
+			readFileSync('build/generated/public-assets.json', 'utf8')
 		);
 		const chunks = readdirSync('.svelte-kit/cloudflare/_app/immutable', { recursive: true })
 			.filter((file) => typeof file === 'string' && file.endsWith('.js'))

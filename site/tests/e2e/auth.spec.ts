@@ -3,7 +3,7 @@ import { siGithub } from 'simple-icons';
 import { readFileSync } from 'node:fs';
 import type { CourseFile } from '../../src/lib/files';
 
-const publicAssets = JSON.parse(readFileSync('.generated/public-assets.json', 'utf8'));
+const publicAssets = JSON.parse(readFileSync('build/generated/public-assets.json', 'utf8'));
 const privatePage = '/sp26-cs544/lectures/lecture-01';
 
 for (const mode of ['light', 'dark'] as const) {
@@ -11,7 +11,10 @@ for (const mode of ['light', 'dark'] as const) {
 		browser,
 		baseURL
 	}) => {
-		const owner = await browser.newContext({ baseURL, storageState: '.generated/auth-state.json' });
+		const owner = await browser.newContext({
+			baseURL,
+			storageState: 'build/generated/auth-state.json'
+		});
 		const anonymous = await browser.newContext({
 			baseURL,
 			colorScheme: mode === 'light' ? 'dark' : 'light',
@@ -51,7 +54,7 @@ for (const mode of ['light', 'dark'] as const) {
 				publicAssets['/fonts/JetBrainsMono-VF.woff2'] ? 200 : 401
 			);
 			await login.setViewportSize({ width: 390, height: 844 });
-			await login.screenshot({ path: `.generated/login-${mode}.png` });
+			await login.screenshot({ path: `build/generated/login-${mode}.png` });
 		} finally {
 			await owner.close();
 			await anonymous.close();
@@ -104,7 +107,7 @@ test('anonymous visitors cannot fetch private content, even after the owner warm
 		await expect(page).toHaveURL(/\/login\?next=/);
 		await expect(page.getByRole('button', { name: 'Continue with GitHub' })).toBeVisible();
 		expect(await page.locator('script[src]').count()).toBe(0);
-		await page.screenshot({ path: '.generated/login.png' });
+		await page.screenshot({ path: 'build/generated/login.png' });
 		const login = await anonymous.request.post('/login', {
 			headers: { Origin: baseURL! },
 			form: { next: '/graph.json' },
@@ -123,7 +126,7 @@ test('anonymous visitors cannot fetch private content, even after the owner warm
 test('sign-out removes access and invalidates the old session', async ({ browser, baseURL }) => {
 	const context = await browser.newContext({
 		baseURL,
-		storageState: '.generated/logout-state.json'
+		storageState: 'build/generated/logout-state.json'
 	});
 	try {
 		const oldCookies = (await context.cookies())

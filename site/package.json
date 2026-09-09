@@ -8,7 +8,7 @@
 		"db:generate": "drizzle-kit generate",
 		"content:prepare": "bun tooling/prepare.ts",
 		"build:all": "bun tooling/build.ts",
-		"test": "bun test tests/unit",
+		"test": "bun test ./tests/unit",
 		"test:e2e": "playwright test",
 		"test:publishing": "bun tests/publication.ts",
 		"dev": "vite dev",

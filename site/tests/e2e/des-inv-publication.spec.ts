@@ -11,7 +11,7 @@ test('des-inv is public with attribution while course materials and Git history 
 	const context = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
 	try {
 		const manifest: ContentManifest = JSON.parse(
-			readFileSync('.generated/content-manifest.json', 'utf8')
+			readFileSync('build/generated/content-manifest.json', 'utf8')
 		);
 		const notes = Object.values(manifest.pages).filter((note) => note.slug.startsWith('des-inv/'));
 		expect(notes).toHaveLength(12);

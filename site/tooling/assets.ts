@@ -31,7 +31,7 @@ import {
 export async function prepareAssets() {
 	resetContentCache();
 	const SITE_DIR = path.resolve(import.meta.dirname, '..');
-	const GENERATED = path.join(SITE_DIR, '.generated');
+	const GENERATED = path.join(SITE_DIR, 'build/generated');
 	const STATIC_DIR = path.join(SITE_DIR, 'static');
 	if (!existsSync(path.join(GENERATED, 'public-assets.json'))) {
 		mkdirSync(GENERATED, { recursive: true });
@@ -74,7 +74,7 @@ export async function prepareAssets() {
 	const htmlAssetSet = new Set(manifest.htmlAssets);
 	const srcRoot = path.join(GENERATED, 'assets');
 
-	/** rel path in .generated/assets → rel path in static/. */
+	/** rel path in build/generated/assets → rel path in static/. */
 	function destRel(rel: string): string {
 		return htmlAssetSet.has(rel) ? `${rel}.html` : rel;
 	}

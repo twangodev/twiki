@@ -9,7 +9,7 @@ test('removing publication rules closes old pages, data, files and derivatives a
 	baseURL,
 	request
 }) => {
-	const assets = JSON.parse(readFileSync('.generated/public-assets.json', 'utf8'));
+	const assets = JSON.parse(readFileSync('build/generated/public-assets.json', 'utf8'));
 	expect(Object.keys(assets).some((url) => url.startsWith('/_files/blobs/'))).toBe(false);
 	expect(assets['/_og/notes/sp99-cs101/notes/public.png']).toBe(
 		'/_published/_og/notes/sp99-cs101/notes/public.png'

@@ -2,3 +2,4 @@ ARCHITECTURE.md
 .svelte-kit/
 bun.lock
 static/fonts/
+build/

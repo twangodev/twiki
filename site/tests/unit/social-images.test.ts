@@ -68,7 +68,7 @@ test('title-only share cards cover locked notes without exposing their content',
 		expect(png.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
 		expect(png.readUInt32BE(16)).toBe(1200);
 		expect(png.readUInt32BE(20)).toBe(630);
-		const cache = path.join(directory, '.generated/cache/social-titles');
+		const cache = path.join(directory, 'build/generated/cache/social-titles');
 		const timestamp = statSync(cache).mtimeMs;
 		utimesSync(filename, 1, 1);
 		await buildSocialImages(directory, { pages: { [note.slug]: note } });

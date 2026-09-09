@@ -64,7 +64,7 @@ export async function compileContent() {
 	const REPO_ROOT = process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(SITE_DIR, '..');
 	const publicEdition = process.env.VITE_PUBLIC_EDITION === 'true';
 	const CONTENT_DIR = path.join(REPO_ROOT, 'content');
-	const OUT_DIR = path.join(SITE_DIR, '.generated');
+	const OUT_DIR = path.join(SITE_DIR, 'build/generated');
 	const CACHE_DIR = path.join(OUT_DIR, 'cache');
 
 	const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']);
@@ -1126,7 +1126,7 @@ export async function compileContent() {
 		console.log(
 			`counts: pages=${pages.length} drafts=${drafts.length} assets=${assetsSrc.length} (images=${manifest.counts.images} pdfs=${manifest.counts.pdfs} html=${manifest.counts.htmlAssets}) dropped=${otherSrc.length} tags=${tagIndex.size} folders=${folderSet.size}`
 		);
-		console.log(`warnings: ${warnings.length} (site/.generated/warnings.txt)`);
+		console.log(`warnings: ${warnings.length} (site/build/generated/warnings.txt)`);
 
 		if (sizeViolations.length > 0) {
 			console.error('SIZE FAILURES:\n' + sizeViolations.join('\n'));

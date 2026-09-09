@@ -5,7 +5,7 @@ test('only the owner can manage access, and revocation blocks existing sessions'
 	browser,
 	baseURL
 }) => {
-	const member = await browser.newContext({ storageState: '.generated/member-state.json' });
+	const member = await browser.newContext({ storageState: 'build/generated/member-state.json' });
 	const origin = baseURL!;
 	try {
 		expect((await member.request.get(`${origin}/graph.json`)).status()).toBe(200);

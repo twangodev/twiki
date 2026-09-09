@@ -15,8 +15,8 @@ import path from 'node:path';
 const mode = process.argv[2];
 if (mode !== 'restore' && mode !== 'save') throw new Error('Expected restore or save');
 const secret = process.env.BUILD_CACHE_KEY;
-const cache = path.resolve('.generated/cache');
-const encrypted = path.resolve('.generated/compiler-cache.gpg');
+const cache = path.resolve('build/generated/cache');
+const encrypted = path.resolve('build/generated/compiler-cache.gpg');
 if (!secret || (mode === 'restore' && !existsSync(encrypted))) {
 	console.log(
 		mode === 'restore' ? 'No cache or key; building cold' : 'No key; skipping cache save'

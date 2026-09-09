@@ -1,6 +1,6 @@
 /**
  * Shared types for the doc shell and the prebuild content manifest
- * (`site/.generated`, emitted by `tooling/compiler.ts`).
+ * (`site/build/generated`, emitted by `tooling/compiler.ts`).
  */
 
 /** A node in the sidebar navigation tree (Explorer). */

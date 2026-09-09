@@ -79,12 +79,15 @@ test('files stay secondary and open a highlighted source viewer', async ({ page 
 	expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(
 		true
 	);
-	await page.screenshot({ path: '.generated/file-viewer-desktop.png', animations: 'disabled' });
+	await page.screenshot({
+		path: 'build/generated/file-viewer-desktop.png',
+		animations: 'disabled'
+	});
 	await page.setViewportSize({ width: 390, height: 844 });
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 	await page.getByRole('button', { name: 'Toggle navigation', exact: true }).click();
 	await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-	await page.screenshot({ path: '.generated/file-viewer-mobile.png', animations: 'disabled' });
+	await page.screenshot({ path: 'build/generated/file-viewer-mobile.png', animations: 'disabled' });
 });
 
 test('Markdown links back to notes, PDFs embed, images preview, and missing paths return 404', async ({

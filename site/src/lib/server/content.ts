@@ -17,7 +17,7 @@ import type {
 import { site } from '../config';
 
 /** `vite`/`bun` are always invoked from `site/`, so cwd-relative is stable. */
-const GENERATED_DIR = path.resolve(process.cwd(), '.generated');
+const GENERATED_DIR = path.resolve(process.cwd(), 'build/generated');
 
 let manifestCache: ContentManifest | undefined;
 

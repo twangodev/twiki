@@ -4,7 +4,7 @@ import type { ContentManifest } from '../../src/lib/types';
 import { textExportUrl } from '../../src/lib/text-exports';
 
 const manifest: ContentManifest = JSON.parse(
-	readFileSync('.generated/content-manifest.json', 'utf8')
+	readFileSync('build/generated/content-manifest.json', 'utf8')
 );
 const pages = Object.values(manifest.pages);
 

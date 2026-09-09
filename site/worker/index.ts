@@ -3,7 +3,7 @@ import app from '../.svelte-kit/svelte-worker.js';
 import type { ExecutionContext } from '@cloudflare/workers-types';
 import { authenticateRequest } from './gate';
 import type { AuthEnv } from './auth';
-import publicAssets from '../.generated/public-assets.json';
+import publicAssets from '../build/generated/public-assets.json';
 import { publicTarget } from './publication';
 
 interface Env extends AuthEnv {

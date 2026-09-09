@@ -5,7 +5,7 @@ import type { CourseFile } from '../../src/lib/files';
 import { parseGitmodules } from '../../tooling/lib/lastmod';
 
 const manifest: ContentManifest = JSON.parse(
-	readFileSync('.generated/content-manifest.json', 'utf8')
+	readFileSync('build/generated/content-manifest.json', 'utf8')
 );
 const landings = Object.values(manifest.pages).filter((note) => /^[^/]+\/README$/.test(note.slug));
 

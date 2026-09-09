@@ -65,7 +65,7 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 	const isPublished = publicationFilter(repo);
 	const licenseFor = courseLicenseResolver(repo);
 	const contentRoot = path.join(repo, 'content');
-	const output = path.join(siteDir, '.generated/assets/_files');
+	const output = path.join(siteDir, 'build/generated/assets/_files');
 	rmSync(output, { recursive: true, force: true });
 	for (const dir of ['index', 'blobs']) mkdirSync(path.join(output, dir), { recursive: true });
 	const courses = new Map(
@@ -88,7 +88,7 @@ export async function buildCourseFiles(siteDir: string, noteSlugs: Set<string>) 
 			createFileHistoryBuilder(
 				path.join(contentRoot, course),
 				output,
-				path.join(siteDir, '.generated/cache/file-history', course),
+				path.join(siteDir, 'build/generated/cache/file-history', course),
 				browsablePath,
 				createHash('sha256')
 					.update(readFileSync(import.meta.filename))

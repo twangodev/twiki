@@ -5,8 +5,8 @@ import { publicAssetManifest } from './lib/public-assets';
 
 const site = path.resolve(import.meta.dir, '..');
 const output = path.join(site, '.svelte-kit/cloudflare');
-const staged = path.join(site, '.generated/public-site');
-const manifestPath = path.join(site, '.generated/public-assets.json');
+const staged = path.join(site, 'build/generated/public-site');
+const manifestPath = path.join(site, 'build/generated/public-assets.json');
 let publicAssets: Record<string, string> = {};
 mkdirSync(path.dirname(manifestPath), { recursive: true });
 writeFileSync(manifestPath, '{}');
@@ -26,9 +26,11 @@ function build(publicEdition: boolean) {
 
 {
 	build(true);
-	const pages = JSON.parse(readFileSync(path.join(site, '.generated/public-routes.json'), 'utf8'));
+	const pages = JSON.parse(
+		readFileSync(path.join(site, 'build/generated/public-routes.json'), 'utf8')
+	);
 	const content = JSON.parse(
-		readFileSync(path.join(site, '.generated/content-manifest.json'), 'utf8')
+		readFileSync(path.join(site, 'build/generated/content-manifest.json'), 'utf8')
 	);
 	for (const asset of content.htmlAssets) pages[`/${asset}`] = `${asset}.html`;
 	publicAssets = publicAssetManifest(output, pages);

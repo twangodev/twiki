@@ -11,7 +11,7 @@ export default defineConfig({
 	reporter: process.env.CI ? 'github' : 'list',
 	use: {
 		baseURL,
-		storageState: '.generated/auth-state.json',
+		storageState: 'build/generated/auth-state.json',
 		colorScheme: 'light',
 		trace: 'retain-on-failure',
 		screenshot: 'only-on-failure'

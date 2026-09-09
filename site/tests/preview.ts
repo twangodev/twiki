@@ -61,11 +61,11 @@ try {
 		issuer: 'local:oauth:github'
 	});
 	const { cookies } = await ctx.test.login({ userId: user.id });
-	mkdirSync('.generated', { recursive: true });
-	writeFileSync('.generated/auth-state.json', JSON.stringify({ cookies, origins: [] }));
+	mkdirSync('build/generated', { recursive: true });
+	writeFileSync('build/generated/auth-state.json', JSON.stringify({ cookies, origins: [] }));
 	const logoutSession = await ctx.test.login({ userId: user.id });
 	writeFileSync(
-		'.generated/logout-state.json',
+		'build/generated/logout-state.json',
 		JSON.stringify({ cookies: logoutSession.cookies, origins: [] })
 	);
 	await database(proxy.env.DB)
@@ -80,7 +80,7 @@ try {
 	});
 	const memberSession = await ctx.test.login({ userId: member.id });
 	writeFileSync(
-		'.generated/member-state.json',
+		'build/generated/member-state.json',
 		JSON.stringify({ cookies: memberSession.cookies, origins: [] })
 	);
 } finally {

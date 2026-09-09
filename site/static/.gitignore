@@ -1,5 +1,5 @@
 # Everything in static/ except the hand-placed files below is synced from
-# .generated/assets by tooling/assets.ts — never commit synced content.
+# build/generated/assets by tooling/assets.ts — never commit synced content.
 *
 !.gitignore
 !favicon.png

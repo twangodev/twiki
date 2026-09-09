@@ -42,7 +42,7 @@ jobs:
         uses: actions/cache/restore@v6
         id: compiler-cache
         with:
-          path: site/.generated/compiler-cache.gpg
+          path: site/build/generated/compiler-cache.gpg
           key: compiler-encrypted-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: compiler-encrypted-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock', 'site/tooling/**', 'site/src/lib/config.ts', 'site/src/lib/metadata.ts', 'site/src/lib/types.ts') }}-
       - &decrypt-compiler-cache
@@ -131,5 +131,5 @@ jobs:
       - uses: actions/cache/save@v6
         if: steps.encrypted-cache.outputs.ready == 'true'
         with:
-          path: site/.generated/compiler-cache.gpg
+          path: site/build/generated/compiler-cache.gpg
           key: ${{ steps.compiler-cache.outputs.cache-primary-key }}

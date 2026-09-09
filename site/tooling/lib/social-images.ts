@@ -159,7 +159,7 @@ export function socialCard(
 
 export async function buildSocialImages(siteDir: string, manifest: Pick<ContentManifest, 'pages'>) {
 	const output = path.join(siteDir, 'static/_og');
-	const cache = path.join(siteDir, '.generated/cache/social-titles');
+	const cache = path.join(siteDir, 'build/generated/cache/social-titles');
 	mkdirSync(output, { recursive: true });
 	mkdirSync(cache, { recursive: true });
 	const wanted = new Set<string>();

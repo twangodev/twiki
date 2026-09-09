@@ -32,7 +32,7 @@ test('exports only used icons, theme variants, folder states, and their license'
 		const theme: FileIconTheme = JSON.parse(
 			readFileSync(path.join(site, 'src/lib/generated/file-icons.json'), 'utf8')
 		);
-		const output = path.join(site, '.generated/assets/_files/icons');
+		const output = path.join(site, 'build/generated/assets/_files/icons');
 		expect<unknown>(selectFileIcon(theme, 'Main.JAVA').dark).toBe('java');
 		expect<unknown>(selectFileIcon(theme, 'src', true, true).dark).toBe('folder-src-open');
 		expect<unknown>(selectFileIcon(theme, 'constructor')).toEqual(theme.file);

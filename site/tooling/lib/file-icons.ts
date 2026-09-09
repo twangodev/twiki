@@ -43,7 +43,7 @@ export function resolveIcon(name: string, folder = false, expanded = false, ligh
 }
 
 export function buildFileIcons(siteDir: string, files: string[]) {
-	const output = path.join(siteDir, '.generated/assets/_files/icons');
+	const output = path.join(siteDir, 'build/generated/assets/_files/icons');
 	const moduleDir = path.join(siteDir, 'src/lib/generated');
 	const packageDir = path.dirname(
 		fileURLToPath(import.meta.resolve('material-icon-theme/package.json'))

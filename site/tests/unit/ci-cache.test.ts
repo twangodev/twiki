@@ -22,7 +22,7 @@ test('CI uploads only dependencies and encrypted compiler data', () => {
 		for (const step of job.steps.filter((step) => step.uses?.startsWith('actions/cache'))) {
 			const paths = step.with?.path?.trim().split('\n');
 			if (paths?.[0] === '~/.bun/install/cache') expect(paths).toHaveLength(1);
-			else expect(paths).toEqual(['site/.generated/compiler-cache.gpg']);
+			else expect(paths).toEqual(['site/build/generated/compiler-cache.gpg']);
 		}
 	}
 });
@@ -66,7 +66,7 @@ test('only trusted main-branch deployment runs save compiler caches', () => {
 	for (const [name, job] of Object.entries(workflow.jobs)) {
 		if (name === 'build-and-deploy') continue;
 		for (const step of job.steps.filter(
-			(step) => step.with?.path === 'site/.generated/compiler-cache.gpg'
+			(step) => step.with?.path === 'site/build/generated/compiler-cache.gpg'
 		))
 			expect(step.uses).toBe('actions/cache/restore@v6');
 	}
@@ -92,7 +92,7 @@ function cacheFixture(
 		GITHUB_OUTPUT: path.join(directory, 'outputs'),
 		TMPDIR: directory
 	};
-	mkdirSync(path.join(directory, '.generated/cache'), { recursive: true });
+	mkdirSync(path.join(directory, 'build/generated/cache'), { recursive: true });
 	try {
 		run({
 			directory,
@@ -128,7 +128,7 @@ function cacheFixture(
 
 test('workflow encryption restores selected files and rejects wrong keys and tampering', () => {
 	cacheFixture(({ directory, execute }) => {
-		const cache = path.join(directory, '.generated/cache');
+		const cache = path.join(directory, 'build/generated/cache');
 		const files = [
 			'stage1/ab/note.json',
 			'file-history/course/blame.json',
@@ -142,7 +142,7 @@ test('workflow encryption restores selected files and rejects wrong keys and tam
 		writeFileSync(path.join(cache, 'credentials.env'), 'excluded fixture');
 		execute('Encrypt compiler cache');
 		expect(readFileSync(path.join(directory, 'outputs'), 'utf8')).toBe('ready=true\n');
-		const archive = path.join(directory, '.generated/compiler-cache.gpg');
+		const archive = path.join(directory, 'build/generated/compiler-cache.gpg');
 		const encrypted = readFileSync(archive);
 		expect(encrypted.includes(Buffer.from('private fixture content'))).toBe(false);
 		rmSync(cache, { recursive: true });
@@ -173,7 +173,7 @@ test('workflow encryption restores selected files and rejects wrong keys and tam
 test('missing keys and missing archives need no cache setup', () => {
 	cacheFixture(({ directory, execute }) => {
 		expect(execute('Encrypt compiler cache', '')).toContain('skipping cache save');
-		expect(existsSync(path.join(directory, '.generated/compiler-cache.gpg'))).toBe(false);
+		expect(existsSync(path.join(directory, 'build/generated/compiler-cache.gpg'))).toBe(false);
 		expect(existsSync(path.join(directory, 'outputs'))).toBe(false);
 		expect(execute('Decrypt compiler cache')).toContain('building cold');
 	});

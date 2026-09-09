@@ -12,7 +12,7 @@ export default function () {
 			await indexSearch('.svelte-kit/cloudflare');
 			if (process.env.VITE_PUBLIC_EDITION === 'true') {
 				writeFileSync(
-					'.generated/public-routes.json',
+					'build/generated/public-routes.json',
 					JSON.stringify(
 						Object.fromEntries(
 							[...builder.prerendered.pages].map(([route, page]) => [route, page.file])

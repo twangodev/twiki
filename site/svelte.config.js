@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 /** @param {string} filename @param {string} value */
 function expectedDiagnostic(filename, value) {
 	try {
-		return JSON.parse(readFileSync(`.generated/${filename}.json`, 'utf8')).includes(value);
+		return JSON.parse(readFileSync(`build/generated/${filename}.json`, 'utf8')).includes(value);
 	} catch {
 		return false;
 	}

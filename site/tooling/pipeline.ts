@@ -19,10 +19,10 @@ export async function prepareContent(reuse = false) {
 	if (
 		reuse &&
 		process.env.WISCONSIN_PREPARED_CONTENT === key &&
-		existsSync('.generated/content-manifest.json')
+		existsSync('build/generated/content-manifest.json')
 	)
 		return;
-	if (reuse && existsSync(path.resolve('.generated/content-manifest.json')) && builds.has(key))
+	if (reuse && existsSync(path.resolve('build/generated/content-manifest.json')) && builds.has(key))
 		return builds.get(key);
 	const build = runPipeline();
 	builds.set(key, build);

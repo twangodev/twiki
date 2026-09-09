@@ -84,7 +84,7 @@ describe('course file discovery', () => {
 			git('add', '.');
 			writeFileSync(path.join(course, 'untracked.java'), 'excluded');
 			await buildCourseFiles(site, new Set(['test-course/README']));
-			const output = path.join(site, '.generated/assets');
+			const output = path.join(site, 'build/generated/assets');
 			const files: CourseFile[] = JSON.parse(
 				readFileSync(path.join(output, '_files/index/test-course.json'), 'utf8')
 			);

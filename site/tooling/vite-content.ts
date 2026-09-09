@@ -83,7 +83,7 @@ export function content(): Plugin {
 			});
 		},
 		handleHotUpdate({ file }) {
-			if (file.includes('/src/lib/generated/') || file.includes('/.generated/')) return [];
+			if (file.includes('/src/lib/generated/') || file.includes('/build/generated/')) return [];
 		}
 	};
 }
