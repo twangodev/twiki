@@ -70,15 +70,21 @@ test('every course has an indexable public overview without opening its material
 			expect(
 				files.filter((file) => file.locked).every((file) => !file.download && !file.history)
 			).toBe(true);
-			if (course === 'fa26-philos244') continue;
-			const details = `/${course}/course-details`;
+			const privateNote = Object.values(manifest.pages).find(
+				(page) => !page.publication.public && page.relativePath.startsWith(`${course}/`)
+			);
+			if (!privateNote) continue;
+			const details = '/' + privateNote.slug;
 			expect(sitemap).not.toContain(details);
 			await page.goto(details);
 			await expect(page.getByText('Content locked', { exact: true })).toBeVisible();
 			const fullFiles: CourseFile[] = await (
 				await request.get(`/_files/index/${course}.json`)
 			).json();
-			const privateFile = fullFiles.find((file) => file.path === 'course-details.md')!;
+			const privateFile = fullFiles.find(
+				(file) => file.path === privateNote.relativePath.slice(course.length + 1)
+			)!;
+			expect(privateFile.download, privateNote.slug).toBeTruthy();
 			expect((await anonymous.request.get(privateFile.download!)).status()).toBe(401);
 		}
 	} finally {
