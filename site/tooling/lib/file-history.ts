@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync } from 'node:fs';
 import path from 'node:path';
+import { createRevisionLookup } from './git-revisions';
 import type { CourseFile } from '../../src/lib/files';
 import type { FileBlame, FileChange, FileCommit, FileHistory } from '../../src/lib/file-history';
 
@@ -48,6 +49,11 @@ export function createFileHistoryBuilder(
 		throw new Error(`Full Git history required: ${repo}`);
 	mkdirSync(cache, { recursive: true });
 	mkdirSync(path.join(output, 'history'), { recursive: true });
+	const revisionFor = createRevisionLookup(
+		head,
+		cache,
+		(file) => git('log', '-1', '--first-parent', '--format=%H', head, '--', file).trim() || head
+	);
 	const commits = new Map<string, { commit: FileCommit; parent?: string; changes: string[] }>();
 	function details(id: string) {
 		let cached = commits.get(id);
@@ -84,8 +90,7 @@ export function createFileHistoryBuilder(
 	}
 	return (file: CourseFile, bytes: Uint8Array) => {
 		// Unrelated commits do not change this file's history or blame.
-		const revision =
-			git('log', '-1', '--first-parent', '--format=%H', head, '--', file.path).trim() || head;
+		const revision = revisionFor(file.path);
 		const key = createHash('sha256')
 			.update(
 				`${historyVersion}\0${policyKey}\0${urlPrefix}\0${revision}\0${file.kind}\0${file.path}\0`

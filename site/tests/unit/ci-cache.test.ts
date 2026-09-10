@@ -139,6 +139,7 @@ test('workflow encryption restores selected files and rejects wrong keys and tam
 		const files = [
 			'stage1/ab/note.json',
 			'file-history/course/blame.json',
+			'file-history/course/revisions-v1-head.jsonl',
 			'gitdates-v2-course-head.json',
 			'social-titles/card.png'
 		];
