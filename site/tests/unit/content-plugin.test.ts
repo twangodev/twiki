@@ -20,3 +20,21 @@ test('installation synchronizes types without compiling course content', async (
 		else process.env.npm_lifecycle_event = previous;
 	}
 });
+
+// Bun's install hook does not reliably set npm_lifecycle_event.
+test('explicit install flag skips compilation without a lifecycle event', async () => {
+	const previous = process.env.npm_lifecycle_event;
+	const skip = process.env.WISCONSIN_SKIP_CONTENT;
+	delete process.env.npm_lifecycle_event;
+	process.env.WISCONSIN_SKIP_CONTENT = '1';
+	try {
+		const hook = content().config;
+		if (!hook || typeof hook !== 'object') throw new Error('Missing ordered config hook');
+		await hook.handler.call({} as never, {}, { command: 'build', mode: 'production' });
+	} finally {
+		if (previous === undefined) delete process.env.npm_lifecycle_event;
+		else process.env.npm_lifecycle_event = previous;
+		if (skip === undefined) delete process.env.WISCONSIN_SKIP_CONTENT;
+		else process.env.WISCONSIN_SKIP_CONTENT = skip;
+	}
+});

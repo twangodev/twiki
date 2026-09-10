@@ -15,7 +15,11 @@ type Step = {
 	with?: { path?: string; key?: string; 'restore-keys'?: string };
 };
 const workflow = parse(readFileSync('../.github/workflows/svelte.yml', 'utf8')) as {
-	jobs: Record<string, { steps: Step[]; if?: string }>;
+	concurrency?: unknown;
+	jobs: Record<
+		string,
+		{ steps: Step[]; if?: string; concurrency: { group: string; 'cancel-in-progress': boolean } }
+	>;
 };
 test('CI uploads only dependencies and encrypted compiler data', () => {
 	for (const job of Object.values(workflow.jobs)) {
@@ -54,6 +58,9 @@ test('build jobs restore compatible caches from previous runs before preparing c
 		expect(cache.uses).toBe('actions/cache/restore@v6');
 		expect(steps[index + 1].name).toBe('Decrypt compiler cache');
 		expect(index + 1).toBeLessThan(build);
+		expect(index + 1).toBeLessThan(
+			steps.findIndex((step) => step.run === 'bun install --frozen-lockfile')
+		);
 	}
 	expect(prefixes.size).toBe(1);
 });
@@ -177,4 +184,15 @@ test('missing keys and missing archives need no cache setup', () => {
 		expect(existsSync(path.join(directory, 'outputs'))).toBe(false);
 		expect(execute('Decrypt compiler cache')).toContain('building cold');
 	});
+});
+
+test('slow checks do not queue deployment and active deployments finish safely', () => {
+	expect(workflow.concurrency).toBeUndefined();
+	const groups = new Set<string>();
+	for (const [name, job] of Object.entries(workflow.jobs)) {
+		groups.add(job.concurrency.group);
+		expect(job.concurrency.group).toContain('${{ github.ref }}');
+		expect(job.concurrency['cancel-in-progress']).toBe(name !== 'build-and-deploy');
+	}
+	expect(groups.size).toBe(Object.keys(workflow.jobs).length);
 });

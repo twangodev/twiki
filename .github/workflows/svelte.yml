@@ -12,16 +12,15 @@ permissions:
 env:
   FORCE_COLOR: "3"
 
-concurrency:
-  group: svelte-${{ github.ref }}
-  cancel-in-progress: false
-
 defaults:
   run:
     working-directory: site
 
 jobs:
   check:
+    concurrency:
+      group: svelte-check-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       - run: git config --global submodule.fetchJobs 8
@@ -37,7 +36,6 @@ jobs:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
-      - run: bun install --frozen-lockfile
       - &restore-compiler-cache
         uses: actions/cache/restore@v6
         id: compiler-cache
@@ -50,9 +48,13 @@ jobs:
         env: &cache-encryption
           BUILD_CACHE_KEY: ${{ secrets.BUILD_CACHE_KEY }}
         run: bun tooling/cache.ts restore
+      - run: bun install --frozen-lockfile
       - run: bun run check
 
   unit-tests:
+    concurrency:
+      group: svelte-unit-tests-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -66,6 +68,9 @@ jobs:
       - run: bun run test
 
   browser-tests:
+    concurrency:
+      group: svelte-browser-tests-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       - run: git config --global submodule.fetchJobs 8
@@ -81,9 +86,9 @@ jobs:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
-      - run: bun install --frozen-lockfile
       - *restore-compiler-cache
       - *decrypt-compiler-cache
+      - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
       - run: bun test tests/browser-diagrams.test.ts
       - run: bun run check:diagrams
@@ -93,6 +98,9 @@ jobs:
       - run: bun run test:publishing
 
   build-and-deploy:
+    concurrency:
+      group: svelte-build-and-deploy-${{ github.ref }}
+      cancel-in-progress: false
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     environment:
@@ -112,9 +120,9 @@ jobs:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
-      - run: bun install --frozen-lockfile
       - *restore-compiler-cache
       - *decrypt-compiler-cache
+      - run: bun install --frozen-lockfile
       - run: bun run build:all
       - run: bunx wrangler d1 migrations apply wisconsin --remote
         env:

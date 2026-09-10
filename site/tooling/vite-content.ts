@@ -15,7 +15,11 @@ export function content(): Plugin {
 		config: {
 			order: 'pre',
 			async handler(_config, environment) {
-				if (environment.command === 'build' && process.env.npm_lifecycle_event !== 'prepare')
+				if (
+					environment.command === 'build' &&
+					process.env.WISCONSIN_SKIP_CONTENT !== '1' &&
+					process.env.npm_lifecycle_event !== 'prepare'
+				)
 					await prepareContent(true);
 			}
 		},
