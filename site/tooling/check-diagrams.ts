@@ -1,3 +1,4 @@
+import { preserveCurrency } from './lib/currency';
 import { stripObsidianComments } from './lib/comments';
 /** Validate Markdown math and render Mermaid with the site's installed engines. */
 import { execFileSync } from 'node:child_process';
@@ -28,6 +29,7 @@ export function expressions(markdown: string): Expression[] {
 		true
 	);
 	const tree = unified().use(remarkParse).use(remarkGfm).use(remarkMath).parse(source);
+	preserveCurrency(source)(tree);
 	const result: Expression[] = [];
 	visit(tree, (node) => {
 		if (

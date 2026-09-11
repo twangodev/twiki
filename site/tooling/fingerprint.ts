@@ -8,6 +8,7 @@ export function parserFingerprint() {
 		'lib/slug.ts',
 		'lib/ofm.ts',
 		'lib/comments.ts',
+		'lib/currency.ts',
 		'lib/autotag.ts',
 		'lib/lastmod.ts',
 		'lib/publishing.ts',

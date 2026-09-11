@@ -1,3 +1,4 @@
+import { preserveCurrency } from './lib/currency';
 /** Render tracked notes, resolve links and transclusions, and emit pages, assets, and graph data. */
 import fs from 'node:fs';
 import { writeChanged, copyChanged, pruneOutputs } from './lib/output';
@@ -437,6 +438,7 @@ export async function compileContent() {
 			// syntax-extension-only plugins (position in chain irrelevant, parse-time)
 			.use(remarkGfm)
 			.use(remarkMath)
+			.use(() => preserveCurrency(text))
 			// OFM mdast phase (fork order)
 			.use(() => ofmReplacements(ofmData))
 			.use(() => ofmVideoEmbed())

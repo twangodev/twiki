@@ -79,3 +79,36 @@ test('supports macros shared within a note without leaking between notes', () =>
 	expect(() => checkMath(expressions('$\\foo$')[0], macros)).not.toThrow();
 	expect(() => checkMath(expressions('$\\foo$')[0])).toThrow();
 });
+
+test('excludes currency pairs from math validation', () => {
+	for (const source of [
+		'$186 billion for its 1961 comparison, about $1,000 in 2000',
+		'$0.08 in 2015, $0.06 in 2018',
+		'Costs $5 and $10.',
+		'Costs $5–$10.',
+		'> Costs $5, $10, and $20.'
+	]) {
+		expect(expressions(source)).toEqual([]);
+	}
+});
+
+test('preserves explicit currency, code, and numeric math', () => {
+	for (const source of [
+		String.raw`Costs \$5 and \$10.`,
+		'`$5 and $10`',
+		'```sh\necho "$5 and $10"\n```',
+		'---\ntitle: "$5 and $10"\n---',
+		'%% $5 and $10 %%'
+	])
+		expect(expressions(source)).toEqual([]);
+	for (const source of [
+		'$2 + 3$',
+		'$2 + 3 $4',
+		'$5$',
+		'$2x$ and $3y$',
+		'$$2 + 3$$',
+		String.raw`$2\text{ units}$3`
+	]) {
+		for (const expression of expressions(source)) expect(() => checkMath(expression)).not.toThrow();
+	}
+});

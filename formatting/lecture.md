@@ -17,7 +17,7 @@ date: YYYY-MM-DD
 
 - H1 is `Lecture NN: <topic>`; section headings nested below.
 - Figures in a per-directory `assets/`, embedded with `![[...]]`.
-- Code fences tagged; math in LaTeX.
+- Code fences tagged; math in LaTeX. Escape literal currency dollars (`\$5`, `\$0.08`); unescaped `$...$` is inline math.
 - When a lecture has both a recording and slides, **synthesize them into one
   note**: the transcript supplies the narrative and emphasis, the slides
   supply structure and figures. Never file transcript and slide-notes as two
