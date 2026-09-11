@@ -77,6 +77,12 @@ extra_remotes = "ignore"
 [submodules."content/fa26-cs577".remotes.origin]
 url = "https://github.com/twangodev/fa26-cs577"
 
+[submodules."content/fa26-cs759".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa26-cs759".remotes.origin]
+url = "https://github.com/twangodev/fa26-cs759"
+
 [submodules."content/fa26-philos244".settings]
 extra_remotes = "ignore"
 

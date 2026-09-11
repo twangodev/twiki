@@ -78,3 +78,7 @@
 	path = content/fa26-soilsci101
 	url = https://github.com/twangodev/fa26-soilsci101
 	branch = main
+[submodule "content/fa26-cs759"]
+	path = content/fa26-cs759
+	url = https://github.com/twangodev/fa26-cs759
+	branch = main
