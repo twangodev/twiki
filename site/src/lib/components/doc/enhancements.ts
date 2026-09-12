@@ -1,5 +1,6 @@
 import type { Attachment } from 'svelte/attachments';
 import { mermaidDiagrams } from '$lib/components/embeds/mermaid';
+import { imagePreviews } from './image-preview';
 
 /**
  * Client-side enhancements applied to rendered markdown content. Each is an
@@ -22,7 +23,8 @@ export function enhanceArticle(dep: unknown): Attachment<HTMLElement> {
 			copyButtons(dep)(node),
 			headingAnchors(dep)(node),
 			calloutFold(dep)(node),
-			mermaidDiagrams(dep)(node)
+			mermaidDiagrams(dep)(node),
+			imagePreviews(dep)(node)
 		];
 		return () => {
 			for (const cleanup of cleanups) cleanup?.();
