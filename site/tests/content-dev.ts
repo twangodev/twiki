@@ -7,6 +7,7 @@ import {
 	statSync,
 	cpSync,
 	readFileSync,
+	realpathSync,
 	writeFileSync,
 	mkdtempSync,
 	mkdirSync,
@@ -35,13 +36,17 @@ cpSync(source, siteDirectory, {
 	filter: (file) => !excluded.has(path.relative(source, file))
 });
 symlinkSync(path.join(source, 'node_modules'), path.join(siteDirectory, 'node_modules'), 'dir');
-const viteConfig = path.join(siteDirectory, 'vite.config.ts');
+// Merge the fixture's filesystem access with the real config, preserving its
+// server settings (including watch ignores) without duplicate object keys.
+const viteConfig = path.join(siteDirectory, 'vite.content-test.config.ts');
 writeFileSync(
 	viteConfig,
-	readFileSync(viteConfig, 'utf8').replace(
-		'defineConfig({',
-		`defineConfig({ server: { fs: { allow: ${JSON.stringify([siteDirectory, path.join(source, 'node_modules')])} } },`
-	)
+	`import { mergeConfig } from 'vite';
+import config from './vite.config';
+export default mergeConfig(config, {
+  server: { fs: { allow: ${JSON.stringify([siteDirectory, realpathSync(path.join(source, 'node_modules'))])} } }
+});
+`
 );
 mkdirSync(path.join(siteDirectory, 'static'));
 for (const file of ['fonts', 'favicon.png', '.gitignore'])
@@ -55,7 +60,18 @@ function startServer(publicEdition = true) {
 	output = '';
 	const server = spawn(
 		'bun',
-		['x', 'vite', 'dev', '--host', '127.0.0.1', '--port', port, '--strictPort'],
+		[
+			'x',
+			'vite',
+			'dev',
+			'--config',
+			viteConfig,
+			'--host',
+			'127.0.0.1',
+			'--port',
+			port,
+			'--strictPort'
+		],
 		{
 			cwd: siteDirectory,
 			env: {
