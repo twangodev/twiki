@@ -35,24 +35,60 @@ export function imagePreviews(_dep: unknown): Attachment<HTMLElement> {
 				try {
 					const { default: PhotoSwipe } = await import('photoswipe');
 					if (disposed) return;
+					const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 250;
 					viewer = new PhotoSwipe({
 						dataSource: [
 							{
 								src: image.currentSrc || image.src,
 								width: image.naturalWidth,
 								height: image.naturalHeight,
-								alt: image.alt
+								alt: image.alt,
+								element: link,
+								msrc: image.currentSrc || image.src
 							}
 						],
-						showHideAnimationType: 'none',
-						zoomAnimationDuration: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-							? 0
-							: 200,
+						showHideAnimationType: 'zoom',
+						showAnimationDuration: duration,
+						hideAnimationDuration: duration,
+						zoomAnimationDuration: duration,
 						secondaryZoomLevel: 2,
 						maxZoomLevel: 4,
 						bgOpacity: 0.95
 					});
+					// Replay early controls after opening, with close taking priority.
+					const instance = viewer;
+					let ready = false;
+					let pending: 'close' | 'zoom' | undefined;
+					const close = instance.close.bind(instance);
+					const zoom = instance.toggleZoom.bind(instance);
+					instance.close = () => {
+						if (ready) close();
+						else pending = 'close';
+					};
+					instance.toggleZoom = () => {
+						if (ready) zoom();
+						else if (pending !== 'close') pending = pending === 'zoom' ? undefined : 'zoom';
+					};
+					const earlyEscape = (event: KeyboardEvent) => {
+						if (!ready && event.key === 'Escape') {
+							event.preventDefault();
+							event.stopImmediatePropagation();
+							pending = 'close';
+						}
+					};
+					document.addEventListener('keydown', earlyEscape, true);
+					instance.on('openingAnimationEnd', () => {
+						ready = true;
+						document.removeEventListener('keydown', earlyEscape, true);
+						queueMicrotask(() => {
+							if (disposed || viewer !== instance) return;
+							if (pending === 'close') close();
+							else if (pending === 'zoom') zoom();
+							pending = undefined;
+						});
+					});
 					viewer.on('destroy', () => {
+						document.removeEventListener('keydown', earlyEscape, true);
 						viewer = undefined;
 					});
 					viewer.init();
