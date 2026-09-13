@@ -129,7 +129,7 @@ export async function compileContent() {
 
 		for (const sub of submodules) {
 			const name = sub.path.slice('content/'.length);
-			for (const f of gitLsFiles(sub.fullPath)) {
+			for (const f of gitLsFiles(sub.fullPath, ['--recurse-submodules'])) {
 				rels.push(`${name}/${f}`);
 			}
 		}

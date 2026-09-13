@@ -256,7 +256,7 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	}
 
 	const missingAnchor = new Set<string>();
-	const anchorRe = /(?:href|src)="(\/[^"#]*#[^"]+)"/g;
+	const anchorRe = /(?:href|src)="((?:\/[^"#]*)?#[^"]+)"/g;
 	for (const slug of Object.keys(manifest.pages)) {
 		const doc = JSON.parse(
 			readFileSync(path.join(GENERATED, 'pages', `${slug}.json`), 'utf-8')
@@ -267,7 +267,7 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 			const raw = m[1];
 			if (raw.startsWith('//')) continue;
 			const hashIdx = raw.indexOf('#');
-			let target = raw.slice(0, hashIdx);
+			let target = raw.slice(0, hashIdx) || `/${displayRoute(slug)}`;
 			let id = raw.slice(hashIdx + 1);
 			if (id.startsWith('page=')) continue; // PDF page anchors pass raw
 			try {
