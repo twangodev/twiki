@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { Copy, FileText, ChevronDown } from '@lucide/svelte';
+	import { Copy, FileText, ChevronDown, Printer } from '@lucide/svelte';
 	import { Popover } from 'bits-ui';
 	import { textExportUrl } from '$lib/text-exports';
+	import { prepareDiagramsForPrint } from '$lib/components/embeds/mermaid';
 
 	let { slug }: { slug: string } = $props();
 	let open = $state(false);
@@ -9,6 +10,26 @@
 	let busy = $state(false);
 	let markdown = $state<string>();
 	let loading = $state(false);
+	let printing = $state(false);
+
+	async function printNote(event: MouseEvent) {
+		const article = (event.currentTarget as HTMLElement).closest('article');
+		if (!article || printing) return;
+		printing = true;
+		try {
+			await Promise.all([
+				document.fonts.ready,
+				prepareDiagramsForPrint(article),
+				...Array.from(article.querySelectorAll('img'), async (image) => {
+					image.loading = 'eager';
+					await image.decode().catch(() => {});
+				})
+			]);
+			if (article.isConnected) window.print();
+		} finally {
+			printing = false;
+		}
+	}
 	const actionClass =
 		'flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-text no-underline hover:bg-surface focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50';
 
@@ -49,7 +70,16 @@
 	}
 </script>
 
-<div class="not-prose mb-5" data-pagefind-ignore>
+<div class="note-actions not-prose mb-5 flex flex-wrap items-center gap-2" data-pagefind-ignore>
+	<button
+		type="button"
+		class="inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs text-muted hover:bg-surface hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
+		title="Print this note or save it as a PDF"
+		disabled={printing}
+		onclick={printNote}
+	>
+		<Printer class="size-3.5" aria-hidden="true" />{printing ? 'Preparing…' : 'Print / PDF'}
+	</button>
 	<Popover.Root
 		bind:open
 		onOpenChange={(value) => {

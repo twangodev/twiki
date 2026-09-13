@@ -53,6 +53,12 @@ function makeButton(label: string, content: string, className = ''): HTMLButtonE
 
 let idCounter = 0;
 
+const printPreparers = new WeakMap<HTMLElement, () => Promise<void>>();
+
+export async function prepareDiagramsForPrint(article: HTMLElement): Promise<void> {
+	await printPreparers.get(article)?.();
+}
+
 interface Block {
 	pre: HTMLElement;
 	source: string;
@@ -312,6 +318,11 @@ export function mermaidDiagrams(_dep: unknown): Attachment<HTMLElement> {
 		);
 		for (const block of blocks) observer.observe(block.pre);
 
+		printPreparers.set(node, async () => {
+			observer.disconnect();
+			await Promise.all(blocks.filter((block) => !block.rendered).map(render));
+		});
+
 		let wasDark = isDark();
 		const themeObserver = new MutationObserver(() => {
 			const dark = isDark();
@@ -325,6 +336,7 @@ export function mermaidDiagrams(_dep: unknown): Attachment<HTMLElement> {
 		});
 
 		return () => {
+			printPreparers.delete(node);
 			destroyed = true;
 			closeModal();
 			observer.disconnect();

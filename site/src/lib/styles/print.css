@@ -1,0 +1,115 @@
+/* Shared by the note button and the browser's native Print command. */
+@page {
+	margin: 16mm;
+}
+
+@media print {
+	:root,
+	:root.dark {
+		color-scheme: light;
+		--color-bg: #fff;
+		--color-surface: #f5f5f5;
+		--color-text: #111;
+		--color-muted: #555;
+		--color-subtle: #ccc;
+		--color-accent: #111;
+	}
+
+	html,
+	body {
+		height: auto !important;
+		overflow: visible !important;
+		background: white;
+	}
+
+	.doc-shell {
+		display: block;
+		min-height: 0;
+	}
+
+	.doc-main {
+		padding: 0;
+	}
+
+	.doc-main > div {
+		max-width: none;
+		margin: 0;
+	}
+
+	.doc-sidebar-left,
+	.doc-sidebar-right,
+	.doc-mobile-header,
+	.doc-reader-controls,
+	.doc-nav-backdrop,
+	.doc-main nav,
+	[data-island='backlinks'],
+	.note-actions,
+	[data-bits-portal],
+	.popover,
+	.pswp,
+	.mermaid-modal,
+	.mermaid-toolbar,
+	.prose .copy-button,
+	.prose .heading-anchor,
+	.prose .fold-callout-icon {
+		display: none !important;
+	}
+
+	.prose {
+		font-size: 11pt;
+		orphans: 3;
+		widows: 3;
+	}
+
+	.prose :where(h1, h2, h3, h4, h5, h6) {
+		break-after: avoid;
+	}
+
+	.prose :where(img, svg, figure, tr) {
+		break-inside: avoid;
+	}
+
+	.prose :where(pre, pre code) {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+
+	.prose pre,
+	.prose pre span,
+	:root.dark .prose pre.shiki,
+	:root.dark .prose pre.shiki span {
+		color: #111 !important;
+		background: #f5f5f5 !important;
+		text-shadow: none;
+	}
+
+	.prose pre.shiki,
+	.prose .katex-display,
+	.prose .mermaid-diagram {
+		overflow: visible;
+	}
+
+	.prose .mermaid-inline-content {
+		min-width: 0;
+	}
+
+	.prose :where(img, .mermaid-inline-content > svg) {
+		max-width: 100%;
+		max-height: 240mm;
+		object-fit: contain;
+	}
+
+	/* Include folded callouts without changing the reader's screen state. */
+	.prose blockquote.callout > .callout-content {
+		display: block;
+	}
+
+	.prose .callout-content-inner {
+		overflow: visible;
+	}
+
+	.prose table {
+		width: 100%;
+		font-size: 9pt;
+	}
+}

@@ -2,5 +2,6 @@
 @import '../lib/styles/foundation.css';
 @import '../lib/styles/shell.css';
 @import '../lib/styles/article.css';
+@import '../lib/styles/print.css';
 @plugin '@tailwindcss/typography';
 @custom-variant dark (&:where(:root.dark, :root.dark *));
