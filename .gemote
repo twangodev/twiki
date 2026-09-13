@@ -83,6 +83,15 @@ extra_remotes = "ignore"
 [submodules."content/fa26-cs759".remotes.origin]
 url = "https://github.com/twangodev/fa26-cs759"
 
+[submodules."content/fa26-cs759".submodules.assignments.settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa26-cs759".submodules.assignments.remotes.origin]
+url = "https://github.com/twangodev/repo759"
+
+[submodules."content/fa26-cs759".submodules.assignments.remotes.upstream]
+url = "https://github.com/tsung-wei-huang/repo759.git"
+
 [submodules."content/fa26-philos244".settings]
 extra_remotes = "ignore"
 
