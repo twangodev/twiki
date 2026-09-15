@@ -298,6 +298,9 @@ try {
 			await filePage.getByRole('button', { name: 'File history', exact: true }).click();
 		return (await panel.innerText()).includes('Publish selected current files');
 	}, 'history panel after client hydration');
+	await filePage.evaluate(() => {
+		(window as unknown as { contentTestMarker: string }).contentTestMarker = 'preserved';
+	});
 	fixture.write('content/sp99-cs101/p01/Main.java', 'class Main { int changed; }\n');
 	await until(
 		async () =>
@@ -306,6 +309,12 @@ try {
 			),
 		'history refresh after local edit'
 	);
+	if (
+		(await filePage.evaluate(
+			() => (window as unknown as { contentTestMarker?: string }).contentTestMarker
+		)) !== 'preserved'
+	)
+		throw new Error('File edit reloaded the browser');
 	await filePage.close();
 	await restart(false);
 	if (!output.includes('reused saved output'))
