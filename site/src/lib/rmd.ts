@@ -5,7 +5,7 @@ import remarkMath from 'remark-math';
 import remarkRehype from 'remark-rehype';
 import rehypeKatex from 'rehype-katex';
 import { toHtml } from 'hast-util-to-html';
-import { visit } from 'unist-util-visit';
+import { SKIP, visit } from 'unist-util-visit';
 import { parse } from 'yaml';
 import type { Root as HtmlRoot } from 'hast';
 import type { Root, RootContent } from 'mdast';
@@ -44,6 +44,21 @@ export async function parseRmd(source: string, course: string, path: string, fil
 	const parser = unified().use(remarkParse).use(remarkGfm).use(remarkMath);
 	const renderer = unified().use(remarkRehype).use(rehypeKatex);
 	const tree = parser.parse(source);
+	// PDF layout directives have no notebook equivalent. Match whole prose
+	// paragraphs so inline explanations, code examples, and R chunks survive.
+	visit(tree, 'paragraph', (node, index, parent) => {
+		const child = node.children[0];
+		if (
+			parent &&
+			index !== undefined &&
+			node.children.length === 1 &&
+			child.type === 'text' &&
+			/^\s*\\(?:vspace\*?\{[^{}\n]+\}|newpage|pagebreak(?:\[[0-4]\])?)\s*$/.test(child.value)
+		) {
+			parent.children.splice(index, 1);
+			return [SKIP, index];
+		}
+	});
 	visit(tree, (node) => {
 		if (node.type !== 'image' && node.type !== 'link' && node.type !== 'definition') return;
 		const normalized = node.url.replace(/[\u0000-\u0020\u007f]/g, '');
