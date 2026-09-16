@@ -6,6 +6,20 @@ SvelteKit course notes, deployed to Cloudflare Workers at `wisconsin.twango.dev`
 
 Run from `site/`:
 
+Install R and knitr for build-time worksheet previews (Debian/Ubuntu):
+
+```sh
+sudo apt-get install --no-install-recommends r-base-core r-cran-knitr
+```
+
+The build knits `.Rmd` files into typeset reading views with results and plots.
+Interactive mode loads R in the browser only when a reader runs a chunk.
+Previews are cached against course files, the renderer, and R/package versions;
+source or data changes invalidate them. `RSCRIPT` can select another Rscript executable.
+R chunks run in a temporary copy of available course files, with the worksheet's
+directory as their working directory. Missing packages or failed chunks fail the build
+with the worksheet path. Add packages required by new worksheets to local and CI setup.
+
 ```sh
 bun install --frozen-lockfile
 bun run dev:host
@@ -35,3 +49,7 @@ bun run check:diagrams ../content/fa26-cs577
 The command checks math with KaTeX and parses and renders Mermaid in Chromium using the installed site versions. Failures include the source file, line, and column and produce a nonzero exit status. Install the browser once with `bunx playwright install chromium`. CI runs the check in the browser-tests job.
 
 This validates recognized Markdown math and Mermaid blocks, not mathematical correctness or visual quality. Unclosed math delimiters can be interpreted as ordinary text by Markdown and need review.
+
+Build output and caches live under `build/`, including SvelteKit output in
+`build/.svelte-kit/`. Mark `site/build` as Excluded in your IDE to avoid indexing
+generated files.

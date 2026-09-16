@@ -1,5 +1,5 @@
 {
-	"extends": "./.svelte-kit/tsconfig.json",
+	"extends": "./build/.svelte-kit/tsconfig.json",
 	"compilerOptions": {
 		"types": ["node", "bun"],
 		"rewriteRelativeImportExtensions": true,

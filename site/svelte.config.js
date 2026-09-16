@@ -20,6 +20,7 @@ const config = {
 		}
 	},
 	kit: {
+		outDir: 'build/.svelte-kit',
 		adapter: adapter(),
 		prerender: {
 			origin: 'https://wisconsin.twango.dev',

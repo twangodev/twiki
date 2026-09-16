@@ -1,5 +1,65 @@
 import { expect, test } from '@playwright/test';
 
+test('worksheets open as typeset build output without loading interactive R', async ({ page }) => {
+	const runtimeRequests: string[] = [];
+	page.on('request', (request) => {
+		if (/webr|\.wasm(?:\?|$)|FileRmd/i.test(request.url())) runtimeRequests.push(request.url());
+	});
+	await page.goto('/fa26-stat324/files/lectures/worksheets/lecture-02.Rmd');
+	const document = page.getByRole('article', { name: 'Rendered worksheet' });
+	await expect(document).toBeVisible();
+	await expect(document.locator('img').first()).toBeVisible();
+	expect(await document.locator('img').count()).toBeGreaterThan(1);
+	await expect(document).toContainText('[1]');
+	await expect(page.getByRole('button', { name: 'Read', exact: true })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+	await expect(page.getByRole('button', { name: 'Run all', exact: true })).toHaveCount(0);
+	expect(runtimeRequests).toEqual([]);
+	await page.evaluate(() => window.document.fonts.ready);
+	await page.screenshot({
+		path: 'build/generated/rmd-reading-desktop.png',
+		animations: 'disabled'
+	});
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect(page.getByRole('group', { name: 'Worksheet view' })).toBeInViewport();
+	for (const name of ['Read', 'Interactive', 'Source'])
+		await expect(page.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 });
+	await page.screenshot({ path: 'build/generated/rmd-reading-mobile.png', animations: 'disabled' });
+	await page.getByRole('button', { name: 'Interactive', exact: true }).click();
+	await expect(page.getByRole('button', { name: 'Run all', exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Read', exact: true }).click();
+	await expect(document).toBeVisible();
+	await page.getByRole('button', { name: 'Source', exact: true }).click();
+	await expect(page.locator('.file-code .cm-line').first()).toBeVisible();
+	await page.goto('/fa26-stat324/files/homework/hw2.Rmd');
+	await expect(document).toBeVisible();
+	await expect(document.locator('.katex').first()).toBeVisible();
+	await expect(document).not.toContainText('\\vspace');
+});
+
+test('the reading view includes results and plots without JavaScript', async ({
+	browser,
+	baseURL
+}) => {
+	const context = await browser.newContext({
+		baseURL,
+		javaScriptEnabled: false,
+		storageState: 'build/generated/auth-state.json'
+	});
+	try {
+		const page = await context.newPage();
+		await page.goto('/fa26-stat324/files/lectures/worksheets/lecture-03.Rmd');
+		const document = page.getByRole('article', { name: 'Rendered worksheet' });
+		await expect(document).toBeVisible();
+		await expect(document).toContainText('[1] 20');
+		await expect(document.locator('img').first()).toBeVisible();
+	} finally {
+		await context.close();
+	}
+});
+
 test('Rmd worksheets run in the browser with plots, shared state, CSV data, and reset', async ({
 	page
 }) => {
@@ -17,10 +77,12 @@ test('Rmd worksheets run in the browser with plots, shared state, CSV data, and 
 	await expect(
 		navigation.getByRole('link', { name: 'Lecture 02 (R worksheet)', exact: true })
 	).toHaveAttribute('aria-current', 'page');
+	await page.getByRole('button', { name: 'Interactive', exact: true }).click();
 	await expect(page.getByRole('button', { name: 'Run all', exact: true })).toBeVisible();
 	for (const name of ['lecture-03.Rmd', 'lecture-02.Rmd']) {
 		await page.goto(`/fa26-stat324/files/lectures/worksheets/${name}`);
 		await expect(notes).toHaveAttribute('aria-pressed', 'true');
+		await page.getByRole('button', { name: 'Interactive', exact: true }).click();
 		await page.getByRole('button', { name: 'Run all', exact: true }).click();
 		await expect(page.getByRole('status').filter({ hasText: 'Finished.' })).toBeVisible({
 			timeout: 180_000

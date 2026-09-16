@@ -1,5 +1,5 @@
 // @ts-expect-error The adapter generates this untyped module during build.
-import app from '../.svelte-kit/svelte-worker.js';
+import app from '../build/.svelte-kit/svelte-worker.js';
 import type { ExecutionContext } from '@cloudflare/workers-types';
 import { authenticateRequest } from './gate';
 import type { AuthEnv } from './auth';

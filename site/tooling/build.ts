@@ -4,7 +4,7 @@ import path from 'node:path';
 import { publicAssetManifest } from './lib/public-assets';
 
 const site = path.resolve(import.meta.dir, '..');
-const output = path.join(site, '.svelte-kit/cloudflare');
+const output = path.join(site, 'build/.svelte-kit/cloudflare');
 const staged = path.join(site, 'build/generated/public-site');
 const manifestPath = path.join(site, 'build/generated/public-assets.json');
 let publicAssets: Record<string, string> = {};

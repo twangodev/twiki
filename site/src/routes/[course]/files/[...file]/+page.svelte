@@ -19,7 +19,6 @@
 	import FileIcon from '$lib/components/files/FileIcon.svelte';
 	import FileTabs from '$lib/components/files/FileTabs.svelte';
 	import FileCode from '$lib/components/files/FileCode.svelte';
-	import FileRmd from '$lib/components/files/FileRmd.svelte';
 	import FileHistory from '$lib/components/files/FileHistory.svelte';
 	import type { FileBlame, FileChange } from '$lib/file-history';
 	import { fileWorkspace } from '$lib/components/files/file-workspace.svelte';
@@ -35,7 +34,7 @@
 	let blame = $state<FileBlame>();
 	let selectedCommit = $state('');
 	let sourceText = $state<string>();
-	let rmdPreview = $state(true);
+	let rmdMode = $state<'read' | 'interactive' | 'source'>('read');
 	let diff = $state<{ text: string; commit: FileChange }>();
 	$effect(() => {
 		data.course;
@@ -44,6 +43,7 @@
 		blame = undefined;
 		selectedCommit = '';
 		sourceText = undefined;
+		rmdMode = 'read';
 	});
 	const activeTab = $derived(workspace.tabs.find((tab) => sameFile(tab, data)));
 	function rememberPosition() {
@@ -117,7 +117,9 @@
 				>
 			{/each}
 		</nav>
-		<header class="order-first flex min-w-0 items-center border-b border-border bg-surface pr-2">
+		<header
+			class="order-first flex min-w-0 items-center border-b border-border bg-surface pr-2 max-sm:flex-col max-sm:items-stretch"
+		>
 			{#if !data.file && !workspace.tabs.length}<div
 					class="flex min-w-0 items-center gap-2 border-r border-border bg-bg px-3 py-2"
 				>
@@ -126,13 +128,23 @@
 				</div>{:else}<h1 class="sr-only">{name}</h1>{/if}
 			<FileTabs course={data.course} path={data.path} isFile={!!data.file} />
 			{#if data.file}
-				<div class="flex shrink-0 items-center gap-1">
-					{#if /\.rmd$/i.test(data.path) && !data.file.locked}<button
-							class={action}
-							aria-pressed={rmdPreview}
-							onclick={() => (rmdPreview = !rmdPreview)}
-							>{rmdPreview ? 'Source' : 'Notebook'}</button
-						>{/if}
+				<div class="flex shrink-0 items-center gap-1 overflow-x-auto">
+					{#if /\.rmd$/i.test(data.path) && !data.file.locked && !diff}
+						<div
+							class="flex shrink-0 rounded border border-border"
+							role="group"
+							aria-label="Worksheet view"
+						>
+							{#each [['read', 'Read'], ['interactive', 'Interactive'], ['source', 'Source']] as [mode, label]}
+								<button
+									class={action}
+									class:bg-bg={rmdMode === mode}
+									aria-pressed={rmdMode === mode}
+									onclick={() => (rmdMode = mode as typeof rmdMode)}>{label}</button
+								>
+							{/each}
+						</div>
+					{/if}
 					{#if data.file.history}
 						{#if data.file.kind === 'text'}<button
 								class={action}
@@ -198,16 +210,34 @@
 	<div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
 		{#if data.file?.locked}
 			<div class="min-w-0 flex-1 overflow-auto p-4"><LockedContent /></div>
-		{:else if rmdPreview && /\.rmd$/i.test(data.path) && data.file?.download && !diff}
+		{:else if rmdMode === 'read' && data.rmd && !diff}
+			<div class="min-h-0 min-w-0 flex-1 overflow-auto bg-surface p-4 sm:p-8" bind:this={viewport}>
+				<article
+					class="rmd-reading prose mx-auto max-w-3xl rounded border border-border bg-bg p-5 shadow-sm sm:p-10 dark:prose-invert"
+					aria-label="Rendered worksheet"
+				>
+					<h1>{data.rmd.title}</h1>
+					{@html data.rmd.html}
+				</article>
+			</div>
+		{:else if rmdMode === 'interactive' && /\.rmd$/i.test(data.path) && data.file?.download && !diff}
 			<div class="min-h-0 min-w-0 flex-1">
 				{#key `${data.course}/${data.path}`}
-					<FileRmd
-						url={data.file.download}
-						course={data.course}
-						path={data.path}
-						files={data.files}
-						onload={(text) => (sourceText = text)}
-					/>
+					{#await import('$lib/components/files/FileRmd.svelte')}
+						<p class="p-6 text-sm text-muted" role="status">Opening interactive worksheet…</p>
+					{:then component}
+						<component.default
+							url={data.file.download}
+							course={data.course}
+							path={data.path}
+							files={data.files}
+							onload={(text) => (sourceText = text)}
+						/>
+					{:catch}
+						<p class="p-6 text-sm text-muted" role="alert">
+							Could not open the interactive worksheet. Switch to Read or reload to try again.
+						</p>
+					{/await}
 				{/key}
 			</div>
 		{:else if data.file?.kind === 'text' || diff}
@@ -321,3 +351,21 @@
 		>
 	</footer>
 </div>
+
+<style>
+	.rmd-reading {
+		font-family: 'KaTeX_Main', Georgia, 'Times New Roman', serif;
+		line-height: 1.8;
+	}
+	.rmd-reading :global(:is(h1, h2, h3, h4, h5, h6)) {
+		font-family: inherit;
+	}
+	.rmd-reading :global(pre) {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+	.rmd-reading :global(img) {
+		margin-inline: auto;
+		background: white;
+	}
+</style>

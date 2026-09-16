@@ -58,7 +58,7 @@ try {
 	} else {
 		const files = readdirSync(cache).filter(
 			(file) =>
-				['stage1', 'file-history', 'social-titles'].includes(file) ||
+				['stage1', 'file-history', 'social-titles', 'rmd'].includes(file) ||
 				/^gitdates-v2-[\w-]+\.json$/.test(file)
 		);
 		run('tar', ['-czf', archive, '-C', cache, ...files]);

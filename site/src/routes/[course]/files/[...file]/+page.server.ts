@@ -1,5 +1,11 @@
 import { error } from '@sveltejs/kit';
-import { directoryEntries, fileIndexUrl, fileTree, type CourseFile } from '$lib/files';
+import {
+	directoryEntries,
+	fileIndexUrl,
+	fileTree,
+	type CourseFile,
+	type RmdPreview
+} from '$lib/files';
 import { building, dev } from '$app/environment';
 import { publicEdition } from '$lib/publication';
 import fileEntries from '$lib/generated/file-entries.json';
@@ -17,12 +23,19 @@ export const load: PageServerLoad = async ({ params, fetch, platform, url }) => 
 	const file = files.find((entry) => entry.path === params.file);
 	const entries = file ? undefined : directoryEntries(fileTree(files), params.file);
 	if (!file && !entries) error(404, 'File not found');
+	let rmd: RmdPreview | undefined;
+	if (file?.rmdPreview && !file.locked) {
+		const preview = await fetchAsset(file.rmdPreview);
+		if (!preview.ok) error(503, 'Worksheet preview unavailable');
+		rmd = await preview.json();
+	}
 	return {
 		kind: 'file-browser' as const,
 		course: params.course,
 		path: params.file,
 		files,
 		file,
+		rmd,
 		entries,
 		toc: []
 	};

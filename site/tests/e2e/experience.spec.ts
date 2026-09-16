@@ -227,7 +227,7 @@ test('Cloudflare asset headers and canonical URLs are configured', async ({ requ
 	const graphResponse = await request.get('/graph.json');
 	expect(graphResponse.headers()['cache-control']).toBe('private, no-store');
 
-	const pagefindFilter = readdirSync('.svelte-kit/cloudflare/pagefind/filter')[0];
+	const pagefindFilter = readdirSync('build/.svelte-kit/cloudflare/pagefind/filter')[0];
 	const filterResponse = await request.get(`/pagefind/filter/${pagefindFilter}`);
 	expect(filterResponse.headers()['cache-control']).toBe('private, no-store');
 

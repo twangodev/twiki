@@ -6,7 +6,13 @@ export interface CourseFile {
 	kind: 'text' | 'image' | 'pdf' | 'binary';
 	download?: string;
 	history?: string;
+	rmdPreview?: string;
 	note?: string;
+}
+
+export interface RmdPreview {
+	title: string;
+	html: string;
 }
 
 export interface FileNode {

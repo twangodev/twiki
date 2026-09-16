@@ -48,6 +48,9 @@ jobs:
         env: &cache-encryption
           BUILD_CACHE_KEY: ${{ secrets.BUILD_CACHE_KEY }}
         run: bun tooling/cache.ts restore
+      - &install-r
+        name: Install R worksheet renderer
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core r-cran-knitr
       - run: bun install --frozen-lockfile
       - run: bun run check
 
@@ -88,10 +91,12 @@ jobs:
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - *restore-compiler-cache
       - *decrypt-compiler-cache
+      - *install-r
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
       - run: bun test tests/browser-diagrams.test.ts
       - run: bun run check:diagrams
+      - run: bun test tests/rmd-build.test.ts
       - run: bun run test:content
       - run: bun run build:all
       - run: bun run test:e2e
@@ -122,6 +127,7 @@ jobs:
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - *restore-compiler-cache
       - *decrypt-compiler-cache
+      - *install-r
       - run: bun install --frozen-lockfile
       - run: bun run build:all
       - run: bunx wrangler d1 migrations apply wisconsin --remote

@@ -276,7 +276,7 @@ test('warming full content cannot leak it anonymously, including page data and g
 		const assets: Record<string, string> = JSON.parse(
 			readFileSync('build/generated/public-assets.json', 'utf8')
 		);
-		const chunks = readdirSync('.svelte-kit/cloudflare/_app/immutable', { recursive: true })
+		const chunks = readdirSync('build/.svelte-kit/cloudflare/_app/immutable', { recursive: true })
 			.filter((file) => typeof file === 'string' && file.endsWith('.js'))
 			.map((file) => `/_app/immutable/${file}`);
 		const privateChunks = chunks.filter((file) => !assets[file]);

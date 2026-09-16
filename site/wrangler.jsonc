@@ -3,7 +3,7 @@
 	"name": "wisconsin",
 	"compatibility_date": "2026-06-07",
 	"compatibility_flags": ["nodejs_compat"],
-	"main": ".svelte-kit/worker.js",
+	"main": "build/.svelte-kit/worker.js",
 	"vars": {
 		"ORIGIN": "https://wisconsin.twango.dev",
 		"OWNER_GITHUB_ID": "48845764",
@@ -19,7 +19,7 @@
 	],
 	"assets": {
 		"binding": "ASSETS",
-		"directory": ".svelte-kit/cloudflare",
+		"directory": "build/.svelte-kit/cloudflare",
 		"html_handling": "drop-trailing-slash",
 		"not_found_handling": "404-page",
 		"run_worker_first": true

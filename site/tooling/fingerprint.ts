@@ -30,11 +30,12 @@ function sourceFingerprint(files: string[]) {
 export function pipelineFingerprint() {
 	const directory = import.meta.dirname;
 	const sources = readdirSync(directory, { recursive: true })
-		.filter((file) => /\.[jt]s$/.test(String(file)))
+		.filter((file) => /\.(?:[jt]s|R)$/.test(String(file)))
 		.map((file) => path.join(directory, String(file)));
 	const hash = createHash('sha256');
 	for (const file of [
 		...sources.sort(),
+		'../src/lib/rmd.ts',
 		'../bun.lock',
 		'../src/lib/config.ts',
 		'../src/lib/metadata.ts',

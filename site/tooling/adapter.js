@@ -9,7 +9,7 @@ export default function () {
 		/** @param {import('@sveltejs/kit').Builder} builder */
 		async adapt(builder) {
 			await adapter.adapt(builder);
-			await indexSearch('.svelte-kit/cloudflare');
+			await indexSearch(builder.getBuildDirectory('cloudflare'));
 			if (process.env.VITE_PUBLIC_EDITION === 'true') {
 				writeFileSync(
 					'build/generated/public-routes.json',
@@ -22,7 +22,7 @@ export default function () {
 			}
 			const directory = builder.getBuildDirectory('');
 			renameSync(`${directory}/worker.js`, `${directory}/svelte-worker.js`);
-			writeFileSync(`${directory}/worker.js`, "export { default } from '../worker/index.ts';\n");
+			writeFileSync(`${directory}/worker.js`, "export { default } from '../../worker/index.ts';\n");
 		}
 	};
 }

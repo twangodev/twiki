@@ -16,6 +16,7 @@ import { slugifyFilePath, type FilePath } from './slug';
 import { buildFileIcons } from './file-icons';
 import { createFileHistoryBuilder } from './file-history';
 import { publicationFilter, courseLicenseResolver } from './publishing';
+import { buildRmdPreviews } from './rmd-previews';
 
 const excludedDirectories = new Set([
 	'node_modules',
@@ -204,6 +205,8 @@ export async function buildCourseFiles(
 	const entries: { course: string; file: string }[] = [];
 	for (const [course, files] of courses) {
 		if (publicEdition && !files.length) continue;
+		if (active.has(course))
+			await buildRmdPreviews(siteDir, course, files, output, (file) => retain(course, file));
 		retain(course, path.join(output, 'index', `${course}.json`));
 		writeChanged(path.join(output, 'index', `${course}.json`), JSON.stringify(files));
 		if (publicEdition) {

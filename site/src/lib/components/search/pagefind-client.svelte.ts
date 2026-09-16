@@ -5,7 +5,7 @@ import { cleanResultUrl } from './pagefind-url';
  * minisearch to Pagefind's chunked static index).
  *
  * The index is produced AFTER `vite build` by the deployment adapter
- * (`pagefind --site .svelte-kit/cloudflare`), which drops a self-contained
+ * (`pagefind --site build/.svelte-kit/cloudflare`), which drops a self-contained
  * `/pagefind/` bundle into the deployed static assets. We lazy-import its JS
  * API on first palette open, so search costs nothing until used. The Vite dev
  * server never has that bundle — `status: 'missing'` drives the dev fallback
