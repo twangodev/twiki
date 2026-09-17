@@ -56,3 +56,8 @@ This validates recognized Markdown math and Mermaid blocks, not mathematical cor
 Build output and caches live under `build/`, including SvelteKit output in
 `build/.svelte-kit/`. Mark `site/build` as Excluded in your IDE to avoid indexing
 generated files.
+
+Wrangler local state, caches, and temporary files live in `build/.wrangler/`.
+A `.wrangler` compatibility symlink redirects Wrangler's hardcoded paths there.
+Dev and preview share the same local database; removing `build/` also removes
+that local database. `wrangler.jsonc` remains the source configuration.

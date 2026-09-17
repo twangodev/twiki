@@ -14,7 +14,7 @@
 		"dev": "vite dev",
 		"dev:host": "vite dev --host",
 		"build": "vite build",
-		"preview": "wrangler dev --port 4173",
+		"preview": "bun tooling/wrangler.ts dev --persist-to build/.wrangler/state --port 4173",
 		"prepare": "WISCONSIN_SKIP_CONTENT=1 svelte-kit sync",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc -p worker/tsconfig.json",
 		"check:diagrams": "bun tooling/check-diagrams.ts",

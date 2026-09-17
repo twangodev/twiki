@@ -1,9 +1,15 @@
 import cloudflare from '@sveltejs/adapter-cloudflare';
 import { renameSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { prepareWranglerPaths } from './wrangler-paths.js';
 import { indexSearch } from './search.js';
 
 export default function () {
-	const adapter = cloudflare();
+	const directory = prepareWranglerPaths(path.resolve(import.meta.dirname, '..'));
+	process.env.WRANGLER_CACHE_DIR ??= path.join(directory, 'cache');
+	const adapter = cloudflare({
+		platformProxy: { persist: { path: path.join(directory, 'state/v3') } }
+	});
 	return {
 		...adapter,
 		/** @param {import('@sveltejs/kit').Builder} builder */
