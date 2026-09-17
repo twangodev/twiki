@@ -14,6 +14,9 @@ sudo apt-get install --no-install-recommends r-base-core r-cran-knitr
 
 The build knits `.Rmd` files into typeset reading views with results and plots.
 Interactive mode loads R in the browser only when a reader runs a chunk.
+Development can start without R/knitr; worksheets then open in Source mode with
+Interactive available and Read disabled. Install the packages above and restart
+the dev server to enable rendered reading views. Production builds require them.
 Previews are cached against course files, the renderer, and R/package versions;
 source or data changes invalidate them. `RSCRIPT` can select another Rscript executable.
 R chunks run in a temporary copy of available course files, with the worksheet's

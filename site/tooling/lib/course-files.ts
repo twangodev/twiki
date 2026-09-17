@@ -206,7 +206,14 @@ export async function buildCourseFiles(
 	for (const [course, files] of courses) {
 		if (publicEdition && !files.length) continue;
 		if (active.has(course))
-			await buildRmdPreviews(siteDir, course, files, output, (file) => retain(course, file));
+			await buildRmdPreviews(
+				siteDir,
+				course,
+				files,
+				output,
+				(file) => retain(course, file),
+				development
+			);
 		retain(course, path.join(output, 'index', `${course}.json`));
 		writeChanged(path.join(output, 'index', `${course}.json`), JSON.stringify(files));
 		if (publicEdition) {

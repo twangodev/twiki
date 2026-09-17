@@ -46,19 +46,29 @@ export async function buildRmdPreviews(
 	course: string,
 	files: CourseFile[],
 	output: string,
-	retain: (file: string) => void
+	retain: (file: string) => void,
+	development = false
 ) {
 	const worksheets = files.filter(
 		(file) => !file.locked && file.download && /\.rmd$/i.test(file.path)
 	);
 	if (!worksheets.length) return;
+	let runtime: string;
+	try {
+		runtime = rVersion();
+	} catch (error) {
+		if (!development) throw error;
+		console.warn(`rmd: ${String(error)} Using Source and Interactive views in development.`);
+		for (const worksheet of worksheets) delete worksheet.rmdPreview;
+		return;
+	}
 	const available = files.filter((file) => !file.locked && file.download);
 	const inputs = JSON.stringify(available.map(({ path, download }) => [path, download]).sort());
 	const renderer = readFileSync(path.join(import.meta.dirname, '../../src/lib/rmd.ts'));
 	const policy = digest(
 		Buffer.concat([readFileSync(runner), readFileSync(import.meta.filename), renderer])
 	);
-	const base = `${rVersion()}\n${policy}\n${course}\n${inputs}`;
+	const base = `${runtime}\n${policy}\n${course}\n${inputs}`;
 	for (const worksheet of worksheets) {
 		const key = digest(`${base}\n${worksheet.path}`);
 		const cache = path.join(site, 'build/generated/cache/rmd', key);

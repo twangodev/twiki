@@ -34,7 +34,9 @@
 	let blame = $state<FileBlame>();
 	let selectedCommit = $state('');
 	let sourceText = $state<string>();
-	let rmdMode = $state<'read' | 'interactive' | 'source'>('read');
+	let rmdMode = $state<'read' | 'interactive' | 'source'>(
+		untrack(() => (data.rmd ? 'read' : 'source'))
+	);
 	let diff = $state<{ text: string; commit: FileChange }>();
 	$effect(() => {
 		data.course;
@@ -43,7 +45,7 @@
 		blame = undefined;
 		selectedCommit = '';
 		sourceText = undefined;
-		rmdMode = 'read';
+		rmdMode = data.rmd ? 'read' : 'source';
 	});
 	const activeTab = $derived(workspace.tabs.find((tab) => sameFile(tab, data)));
 	function rememberPosition() {
@@ -138,6 +140,8 @@
 							{#each [['read', 'Read'], ['interactive', 'Interactive'], ['source', 'Source']] as [mode, label]}
 								<button
 									class={action}
+									disabled={mode === 'read' && !data.rmd}
+									class:opacity-50={mode === 'read' && !data.rmd}
 									class:bg-bg={rmdMode === mode}
 									aria-pressed={rmdMode === mode}
 									onclick={() => (rmdMode = mode as typeof rmdMode)}>{label}</button
