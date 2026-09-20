@@ -82,3 +82,24 @@
 	path = content/fa26-cs759
 	url = https://github.com/twangodev/fa26-cs759
 	branch = main
+[submodule "content/fa24-astron236"]
+	path = content/fa24-astron236
+	url = https://github.com/twangodev/fa24-astron236
+[submodule "content/fa24-cs402"]
+	path = content/fa24-cs402
+	url = https://github.com/twangodev/fa24-cs402
+[submodule "content/fa24-math340"]
+	path = content/fa24-math340
+	url = https://github.com/twangodev/fa24-math340
+[submodule "content/sp25-cs252"]
+	path = content/sp25-cs252
+	url = https://github.com/twangodev/sp25-cs252
+[submodule "content/sp25-econ101"]
+	path = content/sp25-econ101
+	url = https://github.com/twangodev/sp25-econ101
+[submodule "content/sp25-engl175"]
+	path = content/sp25-engl175
+	url = https://github.com/twangodev/sp25-engl175
+[submodule "content/sp25-math240"]
+	path = content/sp25-math240
+	url = https://github.com/twangodev/sp25-math240
