@@ -90,8 +90,9 @@ test('locked previews expose titles and headings without bodies, downloads or hi
 		await expect(page.getByRole('link', { name: 'Download', exact: true })).toHaveCount(0);
 		await expect(page.locator('.cm-content')).toHaveCount(0);
 		const full = await request.get('/sp99-cs101/files/p01/private/Answer.java/__data.json');
-		expect(full.status()).toBe(200);
-		expect(await full.text()).toContain('/_files/blobs/');
+		expect(full.status()).toBe(404); // File routes no longer serialize catalogs into page data.
+		const fullCatalog = await request.get('/_files/index/sp99-cs101.json');
+		expect(await fullCatalog.text()).toContain('/_files/blobs/');
 		const publicFiles: CourseFile[] = await (
 			await context.request.get('/_files/index/sp99-cs101.json')
 		).json();
@@ -260,10 +261,11 @@ test('warming full content cannot leak it anonymously, including page data and g
 			'/sp99-cs101/files/notes/slides.md',
 			'/sp99-cs101/files/notes/slides.md/__data.json'
 		]) {
-			expect((await request.get(url)).status()).toBe(200);
+			const removedPageData = url.includes('/files/') && url.endsWith('/__data.json');
+			expect((await request.get(url)).status()).toBe(removedPageData ? 404 : 200);
 			for (const method of ['GET', 'HEAD']) {
 				const response = await context.request.fetch(url, { method, maxRedirects: 0 });
-				expect(response.status()).toBe(url === secret.download ? 401 : 200);
+				expect(response.status()).toBe(removedPageData ? 404 : url === secret.download ? 401 : 200);
 				expect(await response.text()).not.toMatch(canaries);
 			}
 		}

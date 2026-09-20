@@ -11,6 +11,7 @@ import {
 	writeFileSync
 } from 'node:fs';
 import path from 'node:path';
+import { staticDirectory } from './edition-paths.js';
 import type { ContentManifest, ManifestPage } from '../../src/lib/types';
 import { site } from '../../src/lib/config';
 import { socialImagePath, socialImageSize } from '../../src/lib/social-image';
@@ -174,7 +175,7 @@ export async function cachedSocialImage(siteDir: string, card: SocialCard & { sl
 }
 
 export async function buildSocialImages(siteDir: string, manifest: Pick<ContentManifest, 'pages'>) {
-	const output = path.join(siteDir, 'static/_og');
+	const output = path.join(staticDirectory(siteDir), '_og');
 	mkdirSync(output, { recursive: true });
 	const wanted = new Set<string>();
 	let rendered = 0;
@@ -184,8 +185,7 @@ export async function buildSocialImages(siteDir: string, manifest: Pick<ContentM
 		const cached = result.cached;
 		if (result.rendered) rendered++;
 		const destination = path.join(
-			siteDir,
-			'static',
+			staticDirectory(siteDir),
 			decodeURIComponent(socialImagePath(card.slug))
 		);
 		mkdirSync(path.dirname(destination), { recursive: true });

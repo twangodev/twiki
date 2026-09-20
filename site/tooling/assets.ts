@@ -2,6 +2,7 @@
 
 import {
 	copyFileSync,
+	cpSync,
 	existsSync,
 	linkSync,
 	mkdirSync,
@@ -12,6 +13,7 @@ import {
 	unlinkSync
 } from 'node:fs';
 import path from 'node:path';
+import { staticDirectory, courseFilesDirectory } from './lib/edition-paths.js';
 import { writeChanged } from './lib/output';
 import { writeTextExports } from './lib/text-exports';
 import { buildCourseFiles } from './lib/course-files';
@@ -32,7 +34,14 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	resetContentCache();
 	const SITE_DIR = path.resolve(import.meta.dirname, '..');
 	const GENERATED = path.join(SITE_DIR, 'build/generated');
-	const STATIC_DIR = path.join(SITE_DIR, 'static');
+	const STATIC_DIR = staticDirectory(SITE_DIR);
+	mkdirSync(STATIC_DIR, { recursive: true });
+	if (process.env.VITE_PUBLIC_EDITION === 'true') {
+		for (const name of ['fonts', 'favicon.png']) {
+			const source = path.join(SITE_DIR, 'static', name);
+			if (existsSync(source)) cpSync(source, path.join(STATIC_DIR, name), { recursive: true });
+		}
+	}
 	if (!existsSync(path.join(GENERATED, 'public-assets.json'))) {
 		mkdirSync(GENERATED, { recursive: true });
 		writeChanged(path.join(GENERATED, 'public-assets.json'), '{}');
@@ -97,8 +106,17 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	let oversize = false;
 	const wanted = new Set<string>();
 
-	for (const src of walk(srcRoot)) {
-		const rel = path.relative(srcRoot, src).split(path.sep).join('/');
+	const sources = [
+		...[...walk(srcRoot)]
+			.filter((src) => !path.relative(srcRoot, src).startsWith('_files' + path.sep))
+			.map((src) => ({ src, rel: path.relative(srcRoot, src) })),
+		...[...walk(courseFilesDirectory(SITE_DIR))].map((src) => ({
+			src,
+			rel: path.join('_files', path.relative(courseFilesDirectory(SITE_DIR), src))
+		}))
+	];
+	for (const { src, rel: relative } of sources) {
+		const rel = relative.split(path.sep).join('/');
 		const out = destRel(rel);
 		wanted.add(out);
 		const dest = path.join(STATIC_DIR, out);

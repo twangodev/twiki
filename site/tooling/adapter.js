@@ -1,5 +1,5 @@
 import cloudflare from '@sveltejs/adapter-cloudflare';
-import { renameSync, writeFileSync } from 'node:fs';
+import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { prepareWranglerPaths } from './wrangler-paths.js';
 import { indexSearch } from './search.js';
@@ -16,6 +16,15 @@ export default function () {
 		async adapt(builder) {
 			await adapter.adapt(builder);
 			await indexSearch(builder.getBuildDirectory('cloudflare'));
+			const shell = path.join(builder.getBuildDirectory('cloudflare'), '_file-browser.html');
+			await builder.generateFallback(shell);
+			writeFileSync(
+				shell,
+				readFileSync(shell, 'utf8').replace(
+					'</body>',
+					'<noscript><p>Enable JavaScript to use the file browser.</p></noscript></body>'
+				)
+			);
 			if (process.env.VITE_PUBLIC_EDITION === 'true') {
 				writeFileSync(
 					'build/generated/public-routes.json',

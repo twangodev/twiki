@@ -2,6 +2,21 @@ import { frameOptions } from './framing';
 
 export type PublicAssets = Record<string, string>;
 
+export const fileBrowserShell = '/_file-browser';
+export const publicFileBrowserShell = `/_published${fileBrowserShell}`;
+
+export function isFileBrowserPath(pathname: string) {
+	return /^\/[^/]+\/files(?:\/|$)/.test(pathname);
+}
+
+/** Catalog routes are exact allowlisted aliases to a shared shell, not a catch-all. */
+export function fileBrowserTarget(request: Request, assets: PublicAssets) {
+	if (!['GET', 'HEAD'].includes(request.method)) return;
+	const pathname = new URL(request.url).pathname;
+	if (!isFileBrowserPath(pathname)) return;
+	return assets[pathname] === publicFileBrowserShell ? fileBrowserShell : null;
+}
+
 export function publicTarget(request: Request, assets: PublicAssets) {
 	if (!['GET', 'HEAD'].includes(request.method)) return;
 	const pathname = new URL(request.url).pathname;

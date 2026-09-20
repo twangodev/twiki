@@ -14,7 +14,10 @@ import type { CourseFile } from '../../src/lib/files';
 import { parseGitmodules } from './lastmod';
 import { slugifyFilePath, type FilePath } from './slug';
 import { buildFileIcons } from './file-icons';
-import { createFileHistoryBuilder } from './file-history';
+import { buildHistories, type HistoryJob } from './history-pool';
+import { courseFilesDirectory } from './edition-paths.js';
+import { pipelineFingerprint } from '../fingerprint';
+import { courseFingerprint, readCourseCache, saveCourseCache } from './course-cache';
 import { publicationFilter, courseLicenseResolver } from './publishing';
 import { buildRmdPreviews } from './rmd-previews';
 
@@ -81,7 +84,7 @@ export async function buildCourseFiles(
 	const isPublished = publicationFilter(repo);
 	const licenseFor = courseLicenseResolver(repo);
 	const contentRoot = path.join(repo, 'content');
-	const output = path.join(siteDir, 'build/generated/assets/_files');
+	const output = courseFilesDirectory(siteDir);
 	const wanted = new Set<string>();
 	for (const dir of ['index', 'blobs']) mkdirSync(path.join(output, dir), { recursive: true });
 	const courses = new Map(
@@ -99,7 +102,40 @@ export async function buildCourseFiles(
 			JSON.stringify([...noteSlugs].filter((slug) => slug.startsWith(course + '/')).sort())
 		])
 	);
+	const paths = execFileSync(
+		'git',
+		['-C', repo, 'ls-files', '-z', '--recurse-submodules', '--', 'content'],
+		{ maxBuffer: 1 << 28 }
+	)
+		.toString()
+		.split('\0')
+		.filter(Boolean);
+	const fingerprints = new Map<string, string>();
+	const cacheFile = (course: string) =>
+		path.join(
+			siteDir,
+			'build/generated/cache/course-files',
+			publicEdition ? 'public' : 'full',
+			`${course}.json`
+		);
+	if (!development) {
+		const version = `${pipelineFingerprint()}\0${output}`;
+		for (const course of courses.keys()) {
+			const tracked = paths.filter((file) => file.startsWith(`content/${course}/`));
+			// Let the R renderer validate its installed runtime and worksheet dependencies.
+			if (tracked.some((file) => /\.rmd$/i.test(file))) continue;
+			const fingerprint = courseFingerprint(repo, course, tracked, version, noteKeys.get(course)!);
+			fingerprints.set(course, fingerprint);
+			const cached = readCourseCache(cacheFile(course), fingerprint);
+			if (!cached) continue;
+			courses.set(course, cached.files);
+			outputByCourse.set(course, cached.outputs);
+			for (const file of cached.outputs) wanted.add(file);
+			active.delete(course);
+		}
+	}
 	if (
+		development &&
 		previous &&
 		changedInputs?.size &&
 		[...changedInputs].every((file) => file.startsWith(contentRoot + path.sep))
@@ -128,26 +164,16 @@ export async function buildCourseFiles(
 		wanted.add(file);
 		outputByCourse.get(course)!.add(file);
 	};
-	const paths = execFileSync(
-		'git',
-		['-C', repo, 'ls-files', '-z', '--recurse-submodules', '--', 'content'],
-		{ maxBuffer: 1 << 28 }
-	)
-		.toString()
-		.split('\0')
-		.filter(Boolean);
 	let count = 0;
-	const histories = new Map(
+	const historyJobs = new Map<string, HistoryJob>(
 		(publicEdition || development ? [] : [...active]).map((course) => [
 			course,
-			createFileHistoryBuilder(
-				path.join(contentRoot, course),
+			{
+				repo: path.join(contentRoot, course),
 				output,
-				path.join(siteDir, 'build/generated/cache/file-history', course),
-				browsablePath,
-				fileHistoryPolicyKey(),
-				(file) => retain(course, file)
-			)
+				cache: path.join(siteDir, 'build/generated/cache/file-history', course),
+				files: []
+			}
 		])
 	);
 	const revisions = new Map(
@@ -200,8 +226,13 @@ export async function buildCourseFiles(
 		file.history =
 			development && !publicEdition
 				? `/__content/history?course=${encodeURIComponent(course)}&file=${encodeURIComponent(file.path)}&v=${revisions.get(course)}-${hash}`
-				: histories.get(course)?.(file, bytes);
+				: undefined;
+		historyJobs.get(course)?.files.push({ file, source: path.join(output, 'blobs', blob) });
 	}
+	await buildHistories(
+		[...historyJobs.values()].filter((job) => job.files.length),
+		(job, file) => retain(path.basename(job.repo), file)
+	);
 	const entries: { course: string; file: string }[] = [];
 	for (const [course, files] of courses) {
 		if (publicEdition && !files.length) continue;
@@ -232,6 +263,16 @@ export async function buildCourseFiles(
 		siteDir,
 		[...courses.values()].flatMap((files) => files.map((file) => file.path))
 	);
+	for (const course of active) {
+		const fingerprint = fingerprints.get(course);
+		if (fingerprint)
+			saveCourseCache(
+				cacheFile(course),
+				fingerprint,
+				courses.get(course)!,
+				outputByCourse.get(course)!
+			);
+	}
 	previousBuilds.set(
 		key,
 		new Map(

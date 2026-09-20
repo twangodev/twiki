@@ -4,7 +4,7 @@ import type { ExecutionContext } from '@cloudflare/workers-types';
 import { authenticateRequest } from './gate';
 import type { AuthEnv } from './auth';
 import publicAssets from '../build/generated/public-assets.json';
-import { publicTarget } from './publication';
+import { publicTarget, fileBrowserTarget, isFileBrowserPath } from './publication';
 
 interface Env extends AuthEnv {
 	ASSETS: { fetch(request: Request): Promise<Response> };
@@ -14,7 +14,10 @@ export default {
 	fetch(request: Request, env: Env, ctx: ExecutionContext) {
 		const servePublic = async () => {
 			const target = publicTarget(request, publicAssets);
-			if (!target) return null;
+			if (!target)
+				return isFileBrowserPath(new URL(request.url).pathname)
+					? new Response('Not found', { status: 404 })
+					: null;
 			const url = new URL(request.url);
 			url.pathname = target;
 			url.search = '';
@@ -28,6 +31,14 @@ export default {
 			env,
 			async () => {
 				if (request.method === 'GET' || request.method === 'HEAD') {
+					const shell = fileBrowserTarget(request, publicAssets);
+					if (shell === null) return new Response('Not found', { status: 404 });
+					if (shell) {
+						const url = new URL(request.url);
+						url.pathname = shell;
+						url.search = '';
+						return env.ASSETS.fetch(new Request(url, { method: request.method }));
+					}
 					const asset = await env.ASSETS.fetch(request);
 					if (asset.status !== 404) return asset;
 				}

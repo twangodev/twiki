@@ -39,7 +39,7 @@ test('worksheets open as typeset build output without loading interactive R', as
 	await expect(document).not.toContainText('\\vspace');
 });
 
-test('the reading view includes results and plots without JavaScript', async ({
+test('the file browser explains its JavaScript requirement while notes remain readable without it', async ({
 	browser,
 	baseURL
 }) => {
@@ -51,10 +51,14 @@ test('the reading view includes results and plots without JavaScript', async ({
 	try {
 		const page = await context.newPage();
 		await page.goto('/fa26-stat324/files/lectures/worksheets/lecture-03.Rmd');
-		const document = page.getByRole('article', { name: 'Rendered worksheet' });
-		await expect(document).toBeVisible();
-		await expect(document).toContainText('[1] 20');
-		await expect(document.locator('img').first()).toBeVisible();
+		// Playwright's text selector excludes noscript, even with JavaScript disabled.
+		await expect(page.locator('noscript p')).toHaveText(
+			'Enable JavaScript to use the file browser.'
+		);
+		await expect(page.locator('noscript p')).toBeVisible();
+		await page.goto('/fa26-stat324/README');
+		await expect(page.locator('main h1')).toBeVisible();
+		await expect(page.locator('noscript')).toHaveCount(0);
 	} finally {
 		await context.close();
 	}

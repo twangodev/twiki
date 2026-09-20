@@ -1,3 +1,3 @@
-// Fully prerendered site, Quartz URL contract: no trailing slashes.
+// Notes are prerendered; the file-browser route opts into client rendering.
 export const prerender = true;
 export const trailingSlash = 'never';

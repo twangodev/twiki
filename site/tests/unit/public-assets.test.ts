@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { publicAssetManifest } from '../../tooling/lib/public-assets';
-import { publicResponse, publicTarget } from '../../worker/publication';
+import { publicResponse, publicTarget, fileBrowserTarget } from '../../worker/publication';
 
 const directory = mkdtempSync(path.join(tmpdir(), 'wisconsin-public-assets-'));
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
@@ -66,4 +66,37 @@ test('public responses remain indexable without caching cookies or personalized 
 		new Request('https://example.com/note', { method: 'HEAD' })
 	);
 	expect(await head.text()).toBe('');
+});
+
+test('catalog URLs share one shell without widening asset or route access', () => {
+	const assets = publicAssetManifest(directory, {}, [
+		{ course: 'test-course', file: '' },
+		{ course: 'test-course', file: 'src/Résumé #1?.java' }
+	]);
+	const request = (url: string, method = 'GET') =>
+		new Request(`https://example.com${url}`, { method });
+	for (const route of [
+		'/test-course/files',
+		'/test-course/files/src/R%C3%A9sum%C3%A9%20%231%3F.java'
+	]) {
+		expect(publicTarget(request(route), assets)).toBe('/_published/_file-browser');
+		expect(fileBrowserTarget(request(route), assets)).toBe('/_file-browser');
+		expect(fileBrowserTarget(request(route, 'HEAD'), assets)).toBe('/_file-browser');
+		expect(fileBrowserTarget(request(route, 'POST'), assets)).toBeUndefined();
+	}
+	for (const route of [
+		'/test-course/files/nope',
+		'/test-course/files/',
+		'/test-course/files/src/Résumé%20%231%3F.java/__data.json'
+	]) {
+		expect(publicTarget(request(route), assets)).toBeUndefined();
+		expect(fileBrowserTarget(request(route), assets)).toBeNull();
+	}
+	for (const route of [
+		'/_published/_file-browser',
+		'/_file-browser',
+		'/_files/history/private.json'
+	])
+		expect(publicTarget(request(route), assets)).toBeUndefined();
+	expect(fileBrowserTarget(request('/test-course/README'), assets)).toBeUndefined();
 });

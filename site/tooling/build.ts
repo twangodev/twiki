@@ -12,7 +12,10 @@ mkdirSync(path.dirname(manifestPath), { recursive: true });
 writeFileSync(manifestPath, '{}');
 rmSync(staged, { recursive: true, force: true });
 
+const started = performance.now();
+
 function build(publicEdition: boolean) {
+	const started = performance.now();
 	const result = spawnSync('bun', ['x', 'vite', 'build'], {
 		cwd: site,
 		stdio: 'inherit',
@@ -22,6 +25,9 @@ function build(publicEdition: boolean) {
 		throw new Error(`${publicEdition ? 'Public' : 'Full'} build failed`, {
 			cause: result.error
 		});
+	console.log(
+		`build: ${publicEdition ? 'public' : 'full'} completed in ${((performance.now() - started) / 1000).toFixed(2)}s`
+	);
 }
 
 {
@@ -33,10 +39,17 @@ function build(publicEdition: boolean) {
 		readFileSync(path.join(site, 'build/generated/content-manifest.json'), 'utf8')
 	);
 	for (const asset of content.htmlAssets) pages[`/${asset}`] = `${asset}.html`;
-	publicAssets = publicAssetManifest(output, pages);
+	const fileEntries = JSON.parse(
+		readFileSync(path.join(site, 'src/lib/generated/file-entries.json'), 'utf8')
+	);
+	publicAssets = publicAssetManifest(output, pages, fileEntries);
 	cpSync(output, staged, { recursive: true });
-	console.log(`publishing: ${Object.keys(pages).length} public pages; history remains private`);
+	console.log(
+		`publishing: ${Object.keys(pages).length} public pages; ${fileEntries.length} file routes share one shell; history remains private`
+	);
 }
 build(false);
 cpSync(staged, path.join(output, '_published'), { recursive: true });
 writeFileSync(manifestPath, JSON.stringify(publicAssets));
+
+console.log(`build: all completed in ${((performance.now() - started) / 1000).toFixed(2)}s`);

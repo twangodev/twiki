@@ -30,6 +30,15 @@ bun run dev:host
 
 Course content is stored in Git submodules under `content/` and watched during development.
 
+Notes remain prerendered and readable without JavaScript. The file browser,
+including worksheet reading views, requires JavaScript. File-browser URLs use one client-rendered HTML shell
+per edition, loading the course catalog and selected previews as assets. The
+Worker maps only exact catalog URLs to the shell; unknown paths return 404.
+Public and authenticated readers receive their edition's shell and assets through
+the existing access gate. File names enter the search index directly without
+rendering a page for each file. Raw Markdown and compiled worksheet assets remain
+available through the existing download and preview URLs.
+
 ## Checks
 
 ```sh
@@ -40,6 +49,22 @@ bun run test:e2e
 ```
 
 Browser tests require Chromium: `bunx playwright install chromium`.
+
+`build:all` reports public, full, and total wall-clock time. File history runs in
+up to eight course workers (bounded by available CPUs); override with
+`WISCONSIN_HISTORY_WORKERS=16 bun run build:all`, or use `1` for a serial comparison.
+Public file-browser assets and statics use `build/generated/public-files/` and
+`build/generated/public-static/`, so public builds do not prune full-site assets.
+The content manifests and SvelteKit build directory are still shared: use a
+separate checkout when building alongside a dev server.
+
+Production file-browser results are cached per course in
+`build/generated/cache/course-files/`. Reuse requires matching tooling, course
+HEAD, tracked file metadata, publication policy, note links, and intact output
+files. Working-copy edits invalidate the course. Courses with R Markdown always
+run the renderer's own runtime-aware cache checks. This course cache accelerates
+local rebuilds; CI still restores the existing encrypted history/renderer cache,
+then regenerates outputs. Removing generated outputs safely causes cache misses.
 
 ### Validate Math and Mermaid
 

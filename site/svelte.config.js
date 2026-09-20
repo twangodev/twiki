@@ -1,3 +1,4 @@
+import { staticDirectory } from './tooling/lib/edition-paths.js';
 import adapter from './tooling/adapter.js';
 import { readFileSync } from 'node:fs';
 
@@ -21,6 +22,7 @@ const config = {
 	},
 	kit: {
 		outDir: 'build/.svelte-kit',
+		files: { assets: staticDirectory(process.cwd()) },
 		adapter: adapter(),
 		prerender: {
 			origin: 'https://wisconsin.twango.dev',

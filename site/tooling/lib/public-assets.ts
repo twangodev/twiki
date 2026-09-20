@@ -1,7 +1,13 @@
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
+import { fileRoute } from '../../src/lib/files';
+import { publicFileBrowserShell } from '../../worker/publication';
 
-export function publicAssetManifest(directory: string, pages: Record<string, string>) {
+export function publicAssetManifest(
+	directory: string,
+	pages: Record<string, string>,
+	fileEntries: { course: string; file: string }[] = []
+) {
 	const assets: Record<string, string> = {};
 	function walk(relative = '') {
 		for (const entry of readdirSync(path.join(directory, relative), { withFileTypes: true })) {
@@ -26,5 +32,7 @@ export function publicAssetManifest(directory: string, pages: Record<string, str
 			? `/_published/${target.split('/').map(encodeURIComponent).join('/')}`
 			: '/_published';
 	}
+	for (const { course, file } of fileEntries)
+		assets[fileRoute(course, file)] = publicFileBrowserShell;
 	return assets;
 }
