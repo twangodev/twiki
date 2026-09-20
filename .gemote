@@ -23,11 +23,29 @@ extra_remotes = "ignore"
 [submodules."content/fa24-asianam160".remotes.origin]
 url = "https://github.com/twangodev/fa24-asianam160"
 
+[submodules."content/fa24-astron236".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa24-astron236".remotes.origin]
+url = "https://github.com/twangodev/fa24-astron236"
+
 [submodules."content/fa24-cs300".settings]
 extra_remotes = "ignore"
 
 [submodules."content/fa24-cs300".remotes.origin]
 url = "https://github.com/twangodev/fa24-cs300"
+
+[submodules."content/fa24-cs402".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa24-cs402".remotes.origin]
+url = "https://github.com/twangodev/fa24-cs402"
+
+[submodules."content/fa24-math340".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa24-math340".remotes.origin]
+url = "https://github.com/twangodev/fa24-math340"
 
 [submodules."content/fa25-anthro105".settings]
 extra_remotes = "ignore"
@@ -98,17 +116,47 @@ extra_remotes = "ignore"
 [submodules."content/fa26-philos244".remotes.origin]
 url = "https://github.com/twangodev/fa26-philos244"
 
+[submodules."content/fa26-soilsci101".settings]
+extra_remotes = "ignore"
+
+[submodules."content/fa26-soilsci101".remotes.origin]
+url = "https://github.com/twangodev/fa26-soilsci101"
+
 [submodules."content/fa26-stat324".settings]
 extra_remotes = "ignore"
 
 [submodules."content/fa26-stat324".remotes.origin]
 url = "https://github.com/twangodev/fa26-stat324"
 
+[submodules."content/sp25-cs252".settings]
+extra_remotes = "ignore"
+
+[submodules."content/sp25-cs252".remotes.origin]
+url = "https://github.com/twangodev/sp25-cs252"
+
 [submodules."content/sp25-cs400".settings]
 extra_remotes = "ignore"
 
 [submodules."content/sp25-cs400".remotes.origin]
 url = "https://github.com/twangodev/sp25-cs400"
+
+[submodules."content/sp25-econ101".settings]
+extra_remotes = "ignore"
+
+[submodules."content/sp25-econ101".remotes.origin]
+url = "https://github.com/twangodev/sp25-econ101"
+
+[submodules."content/sp25-engl175".settings]
+extra_remotes = "ignore"
+
+[submodules."content/sp25-engl175".remotes.origin]
+url = "https://github.com/twangodev/sp25-engl175"
+
+[submodules."content/sp25-math240".settings]
+extra_remotes = "ignore"
+
+[submodules."content/sp25-math240".remotes.origin]
+url = "https://github.com/twangodev/sp25-math240"
 
 [submodules."content/sp25-music113".settings]
 extra_remotes = "ignore"
@@ -182,7 +230,13 @@ extra_remotes = "ignore"
 [submodules."content/sp26-cs571".remotes.hw0]
 url = "git@github.com:CS571-S26/hw0-twangodev.git"
 
+[submodules."content/sp26-cs571".remotes.hw0-classroom]
+url = "git@github.com:CS571-S26/hw0-twangodev.git"
+
 [submodules."content/sp26-cs571".remotes.hw1]
+url = "git@github.com:CS571-S26/hw1-twangodev.git"
+
+[submodules."content/sp26-cs571".remotes.hw1-classroom]
 url = "git@github.com:CS571-S26/hw1-twangodev.git"
 
 [submodules."content/sp26-cs571".remotes.hw10]
@@ -191,10 +245,19 @@ url = "git@github.com:CS571-S26/hw10-twangodev-1.git"
 [submodules."content/sp26-cs571".remotes.hw2]
 url = "git@github.com:CS571-S26/hw2-twangodev.git"
 
+[submodules."content/sp26-cs571".remotes.hw2-classroom]
+url = "git@github.com:CS571-S26/hw2-twangodev.git"
+
 [submodules."content/sp26-cs571".remotes.hw3]
 url = "git@github.com:CS571-S26/hw3-twangodev.git"
 
+[submodules."content/sp26-cs571".remotes.hw3-classroom]
+url = "git@github.com:CS571-S26/hw3-twangodev.git"
+
 [submodules."content/sp26-cs571".remotes.hw4]
+url = "git@github.com:CS571-S26/hw4-twangodev.git"
+
+[submodules."content/sp26-cs571".remotes.hw4-classroom]
 url = "git@github.com:CS571-S26/hw4-twangodev.git"
 
 [submodules."content/sp26-cs571".remotes.hw5]
