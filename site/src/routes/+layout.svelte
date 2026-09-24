@@ -1,7 +1,7 @@
 <script lang="ts">
 	import 'katex/dist/katex.min.css';
 	import './layout.css';
-	import type { Snippet } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import { dev } from '$app/environment';
 	import { onNavigate, invalidateAll } from '$app/navigation';
 	import { ModeWatcher } from 'mode-watcher';
@@ -18,6 +18,18 @@
 
 	const { children }: Props = $props();
 	const nav = navData as NavNode[];
+
+	onMount(() => {
+		if (dev) return;
+		void import('@rybbit/js')
+			.then(({ default: rybbit }) =>
+				rybbit.init({
+					analyticsHost: 'https://rybbit.twango.dev/api',
+					siteId: '4'
+				})
+			)
+			.catch((error) => console.warn('Failed to initialize analytics', error));
+	});
 
 	if (import.meta.hot) {
 		const refreshContent = ({ recovered }: { recovered: boolean }) => {
@@ -58,9 +70,6 @@
 		title="wisconsin — recent notes"
 		href="/index.xml"
 	/>
-	{#if !dev}
-		<script src="https://rybbit.twango.dev/api/script.js" data-site-id="4" defer></script>
-	{/if}
 </svelte:head>
 <ModeWatcher defaultMode="system" />
 

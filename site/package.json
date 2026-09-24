@@ -99,5 +99,8 @@
 		"webr": "0.5.8",
 		"wrangler": "^4.100.0",
 		"yaml": "^2.9.0"
+	},
+	"dependencies": {
+		"@rybbit/js": "^0.6.2"
 	}
 }

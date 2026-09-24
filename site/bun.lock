@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "wisconsin-site",
+      "dependencies": {
+        "@rybbit/js": "^0.6.2",
+      },
       "devDependencies": {
         "@better-auth/drizzle-adapter": "1.7.2",
         "@cloudflare/workers-types": "^5.20260904.1",
@@ -457,6 +460,8 @@
     "@rolldown/binding-win32-x64-msvc": ["@rolldown/binding-win32-x64-msvc@1.0.3", "", { "os": "win32", "cpu": "x64" }, "sha512-eXB7CHuaQdqmJcc3koCNtNPmT/bj2gc999kUFgBxG8Ac0NdgXc4rkCHhqrgrhN3zddvvvrgzj1e90SuSfmyIXA=="],
 
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.1", "", {}, "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw=="],
+
+    "@rybbit/js": ["@rybbit/js@0.6.2", "", { "peerDependencies": { "rrweb": "^2.0.0" }, "optionalPeers": ["rrweb"] }, "sha512-UQ3OMau8EevhK1PA6ed74pClNgF3QRG3RlZAsPVzuMZ7UUjk695+sv8ibV1tx8/2IOcfcICNMtUxINcGi20wjg=="],
 
     "@shikijs/core": ["@shikijs/core@4.2.0", "", { "dependencies": { "@shikijs/primitive": "4.2.0", "@shikijs/types": "4.2.0", "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4", "hast-util-to-html": "^9.0.5" } }, "sha512-Hc87Ab1Ld/vEbZRCbwx344I5v+4RU8CVToUTRkqXL1+TjbuOp9U5Xa0M23V4GEWHxVn+yO5otb+HkQVm3ptWQQ=="],
 
