@@ -35,6 +35,7 @@ test('Drizzle preserves existing columns, constraints and indexes', async () => 
 			>("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
 			.all();
 		for (const { name } of tables) {
+			// ALTER TABLE appends columns; declaration order does not affect schema equivalence.
 			const columns = (db: Database) =>
 				db
 					.query<
@@ -48,7 +49,8 @@ test('Drizzle preserves existing columns, constraints and indexes', async () => 
 						notnull,
 						pk,
 						dflt_value
-					}));
+					}))
+					.sort((a, b) => a.name.localeCompare(b.name));
 			const indexes = (db: Database) =>
 				db
 					.query<{ name: string; unique: number }, []>(`PRAGMA index_list('${name}')`)
