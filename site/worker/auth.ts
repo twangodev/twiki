@@ -34,6 +34,8 @@ export function createAuth(env: AuthEnv) {
 		database: drizzleAdapter(database(env.DB), { provider: 'sqlite' }),
 		trustedOrigins: [env.ORIGIN],
 		emailAndPassword: { enabled: false },
+		// OAuth mapping requires an input field; auth-routes.ts blocks client profile updates.
+		user: { additionalFields: { githubUsername: { type: 'string', required: false } } },
 		account: { accountLinking: { enabled: false }, encryptOAuthTokens: true },
 		session: { cookieCache: { enabled: false }, expiresIn: 60 * 60 * 24 * 7 },
 		rateLimit: { enabled: true, storage: 'database' },
@@ -45,11 +47,13 @@ export function createAuth(env: AuthEnv) {
 			github: {
 				clientId: env.GITHUB_CLIENT_ID,
 				clientSecret: env.GITHUB_CLIENT_SECRET,
+				// Refresh renamed GitHub accounts and populate usernames for existing users.
+				overrideUserInfoOnSignIn: true,
 				async mapProfileToUser(profile) {
 					if (!(await isGithubAllowed(env, String(profile.id)))) {
 						throw new APIError('FORBIDDEN', { message: 'This account does not have access.' });
 					}
-					return {};
+					return { githubUsername: profile.login };
 				}
 			}
 		},

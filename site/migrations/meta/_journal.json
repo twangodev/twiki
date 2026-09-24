@@ -15,6 +15,13 @@
 			"when": 1788573479001,
 			"tag": "0002_site_access",
 			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "6",
+			"when": 1790280010701,
+			"tag": "0003_github_username",
+			"breakpoints": true
 		}
 	]
 }

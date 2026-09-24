@@ -21,13 +21,8 @@
 
 	onMount(() => {
 		if (dev) return;
-		void import('@rybbit/js')
-			.then(({ default: rybbit }) =>
-				rybbit.init({
-					analyticsHost: 'https://rybbit.twango.dev/api',
-					siteId: '4'
-				})
-			)
+		void import('$lib/analytics')
+			.then(({ initializeAnalytics }) => initializeAnalytics())
 			.catch((error) => console.warn('Failed to initialize analytics', error));
 	});
 

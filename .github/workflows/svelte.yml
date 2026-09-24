@@ -94,7 +94,7 @@ jobs:
       - *install-r
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
-      - run: bun test tests/browser-diagrams.test.ts
+      - run: bun test ./tests/browser-diagrams.test.ts ./tests/browser-analytics.test.ts
       - run: bun run check:diagrams
       - run: bun test tests/rmd-build.test.ts
       - run: bun run test:content

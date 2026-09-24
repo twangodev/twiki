@@ -247,7 +247,10 @@ describe('private Worker gate', () => {
 		const member = await ctx.test.login({ userId: user.id });
 		const headers = member.headers;
 		expect((await request('/graph.json', { headers })).status).toBe(200);
-		expect(await (await request('/api/access', { headers })).json()).toEqual({ role: 'member' });
+		expect(await (await request('/api/access', { headers })).json()).toEqual({
+			role: 'member',
+			githubUsername: null
+		});
 		expect(await isOwner(env.DB, user.id, env.OWNER_GITHUB_ID)).toBe(false);
 		await env.DB.prepare(
 			"CREATE TRIGGER fail_revoke BEFORE DELETE ON session BEGIN SELECT RAISE(ABORT, 'test rollback'); END"
@@ -296,10 +299,14 @@ describe('private Worker gate', () => {
 	test('unused auth endpoints are not exposed', async () => {
 		expect((await request('/api/auth/sign-up/email', { method: 'POST' })).status).toBe(404);
 		expect((await request('/api/auth/link-social', { method: 'POST' })).status).toBe(404);
+		expect(
+			(await request('/api/auth/update-user', { method: 'POST', headers: { cookie } })).status
+		).toBe(404);
 	});
 	test('GitHub OAuth admits owners and approved members, but rejects other accounts', async () => {
 		const originalFetch = globalThis.fetch;
 		let githubId = 22;
+		let githubLogin = 'test-owner';
 		globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
 			const url = String(input instanceof Request ? input.url : input);
 			if (url === 'https://github.com/login/oauth/access_token')
@@ -311,7 +318,7 @@ describe('private Worker gate', () => {
 			if (url === 'https://api.github.com/user')
 				return Response.json({
 					id: githubId,
-					login: 'test-owner',
+					login: githubLogin,
 					name: 'Test Owner',
 					email: `owner${githubId}@example.com`
 				});
@@ -326,13 +333,18 @@ describe('private Worker gate', () => {
 			await env.DB.prepare('INSERT INTO siteAccess VALUES (?, ?, ?)')
 				.bind('24', 'test-member', Date.now())
 				.run();
-			for (const id of [22, 24, 23]) {
+			for (const [attempt, id] of [22, 24, 23, 22].entries()) {
+				githubLogin = `test-user-${id}-${attempt}`;
 				githubId = id;
 				const start = await request(
 					'/login',
 					{
 						method: 'POST',
-						headers: { origin, 'content-type': 'application/x-www-form-urlencoded' },
+						headers: {
+							origin,
+							'content-type': 'application/x-www-form-urlencoded',
+							'cf-connecting-ip': `192.0.2.${attempt + 1}`
+						},
 						body: 'next=%2Fgraph.json'
 					},
 					oauthEnv
@@ -362,6 +374,16 @@ describe('private Worker gate', () => {
 				);
 				expect(protectedResponse.status).toBe(id !== 23 ? 200 : 401);
 				if (id !== 23) {
+					const accessResponse = await request(
+						'/api/access',
+						{ headers: { cookie: sessionCookie } },
+						oauthEnv
+					);
+					expect(await accessResponse.json()).toEqual({
+						role: id === 22 ? 'owner' : 'member',
+						githubUsername: githubLogin
+					});
+					expect(accessResponse.headers.get('cache-control')).toBe('private, no-store');
 					const logout = await request(
 						'/logout',
 						{ method: 'POST', headers: { origin, cookie: sessionCookie } },

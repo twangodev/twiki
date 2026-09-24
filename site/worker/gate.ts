@@ -76,9 +76,14 @@ async function routeRequest(
 			: requireLogin(request, url);
 	if (url.pathname === '/api/access') {
 		if (!reading) return new Response('Method not allowed', { status: 405 });
-		return new Response(request.method === 'HEAD' ? null : JSON.stringify({ role: access }), {
-			headers: { 'Content-Type': 'application/json' }
-		});
+		return new Response(
+			request.method === 'HEAD'
+				? null
+				: JSON.stringify({ role: access, githubUsername: session?.user.githubUsername ?? null }),
+			{
+				headers: { 'Content-Type': 'application/json' }
+			}
+		);
 	}
 	return null;
 }

@@ -17,6 +17,7 @@ const bigint = customType<{ data: number; driverData: number }>({ dataType: () =
 export const user = sqliteTable('user', {
 	id: text().primaryKey().notNull(),
 	name: text().notNull(),
+	githubUsername: text(),
 	email: text().notNull().unique(),
 	emailVerified: integer({ mode: 'boolean' }).notNull(),
 	image: text(),
