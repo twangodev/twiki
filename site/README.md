@@ -86,3 +86,15 @@ Wrangler local state, caches, and temporary files live in `build/.wrangler/`.
 A `.wrangler` compatibility symlink redirects Wrangler's hardcoded paths there.
 Dev and preview share the same local database; removing `build/` also removes
 that local database. `wrangler.jsonc` remains the source configuration.
+
+## Analytics
+
+Production uses `@rybbit/js` through the Worker's `/api/analytics/` relay to avoid
+cross-origin beacon failures. The relay allows only configuration, tracking and
+identification for Rybbit site `4`, strips site credentials, and forwards browser
+metadata and the visitor IP. Enable **First-Party Proxy** in Rybbit's site settings
+under **Privacy & Security** so it trusts the forwarded IP.
+
+GitHub usernames come from OAuth and refresh on sign-in; existing accounts need
+to sign in again to populate the field. Tracking respects Rybbit's browser opt-out
+flags. Run `bun test ./tests/browser-analytics.test.ts` for real-HTTP browser coverage.

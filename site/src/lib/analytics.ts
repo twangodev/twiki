@@ -29,7 +29,7 @@ export async function initializeAnalytics() {
 		// Do not reuse a previous user's identity when the session cannot be checked.
 	}
 
-	await rybbit.init({ analyticsHost: 'https://rybbit.twango.dev/api', siteId: '4' });
+	await rybbit.init({ analyticsHost: '/api/analytics', siteId: '4' });
 	if (username) rybbit.identify(username);
 	else rybbit.clearUserId();
 }

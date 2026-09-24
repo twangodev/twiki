@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, expect, test } from 'bun:test';
 import { chromium, expect as browserExpect, type Browser } from '@playwright/test';
+import { proxyAnalytics } from '../worker/analytics';
 
 let browser: Browser;
 let script: string;
@@ -35,36 +36,56 @@ test.each([
 	let analyticsRequests = 0;
 	const errors: string[] = [];
 	page.on('pageerror', (error) => errors.push(error.message));
+	page.on('console', (message) => {
+		if (message.text().includes('CORS')) errors.push(message.text());
+	});
+	const upstreamHeaders: Headers[] = [];
+	// Real HTTP servers preserve Chromium's CORS enforcement; route.fulfill bypasses it.
+	const upstream = Bun.serve({
+		hostname: '127.0.0.1',
+		port: 0,
+		async fetch(request) {
+			analyticsRequests++;
+			upstreamHeaders.push(request.headers);
+			const path = new URL(request.url).pathname;
+			if (path === '/api/track') events.push(await request.json());
+			if (path === '/api/identify') identities.push(await request.json());
+			// Deliberately omit CORS headers, as no browser should contact this server directly.
+			return Response.json({});
+		}
+	});
+	const relayFetch = ((input, init) =>
+		fetch(new URL(new URL(String(input)).pathname, upstream.url), init)) as typeof fetch;
+	const site = Bun.serve({
+		hostname: '127.0.0.1',
+		port: 0,
+		fetch(request) {
+			const path = new URL(request.url).pathname;
+			if (path === '/api/access')
+				return Response.json({ githubUsername: username }, { status: status || 503 });
+			if (path === '/analytics.js')
+				return new Response(script, { headers: { 'Content-Type': 'text/javascript' } });
+			if (path.startsWith('/api/analytics/')) return proxyAnalytics(request, relayFetch);
+			return new Response(
+				`<script type="module">
+				import { initializeAnalytics } from '/analytics.js';
+				await initializeAnalytics();
+				document.documentElement.dataset.analyticsReady = 'true';
+			</script>`,
+				{ headers: { 'Content-Type': 'text/html' } }
+			);
+		}
+	});
 	try {
 		await page.addInitScript((optOut) => {
 			localStorage.setItem('rybbit-user-id', 'previous-user');
 			if (optOut === 'storage') localStorage.setItem('disable-rybbit', 'true');
 			if (optOut === 'window') Object.assign(window, { __RYBBIT_OPTOUT__: true });
 		}, optOut);
-		await page.route('**/*', async (route) => {
-			const url = new URL(route.request().url());
-			if (url.pathname === '/api/access') {
-				if (status === 0) await route.abort();
-				else await route.fulfill({ status, json: { githubUsername: username } });
-			} else if (url.pathname === '/analytics.js') {
-				await route.fulfill({ contentType: 'text/javascript', body: script });
-			} else if (url.hostname === 'rybbit.twango.dev') {
-				analyticsRequests++;
-				if (url.pathname === '/api/track') events.push(route.request().postDataJSON());
-				if (url.pathname === '/api/identify') identities.push(route.request().postDataJSON());
-				await route.fulfill({ json: {}, headers: { 'Access-Control-Allow-Origin': '*' } });
-			} else {
-				await route.fulfill({
-					contentType: 'text/html',
-					body: `<script type="module">
-						import { initializeAnalytics } from '/analytics.js';
-						await initializeAnalytics();
-						document.documentElement.dataset.analyticsReady = 'true';
-					</script>`
-				});
-			}
-		});
-		await page.goto('http://analytics.test/');
+		await page.context().addCookies([{ name: 'session', value: 'private', url: site.url.origin }]);
+		await page.setExtraHTTPHeaders({ Authorization: 'Bearer private' });
+		if (status === 0) await page.route('**/api/access', (route) => route.abort());
+		await page.goto(site.url.href);
 		await browserExpect(page.locator('html')).toHaveAttribute('data-analytics-ready', 'true');
 		if (optOut) {
 			expect(analyticsRequests).toBe(0);
@@ -83,8 +104,14 @@ test.each([
 			await browserExpect.poll(() => events.length).toBe(2);
 			expect(events[1].user_id).toBe(expected);
 		}
+		for (const headers of upstreamHeaders) {
+			expect(headers.has('cookie')).toBe(false);
+			expect(headers.has('authorization')).toBe(false);
+		}
 		expect(errors).toEqual([]);
 	} finally {
 		await page.close();
+		site.stop(true);
+		upstream.stop(true);
 	}
 });

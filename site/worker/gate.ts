@@ -4,6 +4,7 @@ import { copyCookies, handleAuthEndpoint, redirect, signIn, signOut } from './au
 import { loginPage, returnPath } from './login';
 import { publicResponse } from './publication';
 import { frameOptions } from './framing';
+import { proxyAnalytics } from './analytics';
 
 function privateResponse(response: Response, cookies: Headers, request: Request) {
 	const result = new Response(response.body, response);
@@ -38,6 +39,8 @@ async function routeRequest(
 ): Promise<Response | null> {
 	const url = new URL(request.url);
 	if (url.origin !== env.ORIGIN) return new Response('Misdirected request', { status: 421 });
+	// Analytics also serves anonymous public readers, before session/database access.
+	if (url.pathname.startsWith('/api/analytics/')) return proxyAnalytics(request);
 	const reading = request.method === 'GET' || request.method === 'HEAD';
 	if (url.pathname === '/_published' || url.pathname.startsWith('/_published/'))
 		return new Response('Not found', { status: 404 });
