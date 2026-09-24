@@ -1,9 +1,35 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import type { SubmitFunction } from '@sveltejs/kit';
+	import { lookupGithubUser } from '$lib/github-user';
 	import { ShieldCheck, UserPlus } from '@lucide/svelte';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
+	let adding = $state(false);
+	let lookupError = $state('');
+
+	const addAccess: SubmitFunction = async ({ formData, cancel }) => {
+		if (adding) return cancel();
+		adding = true;
+		lookupError = '';
+		form = null;
+		const result = await lookupGithubUser(formData.get('username'));
+		if ('error' in result) {
+			lookupError = result.error;
+			adding = false;
+			return cancel();
+		}
+		formData.set('githubId', result.user.id);
+		formData.set('githubLogin', result.user.login);
+		return async ({ update }) => {
+			try {
+				await update();
+			} finally {
+				adding = false;
+			}
+		};
+	};
 </script>
 
 <svelte:head><title>Access · Wisconsin</title></svelte:head>
@@ -16,12 +42,13 @@
 		</p>
 	</header>
 
-	<form method="POST" action="?/add" use:enhance class="mb-6">
+	<form method="POST" action="?/add" use:enhance={addAccess} class="mb-6">
 		<label for="github-username" class="mb-2 block text-sm font-medium">GitHub username</label>
 		<div class="flex gap-2">
 			<input
 				id="github-username"
 				name="username"
+				disabled={adding}
 				required
 				maxlength="40"
 				autocomplete="off"
@@ -31,13 +58,17 @@
 				class="min-w-0 flex-1 rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent"
 			/>
 			<button
+				disabled={adding}
 				class="flex shrink-0 items-center gap-2 rounded-lg bg-text px-3 py-2 text-sm font-medium text-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-				><UserPlus size={16} />Add access</button
+				><UserPlus size={16} />{adding ? 'Adding…' : 'Add access'}</button
 			>
 		</div>
 	</form>
 
-	{#if form?.error}<p role="alert" class="mb-4 text-sm text-accent">{form.error}</p>{/if}
+	<noscript><p>Enable JavaScript to look up GitHub accounts and add access.</p></noscript>
+	{#if lookupError || form?.error}<p role="alert" class="mb-4 text-sm text-accent">
+			{lookupError || form?.error}
+		</p>{/if}
 	{#if form?.message}<p role="status" class="mb-4 text-sm text-muted">{form.message}</p>{/if}
 
 	<ul
