@@ -47,9 +47,15 @@ export async function proxyAnalytics(request: Request, fetcher: typeof fetch = f
 			method: endpoint.method,
 			headers,
 			body,
-			redirect: 'error',
+			redirect: 'manual',
 			signal: AbortSignal.timeout(5000)
 		});
+		// workerd supports manual redirects, but not fetch's redirect: 'error' mode.
+		if (response.status >= 300 && response.status < 400)
+			return new Response('Analytics upstream redirected', {
+				status: 502,
+				headers: { 'Cache-Control': 'no-store' }
+			});
 		return new Response(response.body, {
 			status: response.status,
 			headers: {

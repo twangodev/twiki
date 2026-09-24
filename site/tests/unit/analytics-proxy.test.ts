@@ -36,7 +36,7 @@ test('analytics relay strips credentials, preserves visitor metadata and never c
 			expect(headers.get('x-forwarded-for')).toBe('192.0.2.1');
 			expect(headers.get('origin')).toBe(origin);
 			expect(JSON.parse(init?.body as string).user_id).toBe('octocat');
-			expect(init?.redirect).toBe('error');
+			expect(init?.redirect).toBe('manual');
 			return new Response(null, { status: 204, headers: { 'Set-Cookie': 'upstream=secret' } });
 		}) as typeof fetch
 	);
@@ -84,5 +84,37 @@ test('anonymous analytics configuration bypasses auth without exposing other rou
 		expect(await response.json()).toEqual({ trackInitialPageView: true });
 	} finally {
 		globalThis.fetch = originalFetch;
+	}
+});
+
+test('analytics relay runs in workerd and rejects upstream redirects', async () => {
+	const { Miniflare } = await import('miniflare');
+	const bundle = await Bun.build({ entrypoints: ['./worker/analytics.ts'], target: 'browser' });
+	expect(bundle.success).toBe(true);
+	const script =
+		(await bundle.outputs[0].text()) +
+		'\nexport default { fetch(request) { return proxyAnalytics(request); } };';
+	let redirect = false;
+	const runtime = new Miniflare({
+		modules: true,
+		script,
+		compatibilityDate: '2026-06-07',
+		compatibilityFlags: ['nodejs_compat'],
+		outboundService: () =>
+			redirect
+				? new Response(null, { status: 302, headers: { Location: 'https://elsewhere.test' } })
+				: Response.json({ trackInitialPageView: true })
+	});
+	try {
+		const url = origin + '/api/analytics/site/tracking-config/4';
+		const response = await runtime.dispatchFetch(url);
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({ trackInitialPageView: true });
+		redirect = true;
+		const redirected = await runtime.dispatchFetch(url);
+		expect(redirected.status).toBe(502);
+		expect(redirected.headers.get('cache-control')).toBe('no-store');
+	} finally {
+		await runtime.dispose();
 	}
 });
