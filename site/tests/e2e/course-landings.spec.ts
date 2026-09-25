@@ -1,8 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import type { ContentManifest } from '../../src/lib/types';
 import type { CourseFile } from '../../src/lib/files';
 import { parseGitmodules } from '../../tooling/lib/lastmod';
+import { publicationFilter } from '../../tooling/lib/publishing';
+
+const repo = path.resolve(process.env.WISCONSIN_CONTENT_REPO ?? '..');
+const isPublic = publicationFilter(repo);
 
 const manifest: ContentManifest = JSON.parse(
 	readFileSync('build/generated/content-manifest.json', 'utf8')
@@ -20,7 +25,7 @@ test('every course has an indexable public overview without opening its material
 		storageState: { cookies: [], origins: [] }
 	});
 	try {
-		const expectedLandings = parseGitmodules('../.gitmodules')
+		const expectedLandings = parseGitmodules(path.join(repo, '.gitmodules'))
 			.filter(({ path }) => path.startsWith('content/'))
 			.map(({ path }) => path.slice('content/'.length) + '/README')
 			.sort();
@@ -56,17 +61,20 @@ test('every course has an indexable public overview without opening its material
 			const readme = files.find((file) => file.path === 'README.md')!;
 			expect(readme.download).toBeTruthy();
 			expect((await anonymous.request.get(readme.download!)).status()).toBe(200);
-			if (course === 'des-inv') continue;
-			const publicNotes = Object.values(manifest.pages)
-				.filter((page) => page.publication.public && page.relativePath.startsWith(`${course}/`))
-				.map((page) => page.relativePath.slice(course.length + 1))
+			const fullFiles: CourseFile[] = JSON.parse(
+				readFileSync(`static/_files/index/${course}.json`, 'utf8')
+			);
+			// Publication policies cover assets and source files as well as notes.
+			const publicFiles = fullFiles
+				.filter((file) => isPublic(`${course}/${file.path}`))
+				.map((file) => file.path)
 				.sort();
 			expect(
 				files
 					.filter((file) => !file.locked)
 					.map((file) => file.path)
 					.sort()
-			).toEqual(publicNotes);
+			).toEqual(publicFiles);
 			expect(
 				files.filter((file) => file.locked).every((file) => !file.download && !file.history)
 			).toBe(true);
@@ -78,10 +86,10 @@ test('every course has an indexable public overview without opening its material
 			expect(sitemap).not.toContain(details);
 			await page.goto(details);
 			await expect(page.getByText('Content locked', { exact: true })).toBeVisible();
-			const fullFiles: CourseFile[] = await (
+			const authenticatedFiles: CourseFile[] = await (
 				await request.get(`/_files/index/${course}.json`)
 			).json();
-			const privateFile = fullFiles.find(
+			const privateFile = authenticatedFiles.find(
 				(file) => file.path === privateNote.relativePath.slice(course.length + 1)
 			)!;
 			expect(privateFile.download, privateNote.slug).toBeTruthy();

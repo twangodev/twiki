@@ -1,10 +1,17 @@
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { fileIndexUrl, fileRoute, type CourseFile } from '../../src/lib/files';
+import { publicationFilter } from '../../tooling/lib/publishing';
 
 const course = 'fa24-cs300';
 const files: CourseFile[] = JSON.parse(readFileSync(`static/_files/index/${course}.json`, 'utf8'));
 const java = files.find((file) => file.path.endsWith('/ElectionManager.java'))!;
+const isPublic = publicationFilter(path.resolve(process.env.WISCONSIN_CONTENT_REPO ?? '..'));
+const publicPaths = files
+	.filter((file) => isPublic(`${course}/${file.path}`))
+	.map((file) => file.path)
+	.sort();
 
 test('PDFs embedded in notes load with same-origin framing', async ({ page, request }) => {
 	const pdfPath = '/sp26-cs537/exams/midterm-1/assets/cheatsheet.pdf';
@@ -139,7 +146,12 @@ test('file catalogs stay public while file bodies remain authenticated after war
 			}
 		}
 		const catalog: CourseFile[] = await (await anonymous.request.get(fileIndexUrl(course))).json();
-		expect(catalog.filter((file) => !file.locked).map((file) => file.path)).toEqual(['README.md']);
+		expect(
+			catalog
+				.filter((file) => !file.locked)
+				.map((file) => file.path)
+				.sort()
+		).toEqual(publicPaths);
 		expect(
 			catalog.filter((file) => file.locked).every((file) => !file.download && !file.history)
 		).toBe(true);
