@@ -4,6 +4,7 @@
 	import { fade } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { BookOpen, FolderCode, ChevronsUpDown, LogOut, LogIn } from '@lucide/svelte';
+	import { siGithub } from 'simple-icons';
 	import { publicEdition } from '$lib/publication';
 	import type { NavNode } from '$lib/types';
 	import { isNotebookRoute } from '$lib/notebook-nav';
@@ -231,6 +232,18 @@
 		{/if}
 	</nav>
 	<div class="flex shrink-0 items-center justify-between border-t border-border pt-3">
+		<a
+			href="https://github.com/twangodev/wisconsin"
+			target="_blank"
+			rel="noopener noreferrer"
+			aria-label="Source on GitHub"
+			title="Source on GitHub"
+			class="inline-flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface hover:text-text"
+		>
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+				<path d={siGithub.path} />
+			</svg>
+		</a>
 		<ThemeToggle /><ReaderModeToggle />
 		<AccessLink />
 		{#if publicEdition}
