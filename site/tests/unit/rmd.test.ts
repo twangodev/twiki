@@ -74,3 +74,74 @@ test('prose renders math safely and resolves authorized course images', async ()
 	expect(relativeFile('notes/a.Rmd', '../data.csv')).toBe('data.csv');
 	expect(relativeFile('a.Rmd', '../secret')).toBeUndefined();
 });
+
+test('Rmd wikilinks resolve notes and worksheet files without changing code or math', async () => {
+	const source = [
+		'[[course/lectures/lecture-01#Sampling Methods|Lecture 1]]',
+		'[[hw2.Rmd|Homework 2]]',
+		'[[course/homework/flush.csv|Data]]',
+		'`[[hw2.Rmd]]`',
+		'```{r}\nx <- "[[hw2.Rmd]]"\n```',
+		'[[javascript:alert(1)|bad]]'
+	].join('\n\n');
+	const result = await parseRmd(source, 'course', 'homework/hw1.Rmd', [
+		{ path: 'lectures/lecture-01.md', note: 'course/lectures/lecture-01', kind: 'text', size: 1 },
+		{ path: 'homework/hw2.Rmd', kind: 'text', size: 1 },
+		{ path: 'homework/flush.csv', kind: 'text', size: 1, locked: true }
+	]);
+	const html = result.blocks
+		.filter((b) => b.kind === 'markdown')
+		.map((b) => b.html)
+		.join('');
+	expect(html).toContain('href="/course/lectures/lecture-01#sampling-methods">Lecture 1</a>');
+	expect(html).toContain('href="/course/files/homework/hw2.Rmd">Homework 2</a>');
+	expect(html).toContain('href="/course/files/homework/flush.csv">Data</a>');
+	expect(html).toContain('<code>[[hw2.Rmd]]</code>');
+	expect(html).not.toContain('href="javascript:');
+	expect(result.blocks.find((b) => b.kind === 'r')).toMatchObject({ code: 'x <- "[[hw2.Rmd]]"' });
+});
+
+test('Flowershow parses heading-only links and escaped table aliases; private embeds stay links', async () => {
+	const result = await parseRmd(
+		[
+			'[[#Sampling Methods|Jump]]',
+			'',
+			'| Link |',
+			'| --- |',
+			'| [[course/lectures/lecture-01\\|Lecture 1]] |',
+			'',
+			'![[assets/allowed.png]]',
+			'![[assets/private.png]]',
+			'![[javascript:alert(1)]]'
+		].join('\n'),
+		'course',
+		'homework/hw1.Rmd',
+		[
+			{ path: 'lectures/lecture-01.md', note: 'course/lectures/lecture-01', kind: 'text', size: 1 },
+			{
+				path: 'homework/assets/allowed.png',
+				kind: 'image',
+				size: 1,
+				download: '/_files/allowed.png'
+			},
+			{
+				path: 'homework/assets/private.png',
+				kind: 'image',
+				size: 1,
+				locked: true,
+				download: '/_files/private.png'
+			}
+		]
+	);
+	const html = result.blocks
+		.filter((b) => b.kind === 'markdown')
+		.map((b) => b.html)
+		.join('');
+	expect(html).toContain('href="#sampling-methods">Jump</a>');
+	expect(html).toContain('href="/course/lectures/lecture-01">Lecture 1</a>');
+	expect(html).toContain('src="/_files/allowed.png"');
+	expect(html).toContain('href="/course/files/homework/assets/private.png"');
+	expect(html).not.toContain('src="/_files/private.png"');
+	expect(html).not.toContain('href="javascript:');
+	expect(html).not.toContain('src="javascript:');
+});

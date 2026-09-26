@@ -209,17 +209,21 @@ describe('transformLink (fork nearest-match resolution)', () => {
 		);
 	});
 
-	test('markdown ./ relative link resolves through suffix matching', () => {
+	test('markdown ./ relative link resolves from the source directory', () => {
 		expect<unknown>(transformLink(fs('sp26-cs537/p1/README'), './Instructions.md', opts)).toBe(
 			'../../sp26-cs537/p1/Instructions'
 		);
 	});
 
-	test("markdown ../ relative link quirk: '..' prefix survives canonicalization and zero-matches", () => {
-		// fork keeps the leading '../' inside the canonical slug ('./README'),
-		// so suffix matching never fires and the absolute fallback emits '../.././README'
+	test('parent-relative links resolve from the source directory and keep headings', () => {
 		expect<unknown>(transformLink(fs('sp26-cs537/p1/README'), '../README.md', opts)).toBe(
-			'../.././README'
+			'../../sp26-cs537/README'
+		);
+		expect<unknown>(
+			transformLink(fs('course/exams/exam-2/index'), '../../homework/hw4.md#Problem 1', opts)
+		).toBe('../../../course/homework/hw4#problem-1');
+		expect<unknown>(transformLink(fs('course/lectures/lecture-01'), './missing.md', opts)).toBe(
+			'../../course/lectures/missing'
 		);
 	});
 

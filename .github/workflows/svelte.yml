@@ -52,6 +52,12 @@ jobs:
         name: Install R worksheet renderer
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core r-cran-knitr
       - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - name: Install Lychee 0.24.2
+        run: |
+          mkdir -p build/tools
+          curl -fsSL https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-gnu.tar.gz -o "$RUNNER_TEMP/lychee.tar.gz"
+          tar -xzf "$RUNNER_TEMP/lychee.tar.gz" --strip-components=1 -C build/tools lychee-x86_64-unknown-linux-gnu/lychee
       - run: bun run check
 
   unit-tests:
@@ -95,7 +101,6 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
       - run: bun test ./tests/browser-diagrams.test.ts ./tests/browser-analytics.test.ts
-      - run: bun run check:diagrams
       - run: bun test tests/rmd-build.test.ts
       - run: bun run test:content
       - run: bun run build:all

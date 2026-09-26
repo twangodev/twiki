@@ -213,6 +213,17 @@ export interface TransformOptions {
 }
 
 export function transformLink(src: FullSlug, target: string, opts: TransformOptions): RelativeURL {
+	// Explicit relative links are relative to the source note, not the vault root.
+	if (opts.strategy !== 'relative' && /^\.\.?\//.test(target)) {
+		const [relativePath, anchor] = splitAnchor(decodeURI(target));
+		const parts = src.split('/').slice(0, -1);
+		for (const part of relativePath.split('/')) {
+			if (part === '..') parts.pop();
+			else if (part && part !== '.') parts.push(part);
+		}
+		const resolved = slugifyFilePath(parts.join('/') as FilePath);
+		return (resolveRelative(src, resolved) + anchor) as RelativeURL;
+	}
 	let targetSlug = transformInternalLink(target);
 
 	if (opts.strategy === 'relative') {

@@ -17,6 +17,7 @@
         "@codemirror/state": "^6.7.4",
         "@codemirror/view": "^6.43.11",
         "@floating-ui/dom": "^1",
+        "@flowershow/remark-wiki-link": "3.4.0",
         "@lucide/svelte": "^1.17.0",
         "@playwright/test": "1.61.1",
         "@resvg/resvg-js": "^2.6.2",
@@ -259,6 +260,8 @@
     "@floating-ui/dom": ["@floating-ui/dom@1.7.6", "", { "dependencies": { "@floating-ui/core": "^1.7.5", "@floating-ui/utils": "^0.2.11" } }, "sha512-9gZSAI5XM36880PPMm//9dfiEngYoC6Am2izES1FF406YFsjvyBMmeJ2g4SAju3xWwtuynNRFL2s9hgxpLI5SQ=="],
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.11", "", {}, "sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg=="],
+
+    "@flowershow/remark-wiki-link": ["@flowershow/remark-wiki-link@3.4.0", "", { "dependencies": { "github-slugger": "^2.0.0", "mdast-util-to-markdown": "^2.1.2", "micromark-util-character": "^2.0.0", "micromark-util-symbol": "^2.0.1" } }, "sha512-YeeIwZ630CgBRiVWwM5C8ikAyuT0nLjdjhAZxhOOBgUCA34LCQxFwCkEnA0BySDJr6NQiJjJfRvO/TxBs+deAA=="],
 
     "@iconify/types": ["@iconify/types@2.0.0", "", {}, "sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg=="],
 

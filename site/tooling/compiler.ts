@@ -1,3 +1,5 @@
+import { fileRoute } from '../src/lib/files';
+import { browsablePath } from './lib/course-files';
 import { preserveCurrency } from './lib/currency';
 /** Render tracked notes, resolve links and transclusions, and emit pages, assets, and graph data. */
 import fs from 'node:fs';
@@ -540,7 +542,8 @@ export async function compileContent() {
 		page: PageParse,
 		transformOptions: TransformOptions,
 		emittedSlugs: Set<string>,
-		droppedSlugs: Set<string>
+		droppedSlugs: Set<string>,
+		fileRoutes: Map<string, string>
 	): SimpleSlug[] {
 		const curSlug = simplifySlug(page.slug);
 		const outgoing: Set<SimpleSlug> = new Set();
@@ -581,9 +584,18 @@ export async function compileContent() {
 					const simple = simplifySlug(full);
 					outgoing.add(simple);
 					node.properties['data-slug'] = full;
+					const fileDestination = fileRoutes.get(full);
+					if (fileDestination) {
+						node.properties.href = fileDestination + url.hash;
+						delete node.properties['data-slug'];
+					}
 
 					// broken-link audit (build artifact only; quartz had no equivalent)
-					if (!emittedSlugs.has(full) && !emittedSlugs.has(joinSegments(full, 'index'))) {
+					if (
+						!fileDestination &&
+						!emittedSlugs.has(full) &&
+						!emittedSlugs.has(joinSegments(full, 'index'))
+					) {
 						if (droppedSlugs.has(full)) {
 							warn(
 								`link-to-dropped-file: ${page.rel} -> "${dest}" (target "${full}" excluded by whitelist — review!)`
@@ -833,7 +845,7 @@ export async function compileContent() {
 		fs.mkdirSync(path.join(OUT_DIR, 'assets'), { recursive: true });
 
 		// stage 0
-		const { files: discovered } = discover();
+		const { files: discovered, submoduleNames } = discover();
 		const publicationFor = publicationResolver(REPO_ROOT);
 		const licenseFor = courseLicenseResolver(REPO_ROOT);
 		const files = publicEdition
@@ -906,11 +918,23 @@ export async function compileContent() {
 			'tags/index'
 		]);
 
+		// Non-note files have catalog routes even when their contents are private.
+		const fileRoutes = new Map<string, string>();
+		for (const file of discovered) {
+			const [course, ...parts] = file.rel.split('/');
+			const relative = parts.join('/');
+			if (file.kind === 'other' && submoduleNames.includes(course) && browsablePath(relative))
+				fileRoutes.set(file.slug, fileRoute(course, relative));
+		}
 		const droppedSlugs = new Set<string>(otherSrc.map((f) => f.slug as string));
-		const catalogSlugs = new Set([...emittedSlugs, ...catalog.map((page) => page.slug as string)]);
+		const catalogSlugs = new Set([
+			...emittedSlugs,
+			...catalog.map((page) => page.slug as string),
+			...[...fileRoutes.values()].map((route) => decodeURIComponent(route.slice(1)))
+		]);
 		const outgoingBySlug = new Map<string, SimpleSlug[]>();
 		for (const page of catalog) {
-			const outgoing = crawlLinks(page, transformOptions, catalogSlugs, droppedSlugs);
+			const outgoing = crawlLinks(page, transformOptions, catalogSlugs, droppedSlugs, fileRoutes);
 			if (publicEdition && publicationFor(page.rel).public)
 				protectPublicLinks(page.tree, page.slug, emittedSlugs, catalogSlugs);
 			outgoingBySlug.set(page.slug, outgoing);

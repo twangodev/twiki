@@ -48,7 +48,13 @@ bun run test
 bun run test:e2e
 ```
 
-Browser tests require Chromium: `bunx playwright install chromium`.
+`bun run check` runs `check:types` (Svelte and TypeScript), `check:links`,
+`check:targets` (Lychee), and `check:diagrams` sequentially. It runs every check
+even if one fails and exits
+nonzero if any check fails. Each command can also run individually; `check:watch`
+is the separate, continuous type-checking mode.
+
+Diagram checks and browser tests require Chromium: `bunx playwright install chromium`.
 
 `build:all` reports public, full, and total wall-clock time. File history runs in
 up to eight course workers (bounded by available CPUs); override with
@@ -66,6 +72,37 @@ run the renderer's own runtime-aware cache checks. This course cache accelerates
 local rebuilds; CI still restores the existing encrypted history/renderer cache,
 then regenerates outputs. Removing generated outputs safely causes cache misses.
 
+### Validate Internal Links
+
+Run `bun run check:links` to reject direct links to `wisconsin.twango.dev` in
+Markdown and R Markdown under `content/`. Use Obsidian wikilinks for internal
+notes and files, for example `[[fa26-stat324/homework/hw3.Rmd|Homework 3]]`.
+The check includes untracked, non-ignored notes and reports file, line, and column.
+It checks Markdown links, images, autolinks, reference links, and HTML links and
+embeds; code, frontmatter, and comments are excluded. CI runs it in the check job,
+which checks out the course submodules. To check one course, run
+`bun run check:links ../content/fa26-stat324`.
+
+`bun run check:targets` uses Lychee **0.24.2** to check local file destinations,
+including wikilinks and R Markdown. It runs offline; it does not check remote URLs
+or heading fragments. The adapter parses Obsidian syntax with
+`@flowershow/remark-wiki-link` and resolves wikilinks through the site's resolver
+before passing file URLs to Lychee. Diagnostics retain the original file and line.
+This avoids Lychee's native vault-root interpretation of relative `assets/...` links.
+Pass course or file paths to limit the audit, e.g.
+`bun run check:targets ../content/fa26-stat324`.
+
+Install Lychee with `cargo install lychee --locked --version 0.24.2`, or use an
+[official release binary](https://github.com/lycheeverse/lychee/releases/tag/lychee-v0.24.2).
+The command finds `lychee` on PATH, `build/tools/lychee`, or the executable specified
+by `LYCHEE`. CI installs the pinned binary before `bun run check`.
+
+R Markdown uses Flowershow's parser for links, aliases, headings, and embeds;
+site-specific routing and private-file handling remain in our renderer. The parser
+is pinned to **3.4.0** because the published 4.0.0 package lacks its compiled entry
+point. Only authorized images render inline; other embeds remain navigable links.
+
+
 ### Validate Math and Mermaid
 
 Run `bun run check:diagrams` to check every Markdown file under `content/`, including untracked, non-ignored notes. To check one course or file, pass its path:
@@ -74,7 +111,7 @@ Run `bun run check:diagrams` to check every Markdown file under `content/`, incl
 bun run check:diagrams ../content/fa26-cs577
 ```
 
-The command checks math with KaTeX and parses and renders Mermaid in Chromium using the installed site versions. Failures include the source file, line, and column and produce a nonzero exit status. Install the browser once with `bunx playwright install chromium`. CI runs the check in the browser-tests job.
+The command checks math with KaTeX and parses and renders Mermaid in Chromium using the installed site versions. Failures include the source file, line, and column and produce a nonzero exit status. Install the browser once with `bunx playwright install chromium`. CI runs the check through `bun run check` in the check job.
 
 This validates recognized Markdown math and Mermaid blocks, not mathematical correctness or visual quality. Unclosed math delimiters can be interpreted as ordinary text by Markdown and need review.
 

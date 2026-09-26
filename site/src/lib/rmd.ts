@@ -1,3 +1,5 @@
+import wikiLink from '@flowershow/remark-wiki-link';
+import { slug } from 'github-slugger';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
@@ -41,9 +43,59 @@ export async function parseRmd(source: string, course: string, path: string, fil
 		if (typeof metadata?.title === 'string') title = metadata.title;
 		source = source.slice(frontmatter[0].length);
 	}
-	const parser = unified().use(remarkParse).use(remarkGfm).use(remarkMath);
+	const parser = unified()
+		.use(remarkParse)
+		.use(remarkGfm)
+		.use(remarkMath)
+		.use(wikiLink, {
+			urlResolver: ({ filePath: target, heading, isEmbed }) => {
+				// Flowershow 3.x retains the backslash before table alias separators.
+				target = target.replace(/\\$/, '').trim();
+				heading = heading.replace(/\\$/, '').trim();
+				if (/^(?:[a-z][a-z\d+.-]*:|\/)/i.test(target)) return '';
+				if (!target) return heading ? `#${slug(heading)}` : '';
+				const qualified = target.startsWith(`${course}/`);
+				const local = qualified ? target.slice(course.length + 1) : target;
+				const relative = qualified ? local : relativeFile(path, local);
+				const candidates = files.filter((file) =>
+					[file.path, file.path.replace(/\.md$/i, '')].some(
+						(name) =>
+							name === local ||
+							name === relative ||
+							(!local.includes('/') && name.split('/').at(-1) === local)
+					)
+				);
+				const file =
+					candidates.find((file) => file.path === local || file.path === relative) ??
+					(candidates.length === 1 ? candidates[0] : undefined);
+				if (isEmbed && file?.kind === 'image' && !file.locked && file.download)
+					return file.download;
+				const destination = file
+					? file.note
+						? `/${file.note}`
+						: fileRoute(course, file.path)
+					: `/${course}/${(qualified ? local : (relative ?? local)).replace(/\.md$/i, '')}`;
+				return destination + (heading ? `#${slug(heading)}` : '');
+			}
+		});
 	const renderer = unified().use(remarkRehype).use(rehypeKatex);
 	const tree = parser.parse(source);
+	// Keep our authorization and safe-HTML policy around the library's parsed nodes.
+	visit(tree, (node, index, parent) => {
+		if (!parent || index === undefined || !['wikiLink', 'embed'].includes(node.type)) return;
+		const wiki = node as unknown as {
+			type: string;
+			value: string;
+			data: { path: string; alias?: string };
+		};
+		const url = wiki.data.path;
+		parent.children[index] =
+			wiki.type === 'embed' &&
+			files.some((file) => file.kind === 'image' && !file.locked && file.download === url)
+				? { type: 'image', url, alt: wiki.data.alias ?? wiki.value }
+				: { type: 'link', url, children: [{ type: 'text', value: wiki.data.alias ?? wiki.value }] };
+	});
+
 	// PDF layout directives have no notebook equivalent. Match whole prose
 	// paragraphs so inline explanations, code examples, and R chunks survive.
 	visit(tree, 'paragraph', (node, index, parent) => {
