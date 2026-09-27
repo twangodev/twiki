@@ -31,8 +31,7 @@ test('restored stage caches reproduce cold public and full output and honor publ
 			'assets',
 			'package.json',
 			'bun.lock',
-			'tsconfig.json',
-			'build/.svelte-kit/tsconfig.json'
+			'tsconfig.json'
 		]) {
 			const target = path.join(site, file);
 			mkdirSync(path.dirname(target), { recursive: true });

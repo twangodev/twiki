@@ -88,3 +88,15 @@ test('fingerprints survive checkout relocation and invalidate dependencies and r
 		rmSync(relocated, { recursive: true, force: true });
 	}
 });
+
+test('tooling fingerprints work before SvelteKit generates its tsconfig', async () => {
+	const { root, write, fingerprint } = fixture();
+	try {
+		write('tsconfig.json', '{"extends":"./build/.svelte-kit/tsconfig.json"}');
+		const fresh = await fingerprint('parser');
+		write('build/.svelte-kit/tsconfig.json', '{"compilerOptions":{"target":"esnext"}}');
+		expect(await fingerprint('parser')).toBe(fresh);
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});

@@ -55,6 +55,8 @@ export async function stageFingerprint(stage: Stage, root = site): Promise<strin
 		cwd: root,
 		input: definition.entries.map((file) => path.join(root, file)),
 		platform: 'node',
+		// Tooling uses relative imports and must scan before SvelteKit generates its config.
+		tsconfig: false,
 		treeshake: false,
 		external: (id) =>
 			isBuiltin(id) || packages.some((pkg) => id === pkg || id.startsWith(pkg + '/')),
