@@ -64,6 +64,26 @@ describe('internal link validation', () => {
 		expect(directSiteLinks(source)).toEqual([{ url, line: 10, column: 1 }]);
 	});
 
+	test('an ignore comment exempts only the next source line', () => {
+		const source = [
+			'<!-- check-links-ignore-next-line -->',
+			`[Website](${url})`,
+			`[Homework](${url})`
+		].join('\n');
+		expect(directSiteLinks(source)).toEqual([{ url, line: 3, column: 1 }]);
+	});
+
+	test('ignore examples in code and comments do not suppress links', () => {
+		for (const example of [
+			'`<!-- check-links-ignore-next-line -->`',
+			'```html\n<!-- check-links-ignore-next-line -->\n```',
+			'%% <!-- check-links-ignore-next-line --> %%',
+			'<!-- check-links-ignore-next-line -->\n'
+		]) {
+			expect(directSiteLinks(`${example}\n[Homework](${url})`)).toHaveLength(1);
+		}
+	});
+
 	test('scans untracked Rmd files, respects ignores, and fails with actionable diagnostics', () => {
 		const dir = mkdtempSync(path.join(tmpdir(), 'check-links-'));
 		try {

@@ -30,8 +30,15 @@ export function directSiteLinks(markdown: string) {
 		true
 	);
 	const tree = parser.runSync(parser.parse(source));
+	// An HTML comment can exempt the next source line, e.g. a README's site link.
+	const ignoredLines = new Set<number>();
+	visit(tree, 'comment', (node) => {
+		if (node.value.trim() === 'check-links-ignore-next-line' && node.position)
+			ignoredLines.add(node.position.end.line + 1);
+	});
 	const links: { url: string; line: number; column: number }[] = [];
 	visit(tree, 'element', (node) => {
+		if (node.position && ignoredLines.has(node.position.start.line)) return;
 		for (const property of ['href', 'src', 'data', 'poster']) {
 			const value = node.properties[property];
 			if (typeof value !== 'string' || !/^(?:https?:)?\/\//i.test(value)) continue;
