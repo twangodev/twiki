@@ -135,3 +135,15 @@ under **Privacy & Security** so it trusts the forwarded IP.
 GitHub usernames come from OAuth and refresh on sign-in; existing accounts need
 to sign in again to populate the field. Tracking respects Rybbit's browser opt-out
 flags. Run `bun test ./tests/browser-analytics.test.ts` for real-HTTP browser coverage.
+
+## Compiler cache
+
+CI restores an encrypted archive, then each stage validates its own cache entries.
+`tooling/fingerprint.ts` declares stage entrypoints and files read at runtime;
+Rolldown discovers their transitive imports. Add assets and subprocess entrypoints
+to that declaration when they cannot be reached through imports. Fingerprints also
+include the lockfile, package and TypeScript configuration, and runtime/platform.
+
+Only successful main-branch builds save archives, before deployment. Cache records
+are disposable; missing or incompatible entries are rebuilt. The archive prefix
+changes only when its compatibility contract changes, not for every tooling edit.

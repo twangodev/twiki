@@ -30,6 +30,8 @@ test('revision cache survives reloads, isolates HEADs, and recovers from truncat
 		expect(calls).toBe(4);
 		expect(createRevisionLookup(head, cache, lookup)('notes.md')).toBe(revision);
 		expect(calls).toBe(4);
+		createRevisionLookup(head, cache, lookup, 'changed-history-implementation')('notes.md');
+		expect(calls).toBe(5);
 	} finally {
 		rmSync(cache, { recursive: true, force: true });
 	}

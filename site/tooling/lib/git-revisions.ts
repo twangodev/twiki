@@ -6,9 +6,10 @@ import path from 'node:path';
 export function createRevisionLookup(
 	head: string,
 	cache: string,
-	lookup: (file: string) => string
+	lookup: (file: string) => string,
+	version = 'v1'
 ) {
-	const target = path.join(cache, `revisions-v1-${head}.jsonl`);
+	const target = path.join(cache, `revisions-${version}-${head}.jsonl`);
 	const revisions = new Map<string, string>();
 	try {
 		for (const line of readFileSync(target, 'utf8').split('\n').filter(Boolean)) {

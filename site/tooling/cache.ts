@@ -17,10 +17,16 @@ if (mode !== 'restore' && mode !== 'save') throw new Error('Expected restore or 
 const secret = process.env.BUILD_CACHE_KEY;
 const cache = path.resolve('build/generated/cache');
 const encrypted = path.resolve('build/generated/compiler-cache.gpg');
-if (!secret || (mode === 'restore' && !existsSync(encrypted))) {
+if (!secret) {
 	console.log(
-		mode === 'restore' ? 'No cache or key; building cold' : 'No key; skipping cache save'
+		mode === 'restore'
+			? 'BUILD_CACHE_KEY is missing; building cold'
+			: 'BUILD_CACHE_KEY is missing; skipping cache save'
 	);
+	process.exit(0);
+}
+if (mode === 'restore' && !existsSync(encrypted)) {
+	console.log('No compatible cache archive was restored; building cold');
 	process.exit(0);
 }
 
@@ -54,12 +60,12 @@ try {
 		run('tar', ['-xzf', archive, '-C', staged, '--no-same-owner']);
 		mkdirSync(cache, { recursive: true });
 		cpSync(staged, cache, { recursive: true });
-		console.log('Compiler cache restored');
+		console.log('Compiler cache archive restored; each stage validates its own inputs');
 	} else {
 		const files = readdirSync(cache).filter(
 			(file) =>
 				['stage1', 'file-history', 'social-titles', 'rmd'].includes(file) ||
-				/^gitdates-v2-[\w-]+\.json$/.test(file)
+				/^gitdates-v3-[\w-]+\.json$/.test(file)
 		);
 		run('tar', ['-czf', archive, '-C', cache, ...files]);
 		run('gpg', [

@@ -41,16 +41,8 @@ test('build jobs restore compatible caches from previous runs before preparing c
 		const key = cache.with!.key!;
 		const prefix = cache.with!['restore-keys']!;
 		prefixes.add(prefix);
-		expect(prefix).toStartWith('compiler-encrypted-v1-');
+		expect(prefix).toBe('compiler-encrypted-v2-${{ runner.os }}-${{ runner.arch }}-');
 		expect(key).toBe(prefix + '${{ github.run_id }}-${{ github.run_attempt }}');
-		for (const input of [
-			'site/bun.lock',
-			'site/tooling/**',
-			'site/src/lib/config.ts',
-			'site/src/lib/metadata.ts',
-			'site/src/lib/types.ts'
-		])
-			expect(prefix).toContain(input);
 		const build = steps.findIndex((step) =>
 			/bun run (check|test:content|build:all)/.test(step.run ?? '')
 		);
@@ -80,7 +72,11 @@ test('only trusted main-branch deployment runs save compiler caches', () => {
 	const save = deployment.steps.find((step) => step.uses === 'actions/cache/save@v6')!;
 	expect(save.if).toBe("steps.encrypted-cache.outputs.ready == 'true'");
 	expect(save.with?.key).toBe('${{ steps.compiler-cache.outputs.cache-primary-key }}');
-	expect(deployment.steps.findIndex((step) => step.id === 'encrypted-cache')).toBeGreaterThan(
+	const encrypted = deployment.steps.findIndex((step) => step.id === 'encrypted-cache');
+	expect(encrypted).toBeGreaterThan(
+		deployment.steps.findIndex((step) => step.run === 'bun run build:all')
+	);
+	expect(encrypted).toBeLessThan(
 		deployment.steps.findIndex((step) => step.run === 'bunx wrangler deploy')
 	);
 });
@@ -140,8 +136,9 @@ test('workflow encryption restores selected files and rejects wrong keys and tam
 			'stage1/ab/note.json',
 			'file-history/course/blame.json',
 			'file-history/course/revisions-v1-head.jsonl',
-			'gitdates-v2-course-head.json',
-			'social-titles/card.png'
+			'gitdates-v3-course-version-head.json',
+			'social-titles/card.png',
+			'rmd/key/result.json'
 		];
 		for (const file of files) {
 			mkdirSync(path.dirname(path.join(cache, file)), { recursive: true });
@@ -154,7 +151,7 @@ test('workflow encryption restores selected files and rejects wrong keys and tam
 		const encrypted = readFileSync(archive);
 		expect(encrypted.includes(Buffer.from('private fixture content'))).toBe(false);
 		rmSync(cache, { recursive: true });
-		expect(execute('Decrypt compiler cache', '')).toContain('building cold');
+		expect(execute('Decrypt compiler cache', '')).toContain('BUILD_CACHE_KEY is missing');
 		expect(existsSync(cache)).toBe(false);
 		expect(execute('Decrypt compiler cache', 'wrong-key')).toContain('building cold');
 		expect(existsSync(cache)).toBe(false);
@@ -183,7 +180,7 @@ test('missing keys and missing archives need no cache setup', () => {
 		expect(execute('Encrypt compiler cache', '')).toContain('skipping cache save');
 		expect(existsSync(path.join(directory, 'build/generated/compiler-cache.gpg'))).toBe(false);
 		expect(existsSync(path.join(directory, 'outputs'))).toBe(false);
-		expect(execute('Decrypt compiler cache')).toContain('building cold');
+		expect(execute('Decrypt compiler cache')).toContain('No compatible cache archive was restored');
 	});
 });
 

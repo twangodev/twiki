@@ -16,7 +16,7 @@ import { slugifyFilePath, type FilePath } from './slug';
 import { buildFileIcons } from './file-icons';
 import { buildHistories, type HistoryJob } from './history-pool';
 import { courseFilesDirectory } from './edition-paths.js';
-import { pipelineFingerprint } from '../fingerprint';
+import { stageFingerprint } from '../fingerprint';
 import { courseFingerprint, readCourseCache, saveCourseCache } from './course-cache';
 import { publicationFilter, courseLicenseResolver } from './publishing';
 import { buildRmdPreviews } from './rmd-previews';
@@ -119,7 +119,7 @@ export async function buildCourseFiles(
 			`${course}.json`
 		);
 	if (!development) {
-		const version = `${pipelineFingerprint()}\0${output}`;
+		const version = `${await stageFingerprint('files')}\0${output}`;
 		for (const course of courses.keys()) {
 			const tracked = paths.filter((file) => file.startsWith(`content/${course}/`));
 			// Let the R renderer validate its installed runtime and worksheet dependencies.

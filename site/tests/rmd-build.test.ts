@@ -1,6 +1,14 @@
 import { expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, statSync } from 'node:fs';
+import {
+	mkdtempSync,
+	mkdirSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+	statSync,
+	readdirSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildRmdPreviews } from '../tooling/lib/rmd-previews';
@@ -87,6 +95,14 @@ file.exists("private.csv")
 		}
 		expect(worksheet.rmdPreview).toBe(first);
 		expect(statSync(plot).mtimeMs).toBe(stamp);
+		const cacheRoot = path.join(site, 'build/generated/cache/rmd');
+		const cached = path.join(cacheRoot, readdirSync(cacheRoot)[0]);
+		rmSync(path.join(cached, path.basename(first!)));
+		await render();
+		expect(worksheet.rmdPreview).toBe(first);
+		writeFileSync(path.join(cached, 'result.json'), '{truncated');
+		await render();
+		expect(preview().html).toContain('Inline result: 5');
 		input('notes/values.csv', 'value\n7\n3\n');
 		await render();
 		expect(worksheet.rmdPreview).not.toBe(first);

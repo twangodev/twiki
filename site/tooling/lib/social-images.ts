@@ -1,4 +1,5 @@
 import satori from 'satori';
+import { stageFingerprint } from '../fingerprint';
 import { Resvg } from '@resvg/resvg-js';
 import { createHash } from 'node:crypto';
 import {
@@ -25,13 +26,7 @@ const background = readFileSync(
 	path.resolve(import.meta.dirname, '../../assets/social-background.svg')
 );
 const backgroundImage = `data:image/svg+xml;base64,${background.toString('base64')}`;
-const rendererKey = createHash('sha256')
-	.update(readFileSync(import.meta.filename))
-	.update(readFileSync(path.resolve(import.meta.dirname, '../../bun.lock')))
-	.update(JSON.stringify({ site, socialImageSize }))
-	.update(font)
-	.update(background)
-	.digest('hex');
+const rendererKey = await stageFingerprint('social');
 
 interface SocialCard {
 	title: string;

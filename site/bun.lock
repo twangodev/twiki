@@ -71,6 +71,7 @@
         "remark-parse": "^11.0.0",
         "remark-rehype": "^11.1.2",
         "remark-smartypants": "^3.0.2",
+        "rolldown": "1.0.3",
         "satori": "^0.33.4",
         "shiki": "^4.2.0",
         "simple-icons": "^16.29.0",

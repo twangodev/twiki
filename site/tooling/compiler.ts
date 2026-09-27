@@ -61,10 +61,10 @@ import { buildGitDateMap, parseGitmodules, resolveDates } from './lib/lastmod';
 import { contentAuthor } from '../src/lib/metadata';
 import { publicationResolver, courseLicenseResolver } from './lib/publishing';
 import { protectPublicLinks } from './lib/public-links';
-import { parserFingerprint } from './fingerprint';
+import { stageFingerprint } from './fingerprint';
 
 export async function compileContent() {
-	const PIPELINE_VERSION = parserFingerprint();
+	const PIPELINE_VERSION = await stageFingerprint('parser');
 	const SITE_DIR = path.resolve(import.meta.dirname, '..');
 	const REPO_ROOT = process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(SITE_DIR, '..');
 	const publicEdition = process.env.VITE_PUBLIC_EDITION === 'true';
@@ -364,13 +364,23 @@ export async function compileContent() {
 		return crypto.createHash('sha256').update(s).digest('hex');
 	}
 
+	let parseHits = 0;
 	async function parsePage(file: SourceFile): Promise<PageParse> {
 		const raw = fs.readFileSync(file.abs, 'utf8');
 		const cacheKey = sha256(`${PIPELINE_VERSION}|${file.rel}|${raw}`);
 		const cacheFile = path.join(CACHE_DIR, 'stage1', cacheKey.slice(0, 2), cacheKey + '.json');
 		if (fs.existsSync(cacheFile)) {
 			try {
-				return JSON.parse(fs.readFileSync(cacheFile, 'utf8')) as PageParse;
+				const saved = JSON.parse(fs.readFileSync(cacheFile, 'utf8')) as PageParse;
+				if (
+					!saved ||
+					saved.slug !== file.slug ||
+					saved.tree?.type !== 'root' ||
+					!Array.isArray(saved.tags)
+				)
+					throw new Error('Invalid parse cache');
+				parseHits++;
+				return saved;
 			} catch {
 				/* re-parse */
 			}
@@ -858,7 +868,9 @@ export async function compileContent() {
 				throw e;
 			}
 		}
-		console.log(`parse: ${parses.length} pages in ${Math.round(performance.now() - t1)}ms`);
+		console.log(
+			`parse: ${parses.length} pages in ${Math.round(performance.now() - t1)}ms (${parseHits} cached, ${parses.length - parseHits} parsed)`
+		);
 
 		const drafts = parses.filter((p) => p.draft);
 		const catalog = parses.filter((p) => !p.draft);

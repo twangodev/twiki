@@ -1,6 +1,9 @@
 import fs from 'node:fs';
+import { stageFingerprint } from '../fingerprint';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+
+const datesVersion = await stageFingerprint('gitdates');
 
 export interface SubmoduleInfo {
 	path: string;
@@ -100,17 +103,19 @@ export function buildGitDateMap(repoRoot: string, cacheDir: string): GitDateMap 
 		} catch {
 			return { created: {}, modified: {} };
 		}
-		const cacheFile = path.join(cacheDir, `gitdates-v2-${cacheKey}-${head}.json`);
+		const cacheFile = path.join(cacheDir, `gitdates-v3-${cacheKey}-${datesVersion}-${head}.json`);
 		if (fs.existsSync(cacheFile)) {
 			try {
-				return JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+				const saved = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+				if (!saved.created || !saved.modified) throw new Error('Invalid Git date cache');
+				return saved;
 			} catch {
 				/* fall through to rebuild */
 			}
 		}
 		const dates = repositoryDates(repoDir);
 		for (const f of fs.readdirSync(cacheDir)) {
-			if (f.startsWith(`gitdates-v2-${cacheKey}-`)) fs.rmSync(path.join(cacheDir, f));
+			if (f.startsWith(`gitdates-v3-${cacheKey}-`)) fs.rmSync(path.join(cacheDir, f));
 		}
 		fs.writeFileSync(cacheFile, JSON.stringify(dates));
 		return dates;

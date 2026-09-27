@@ -2,13 +2,12 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync } from 'node:fs';
 import path from 'node:path';
+import { stageFingerprint } from '../fingerprint';
 import { createRevisionLookup } from './git-revisions';
 import type { CourseFile } from '../../src/lib/files';
 import type { FileBlame, FileChange, FileCommit, FileHistory } from '../../src/lib/file-history';
 
-const historyVersion = createHash('sha256')
-	.update(readFileSync(import.meta.filename))
-	.digest('hex');
+const historyVersion = await stageFingerprint('history');
 const maxAssetBytes = 25 * 1024 * 1024;
 
 export function parseBlame(output: string): FileBlame {
@@ -52,7 +51,8 @@ export function createFileHistoryBuilder(
 	const revisionFor = createRevisionLookup(
 		head,
 		cache,
-		(file) => git('log', '-1', '--first-parent', '--format=%H', head, '--', file).trim() || head
+		(file) => git('log', '-1', '--first-parent', '--format=%H', head, '--', file).trim() || head,
+		historyVersion
 	);
 	const commits = new Map<string, { commit: FileCommit; parent?: string; changes: string[] }>();
 	function details(id: string) {
@@ -99,17 +99,23 @@ export function createFileHistoryBuilder(
 			.digest('hex');
 		const name = `${key}.json`;
 		const cached = path.join(cache, name);
-		if (existsSync(cached)) {
+		try {
 			const history: FileHistory = JSON.parse(readFileSync(cached, 'utf8'));
+			const assets = [history.blame, ...history.commits.map((commit) => commit.diff)].filter(
+				(url): url is string => Boolean(url)
+			);
 			if (
+				history.revision === revision &&
 				history.commits.every(
 					(commit) => allowed(commit.path) && (!commit.previousPath || allowed(commit.previousPath))
-				)
+				) &&
+				assets.every((url) => existsSync(path.join(cache, path.basename(url))))
 			) {
-				for (const url of [history.blame, ...history.commits.map((commit) => commit.diff)])
-					if (url) publish(path.basename(url));
+				for (const url of assets) publish(path.basename(url));
 				return publish(name);
 			}
+		} catch {
+			// Missing, truncated, or incomplete records are rebuilt from Git.
 		}
 		const history: FileHistory = { revision, commits: [] };
 		const workingBlob = execFileSync('git', ['-C', repo, 'hash-object', '--stdin'], {

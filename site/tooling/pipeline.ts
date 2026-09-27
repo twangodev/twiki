@@ -2,7 +2,7 @@ import { compileContent } from './compiler';
 import { prepareAssets } from './assets';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
-import { pipelineFingerprint } from './fingerprint';
+import { stageFingerprint } from './fingerprint';
 import { trackOutputs, writeChanged } from './lib/output';
 import { contentInputFingerprint, contentOutputFingerprint } from './lib/dev-state';
 
@@ -20,7 +20,7 @@ export async function prepareContent(
 		process.cwd(),
 		process.env.WISCONSIN_CONTENT_REPO,
 		process.env.VITE_PUBLIC_EDITION,
-		pipelineFingerprint(),
+		await stageFingerprint('pipeline'),
 		development
 	]);
 	const site = process.cwd();

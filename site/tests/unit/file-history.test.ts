@@ -54,6 +54,12 @@ test('history follows renames, emits scoped diffs and blame, detects local edits
 		const cachedBuild = createFileHistoryBuilder(repo, output, cache, browsablePath)!;
 		expect(cachedBuild(file, bytes)).toBe(url);
 		expect(existsSync(path.join(output, history.blame!.replace('/_files/', '')))).toBe(true);
+		rmSync(path.join(cache, path.basename(history.blame!)));
+		expect(cachedBuild(file, bytes)).toBe(url);
+		expect(existsSync(path.join(cache, path.basename(history.blame!)))).toBe(true);
+		writeFileSync(path.join(cache, path.basename(url)), '{truncated');
+		expect(cachedBuild(file, bytes)).toBe(url);
+		expect(JSON.parse(read(url))).toEqual(history);
 		writeFileSync(path.join(repo, 'Unrelated.java'), 'unrelated');
 		commit('Unrelated change');
 		expect(createFileHistoryBuilder(repo, output, cache, browsablePath)!(file, bytes)).toBe(url);

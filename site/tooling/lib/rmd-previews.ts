@@ -1,3 +1,4 @@
+import { stageFingerprint } from '../fingerprint';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -64,19 +65,24 @@ export async function buildRmdPreviews(
 	}
 	const available = files.filter((file) => !file.locked && file.download);
 	const inputs = JSON.stringify(available.map(({ path, download }) => [path, download]).sort());
-	const renderer = readFileSync(path.join(import.meta.dirname, '../../src/lib/rmd.ts'));
-	const policy = digest(
-		Buffer.concat([readFileSync(runner), readFileSync(import.meta.filename), renderer])
-	);
+	const policy = await stageFingerprint('rmd');
 	const base = `${runtime}\n${policy}\n${course}\n${inputs}`;
 	for (const worksheet of worksheets) {
 		const key = digest(`${base}\n${worksheet.path}`);
 		const cache = path.join(site, 'build/generated/cache/rmd', key);
 		const record = path.join(cache, 'result.json');
 		let result: { preview: string; blobs: string[] } | undefined;
-		if (existsSync(record)) {
+		try {
 			const saved = JSON.parse(readFileSync(record, 'utf8'));
-			if (saved.blobs.every((blob: string) => existsSync(path.join(cache, blob)))) result = saved;
+			if (
+				typeof saved.preview === 'string' &&
+				Array.isArray(saved.blobs) &&
+				saved.blobs.includes(saved.preview) &&
+				saved.blobs.every((blob: string) => existsSync(path.join(cache, blob)))
+			)
+				result = saved;
+		} catch {
+			// Missing or damaged previews are safe to regenerate from the worksheet.
 		}
 		if (!result) {
 			const scratch = mkdtempSync(path.join(tmpdir(), 'wisconsin-rmd-'));
