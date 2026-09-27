@@ -1,4 +1,4 @@
-import { absolutizeUrls } from './lib/content-urls';
+import { htmlAssetPaths, rewriteContentUrls } from './lib/content-urls';
 import { fileRoute } from '../src/lib/files';
 import { browsablePath } from './lib/course-files';
 import { preserveCurrency } from './lib/currency';
@@ -938,14 +938,9 @@ export async function compileContent() {
 			}
 		}
 
-		// Match HTML asset links to the filenames available to static hosts and the crawler.
-		const htmlAssets = new Map(
-			assetsSrc
-				.filter((asset) => asset.rel.toLowerCase().endsWith('.html'))
-				.map((asset) => [`/${simplifySlug(asset.slug)}`.replace(/\/$/, ''), `/${asset.slug}.html`])
-		);
+		const assetPaths = htmlAssetPaths(assetsSrc);
 		for (const page of pages) {
-			absolutizeUrls(page.tree, page.slug, htmlAssets);
+			rewriteContentUrls(page.tree, page.slug, assetPaths);
 		}
 		console.log(`resolve: links+transcludes+backlinks in ${Math.round(performance.now() - t2)}ms`);
 

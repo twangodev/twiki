@@ -2,25 +2,49 @@ import { visit } from 'unist-util-visit';
 import type { Root } from 'hast';
 import { simplifySlug, stripSlashes, type FullSlug } from './slug';
 
-/** Resolve relative links before folder routes lose their trailing slash. */
-export function absolutizeUrls(tree: Root, slug: FullSlug, htmlAssets: Map<string, string>) {
-	const simple = simplifySlug(slug);
-	const base = 'https://base.com/' + (simple === '/' ? '' : stripSlashes(simple, true));
-	const fix = (value: string): string => {
-		if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(value) || value.startsWith('//') || value.startsWith('#'))
-			return value;
-		const url = new URL(value, base);
-		let pathname = url.pathname;
-		if (pathname.length > 1 && pathname.endsWith('/')) pathname = pathname.slice(0, -1);
-		// HTML slugs are extensionless internally, but static files retain .html.
-		const asset = htmlAssets.get(decodeURIComponent(pathname));
-		if (asset) pathname = asset.split('/').map(encodeURIComponent).join('/');
-		return pathname + url.search + url.hash;
-	};
+export function htmlAssetPaths(assets: { rel: string; slug: FullSlug }[]): Map<string, string> {
+	return new Map(
+		assets
+			.filter((asset) => asset.rel.toLowerCase().endsWith('.html'))
+			.map((asset) => [`/${simplifySlug(asset.slug)}`.replace(/\/$/, ''), `/${asset.slug}.html`])
+	);
+}
+
+function isLocalContentUrl(value: string): boolean {
+	return !(
+		/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(value) ||
+		value.startsWith('//') ||
+		value.startsWith('#')
+	);
+}
+
+function resolveContentUrl(
+	value: string,
+	pageUrl: URL,
+	assetPaths: ReadonlyMap<string, string>
+): string {
+	if (!isLocalContentUrl(value)) return value;
+
+	const url = new URL(value, pageUrl);
+	const route = url.pathname.replace(/\/$/, '') || '/';
+	const assetPath = assetPaths.get(decodeURIComponent(route));
+	const pathname = assetPath ? assetPath.split('/').map(encodeURIComponent).join('/') : route;
+	return pathname + url.search + url.hash;
+}
+
+export function rewriteContentUrls(
+	tree: Root,
+	slug: FullSlug,
+	assetPaths: ReadonlyMap<string, string>
+) {
+	const pagePath = stripSlashes(simplifySlug(slug), true);
+	const pageUrl = new URL(`/${pagePath}`, 'https://content.invalid');
+
 	visit(tree, 'element', (node) => {
 		for (const attribute of ['href', 'src']) {
 			const value = node.properties[attribute];
-			if (typeof value === 'string') node.properties[attribute] = fix(value);
+			if (typeof value === 'string')
+				node.properties[attribute] = resolveContentUrl(value, pageUrl, assetPaths);
 		}
 	});
 }

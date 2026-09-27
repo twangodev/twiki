@@ -1,12 +1,13 @@
 import { expect, test } from 'bun:test';
 import type { Element, Root } from 'hast';
-import { absolutizeUrls } from '../../tooling/lib/content-urls';
+import { htmlAssetPaths, rewriteContentUrls } from '../../tooling/lib/content-urls';
 import type { FullSlug } from '../../tooling/lib/slug';
 
-const assets = new Map([
-	['/course/assets/fossil', '/course/assets/fossil.html'],
-	['/course/demo', '/course/demo/index.html'],
-	['/course/assets/café', '/course/assets/café.html']
+const assets = htmlAssetPaths([
+	{ rel: 'course/assets/fossil.html', slug: 'course/assets/fossil' as FullSlug },
+	{ rel: 'course/demo/index.html', slug: 'course/demo/index' as FullSlug },
+	{ rel: 'course/assets/café.html', slug: 'course/assets/café' as FullSlug },
+	{ rel: 'course/assets/image.png', slug: 'course/assets/image.png' as FullSlug }
 ]);
 
 function resolve(value: string, attribute = 'href', slug = 'course/labs/lab-11') {
@@ -17,7 +18,7 @@ function resolve(value: string, attribute = 'href', slug = 'course/labs/lab-11')
 		children: []
 	};
 	const tree: Root = { type: 'root', children: [node] };
-	absolutizeUrls(tree, slug as FullSlug, assets);
+	rewriteContentUrls(tree, slug as FullSlug, assets);
 	return node.properties[attribute];
 }
 
