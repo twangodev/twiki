@@ -38,7 +38,10 @@ function build(publicEdition: boolean) {
 	const content = JSON.parse(
 		readFileSync(path.join(site, 'build/generated/content-manifest.json'), 'utf8')
 	);
-	for (const asset of content.htmlAssets) pages[`/${asset}`] = `${asset}.html`;
+	for (const asset of content.htmlAssets) {
+		pages[`/${asset}`] = `${asset}.html`;
+		pages[`/${asset}.html`] = `${asset}.html`;
+	}
 	const fileEntries = JSON.parse(
 		readFileSync(path.join(site, 'src/lib/generated/file-entries.json'), 'utf8')
 	);

@@ -49,6 +49,20 @@ test('only exact generated public URLs are eligible for anonymous serving', () =
 	expect(publicTarget(request('/note'), {})).toBeUndefined();
 });
 
+test('published HTML assets support explicit filenames and their existing clean URLs', () => {
+	const assets = publicAssetManifest(directory, {
+		'/course/assets/demo': 'course/assets/demo.html',
+		'/course/assets/demo.html': 'course/assets/demo.html'
+	});
+	for (const route of ['/course/assets/demo', '/course/assets/demo.html'])
+		expect(publicTarget(new Request(`https://example.com${route}`), assets)).toBe(
+			'/_published/course/assets/demo'
+		);
+	expect(
+		publicTarget(new Request('https://example.com/course/assets/private.html'), assets)
+	).toBeUndefined();
+});
+
 test('public responses remain indexable without caching cookies or personalized variants', async () => {
 	const response = publicResponse(
 		new Response('published', {

@@ -1,3 +1,4 @@
+import { absolutizeUrls } from './lib/content-urls';
 import { fileRoute } from '../src/lib/files';
 import { browsablePath } from './lib/course-files';
 import { preserveCurrency } from './lib/currency';
@@ -766,29 +767,6 @@ export async function compileContent() {
 		};
 	}
 
-	/**
-	 * DIVERGENCE from Quartz: canonicalize relative hrefs/srcs to root-absolute.
-	 * Browser-equivalent to Quartz's relative URLs, but stable under
-	 * trailingSlash:'never' (folder pages lose their trailing slash in SvelteKit).
-	 */
-	function absolutizeUrls(tree: HtmlRoot, slug: FullSlug) {
-		const simple = simplifySlug(slug);
-		const base = 'https://base.com/' + (simple === '/' ? '' : stripSlashes(simple, true));
-		const fix = (val: string): string => {
-			if (isAbsoluteUrl(val) || val.startsWith('#') || val.startsWith('data:')) return val;
-			const url = new URL(val, base);
-			let p = url.pathname;
-			if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1); // trailingSlash: never
-			return p + url.hash;
-		};
-		visit(tree, 'element', (node) => {
-			if (typeof node.properties?.href === 'string')
-				node.properties.href = fix(node.properties.href);
-			if (typeof node.properties?.src === 'string' && !node.properties.src.startsWith('data:'))
-				node.properties.src = fix(node.properties.src);
-		});
-	}
-
 	// ---------------------------------------------------------------------------
 	// stage 3 — emit
 	// ---------------------------------------------------------------------------
@@ -960,9 +938,14 @@ export async function compileContent() {
 			}
 		}
 
-		// root-absolute canonicalization (divergence, see fn docstring)
+		// Match HTML asset links to the filenames available to static hosts and the crawler.
+		const htmlAssets = new Map(
+			assetsSrc
+				.filter((asset) => asset.rel.toLowerCase().endsWith('.html'))
+				.map((asset) => [`/${simplifySlug(asset.slug)}`.replace(/\/$/, ''), `/${asset.slug}.html`])
+		);
 		for (const page of pages) {
-			absolutizeUrls(page.tree, page.slug);
+			absolutizeUrls(page.tree, page.slug, htmlAssets);
 		}
 		console.log(`resolve: links+transcludes+backlinks in ${Math.round(performance.now() - t2)}ms`);
 
