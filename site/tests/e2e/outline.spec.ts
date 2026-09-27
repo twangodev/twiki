@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
 
+// Scrolling and branch tests need a long article with multiple nested sections.
+const outlineArticle = '/sp26-cs544/debugging-autobadger';
+
 test('responsive outlines share one heading measurement pass', async ({ page }) => {
 	await page.setViewportSize({ width: 1440, height: 600 });
 	await page.goto('/');
@@ -24,9 +27,9 @@ test('responsive outlines share one heading measurement pass', async ({ page }) 
 });
 
 test('outline follows with one smooth scroll and reaches its target', async ({ page }) => {
-	await page.setViewportSize({ width: 1440, height: 600 });
+	await page.setViewportSize({ width: 1440, height: 500 });
 	await page.emulateMedia({ reducedMotion: 'no-preference' });
-	await page.goto('/');
+	await page.goto(outlineArticle);
 	await page.locator('.doc-toc').getByRole('button', { name: 'Expand all', exact: true }).click();
 	const toc = page.locator('.doc-toc');
 	await expect
@@ -39,13 +42,14 @@ test('outline follows with one smooth scroll and reaches its target', async ({ p
 			)
 		)
 		.toBe(0);
+	await expect.poll(() => toc.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
 	await toc.evaluate((element) => {
 		const viewport = element as HTMLElement;
 		const calls: ScrollToOptions[] = [];
 		const scrollTo = viewport.scrollTo.bind(viewport);
 		Object.defineProperty(viewport, 'scrollTo', {
 			value: (options: ScrollToOptions) => {
-				if (viewport.querySelector('a[href="#deployment"][aria-current="location"]')) {
+				if (viewport.querySelector('a[href="#using-s-step-into"][aria-current="location"]')) {
 					calls.push(options);
 					viewport.dataset.scrollCalls = JSON.stringify(calls);
 				}
@@ -54,13 +58,16 @@ test('outline follows with one smooth scroll and reaches its target', async ({ p
 		});
 	});
 	await page.evaluate(() => {
-		const heading = document.getElementById('deployment')!;
+		const heading = document.getElementById('using-s-step-into')!;
 		window.scrollTo({
 			top: window.scrollY + heading.getBoundingClientRect().top - 100,
 			behavior: 'instant'
 		});
 	});
-	await expect(toc.locator('a[href="#deployment"]')).toHaveAttribute('aria-current', 'location');
+	await expect(toc.locator('a[href="#using-s-step-into"]')).toHaveAttribute(
+		'aria-current',
+		'location'
+	);
 	await expect(toc).toHaveAttribute('data-scroll-calls', /smooth/);
 	await expect
 		.poll(() =>
@@ -76,17 +83,18 @@ test('outline follows with one smooth scroll and reaches its target', async ({ p
 	expect(calls).toEqual([{ behavior: 'smooth', top: expect.any(Number) }]);
 	expect(calls[0].top).toBeGreaterThan(0);
 	const viewport = (await toc.boundingBox())!;
-	const active = (await toc.locator('a[href="#deployment"]').boundingBox())!;
+	const active = (await toc.locator('a[href="#using-s-step-into"]').boundingBox())!;
 	expect(active.y).toBeGreaterThanOrEqual(viewport.y);
 	expect(active.y + active.height).toBeLessThanOrEqual(viewport.y + viewport.height);
 });
 
 test('active outline row follows reading within its own scroll viewport', async ({ page }) => {
-	await page.setViewportSize({ width: 1440, height: 600 });
-	await page.goto('/');
+	await page.setViewportSize({ width: 1440, height: 500 });
+	await page.goto(outlineArticle);
 	const toc = page.locator('.doc-toc');
 	await toc.getByRole('button', { name: 'Expand all', exact: true }).click();
-	for (const id of ['deployment', 'bonus-features']) {
+	await expect.poll(() => toc.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+	for (const id of ['using-s-step-into', 'using-pip']) {
 		const articleScroll = await page.evaluate((id) => {
 			window.scrollTo({
 				top: window.scrollY + document.getElementById(id)!.getBoundingClientRect().top - 100,
@@ -160,15 +168,18 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
 		await page.emulateMedia({ reducedMotion });
 		const errors: string[] = [];
 		page.on('pageerror', (error) => errors.push(error.message));
-		await page.goto('/');
+		await page.goto(outlineArticle);
 		const toc = page.locator('.doc-toc nav');
-		const technical = toc.getByRole('button', {
-			name: 'Toggle A Technical Glance sections',
+		const changes = toc.getByRole('button', {
+			name: 'Toggle Making Changes sections',
 			exact: true
 		});
-		const quick = toc.getByRole('button', { name: 'Toggle Quick Start sections', exact: true });
-		await expect(technical).toHaveAttribute('aria-expanded', 'false');
-		await expect(toc.getByRole('link', { name: 'Bonus Features', exact: true })).toHaveCount(0);
+		const breakpoints = toc.getByRole('button', {
+			name: 'Toggle Breakpoints sections',
+			exact: true
+		});
+		await expect(changes).toHaveAttribute('aria-expanded', 'false');
+		await expect(toc.getByRole('link', { name: 'Using pip', exact: true })).toHaveCount(0);
 
 		async function readSection(id: string) {
 			await page.evaluate((id) => {
@@ -186,28 +197,32 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
 				)
 				.toEqual([`#${id}`]);
 		}
-		await readSection('bonus-features');
-		await expect(technical).toHaveAttribute('aria-expanded', 'true');
-		await readSection('development');
-		await expect(technical).toHaveAttribute('aria-expanded', 'false');
-		await expect(quick).toHaveAttribute('aria-expanded', 'true');
-		await toc.getByRole('link', { name: 'Development', exact: true }).focus();
-		await readSection('clone-the-repository');
-		await expect(quick).toHaveAttribute('aria-expanded', 'true');
-		await expect(toc.getByRole('link', { name: 'Development', exact: true })).toBeFocused();
-		await technical.click();
-		await readSection('clone-the-repository');
-		await expect(technical).toHaveAttribute('aria-expanded', 'true');
-		await expect(quick).toHaveAttribute('aria-expanded', 'false');
+		await readSection('using-pip');
+		await expect(changes).toHaveAttribute('aria-expanded', 'true');
+		await readSection('what-is-a-breakpoint');
+		await expect(changes).toHaveAttribute('aria-expanded', 'false');
+		await expect(breakpoints).toHaveAttribute('aria-expanded', 'true');
+		await toc.getByRole('link', { name: 'What is a breakpoint?', exact: true }).focus();
+		await readSection('using-breakpoints');
+		await expect(breakpoints).toHaveAttribute('aria-expanded', 'true');
+		await expect(
+			toc.getByRole('link', { name: 'What is a breakpoint?', exact: true })
+		).toBeFocused();
+		await changes.click();
+		await readSection('using-breakpoints');
+		await expect(changes).toHaveAttribute('aria-expanded', 'true');
+		await expect(breakpoints).toHaveAttribute('aria-expanded', 'false');
 
 		await toc.getByRole('button', { name: 'Expand all', exact: true }).click();
-		await expect(toc.getByRole('link', { name: 'Development', exact: true })).toBeVisible();
-		await toc.getByRole('link', { name: 'Bonus Features', exact: true }).focus();
-		await readSection('development');
-		await expect(toc.getByRole('link', { name: 'Bonus Features', exact: true })).toBeFocused();
+		await expect(
+			toc.getByRole('link', { name: 'What is a breakpoint?', exact: true })
+		).toBeVisible();
+		await toc.getByRole('link', { name: 'Using pip', exact: true }).focus();
+		await readSection('what-is-a-breakpoint');
+		await expect(toc.getByRole('link', { name: 'Using pip', exact: true })).toBeFocused();
 		await toc.getByRole('button', { name: 'Focus', exact: true }).click();
-		await expect(technical).toHaveAttribute('aria-expanded', 'false');
-		await expect(quick).toHaveAttribute('aria-expanded', 'true');
+		await expect(changes).toHaveAttribute('aria-expanded', 'false');
+		await expect(breakpoints).toHaveAttribute('aria-expanded', 'true');
 		await expect(toc.locator('.position-marker')).toHaveCSS('opacity', '1');
 		expect(errors).toEqual([]);
 	});
