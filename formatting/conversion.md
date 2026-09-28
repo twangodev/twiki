@@ -21,14 +21,16 @@ binary is deleted. Two exceptions:
 - **Figures either way:** Claude can't crop images out of a page. When a
   Claude-read document has diagrams worth keeping, also run mineru on it
   purely as a figure extractor and pull the crops from its `images/`.
-- **Audio:** `uv run poe transcribe` (or
-  [cohere-transcribe-cli](https://github.com/twangodev/cohere-transcribe-cli)).
+- **Audio:** use [cohere-transcribe-cli](https://github.com/twangodev/cohere-transcribe-cli):
+  `uvx --from cohere-transcribe-cli cohere recording.m4a -o recording.txt`.
   Transcripts are raw material, not output — see [[lecture]] for synthesis.
 - **Textbooks:** convert, one file per chapter (`textbook/ch-NN.md`). Never
   file a whole book as one note.
 
 ## Tools
 
+- For a persistent audio CLI install: `uv tool install cohere-transcribe-cli`,
+  then run `cohere recording.m4a -o recording.txt`.
 - `uv run mineru -p <input> -o /tmp/<scratch> -l en`
 - Batches: start `uv run mineru-vllm-server` once, add
   `-b hybrid-http-client -u http://127.0.0.1:<port>` to each run. One server

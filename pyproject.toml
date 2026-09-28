@@ -4,14 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
-dependencies = [
-    "click>=8.3.1",
-    "qwen-asr>=0.0.6",
-    "tqdm>=4.67.3",
-]
-
-[tool.poe.tasks]
-transcribe = "uv run python transcribe.py"
+dependencies = []
 
 [tool.uv]
 environments = ["sys_platform == 'linux'"]
@@ -29,6 +22,5 @@ members = [
 [dependency-groups]
 dev = [
     "mineru[pipeline,vllm,vlm]>=3.2.3",
-    "poethepoet>=0.42.1",
     "ruff>=0.15.5",
 ]
