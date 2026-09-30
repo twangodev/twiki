@@ -43,6 +43,23 @@ binary is deleted. Two exceptions:
 Mineru emits `<doc>.md` + hash-named `images/` + debug files (`layout.pdf`,
 `origin.pdf`, `*.json`). Keep only the markdown and the figures it references.
 
+### Source identification
+
+Use descriptive document titles, authors, lecture dates, and page ranges to
+identify sources. Keep original upload filenames, local filesystem paths, and
+recording export titles out of note titles, frontmatter, body text, and indexes.
+Remove filename-only `Source:` / `Legacy source:` entries and imported-file
+columns when merging existing material. Conversion filenames belong in scratch
+output, logs, or private import manifests.
+
+Preserve bibliographic citations, author credits, license notices, and useful
+review caveats. Keep filenames that are actual course content (code examples,
+datasets, required submissions), working asset/download links, and printable
+artifact links. A date inferred from an input filename may be retained, but
+identify it as inferred without reproducing the filename.
+
+### Filing steps
+
 1. Place the markdown per the relevant formatting spec. If a note for this
    content already exists (e.g. `![[lecture.pdf]]` embedded in old notes),
    **merge** — the converted content replaces the embed, the rewrite

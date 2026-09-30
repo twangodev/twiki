@@ -51,6 +51,10 @@ Binaries get converted to markdown, reviewed, deleted — see
 Claude-read) and the full pipeline. Skip binaries course code uses (jars,
 datasets, sprites).
 
+Keep original input filenames, local paths, and recording export titles out of
+filed notes and indexes. Identify sources by descriptive title, author, or date;
+preserve citations and filenames that are part of assignment requirements.
+
 ## Rules
 
 - One course per agent.

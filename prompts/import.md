@@ -94,6 +94,10 @@ This document should be linked from:
 - Use wikilinks format `[[path/to/file]]`
 - Use paths relative to content root
 - Keep original link text when converting to local links
+- Identify sources by descriptive title, author, or date; remove original input
+  filenames, local paths, and imported-file columns from notes and indexes.
+  Preserve citations, credits, working file links, and filenames required by
+  coursework. See `formatting/conversion.md`.
 - Link only when confident about the match
 - Remove all external URLs (Canvas, Google Docs, etc.)
 - Think about bidirectional connections
