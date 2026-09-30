@@ -31,7 +31,7 @@ function rVersion() {
 				'-e',
 				'cat(R.version.string); for (p in c("knitr", "evaluate", "highr", "xfun", "yaml")) cat(p, as.character(packageVersion(p)))'
 			],
-			{ encoding: 'utf8', timeout: 30_000 }
+			{ encoding: 'utf8', timeout: 30_000, stdio: 'pipe' }
 		));
 	} catch (error) {
 		throw new Error(
@@ -47,8 +47,7 @@ export async function buildRmdPreviews(
 	course: string,
 	files: CourseFile[],
 	output: string,
-	retain: (file: string) => void,
-	development = false
+	retain: (file: string) => void
 ) {
 	const worksheets = files.filter(
 		(file) => !file.locked && file.download && /\.rmd$/i.test(file.path)
@@ -58,8 +57,8 @@ export async function buildRmdPreviews(
 	try {
 		runtime = rVersion();
 	} catch (error) {
-		if (!development) throw error;
-		console.warn(`rmd: ${String(error)} Using Source and Interactive views in development.`);
+		const message = error instanceof Error ? error.message : String(error);
+		console.warn(`rmd: ${message} Using Source and Interactive views.`);
 		for (const worksheet of worksheets) delete worksheet.rmdPreview;
 		return;
 	}
