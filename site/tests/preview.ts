@@ -24,6 +24,8 @@ writeFileSync(
 		vars: {
 			...config.vars,
 			ORIGIN: origin,
+			// Runtime-only: CI builds are also deployed with production analytics enabled.
+			DISABLE_ANALYTICS: 'true',
 			GITHUB_CLIENT_ID: 'test',
 			GITHUB_CLIENT_SECRET: 'test',
 			BETTER_AUTH_SECRET: crypto.randomUUID() + crypto.randomUUID()

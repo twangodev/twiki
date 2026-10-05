@@ -87,6 +87,42 @@ test('anonymous analytics configuration bypasses auth without exposing other rou
 	}
 });
 
+test('disabled analytics acknowledges configuration and events without upstream or auth access', async () => {
+	const originalFetch = globalThis.fetch;
+	let upstreamRequests = 0;
+	globalThis.fetch = (() => {
+		upstreamRequests++;
+		throw new Error('Test traffic must not reach Rybbit');
+	}) as unknown as typeof fetch;
+	try {
+		for (const req of [
+			request('/site/tracking-config/4'),
+			request('/track', {
+				method: 'POST',
+				body: JSON.stringify({ site_id: 4, type: 'pageview' })
+			}),
+			request('/identify', {
+				method: 'POST',
+				body: JSON.stringify({ site_id: 4, user_id: 'fixture-member' })
+			})
+		]) {
+			const response = await authenticateRequest(
+				req,
+				{ ORIGIN: origin, DISABLE_ANALYTICS: 'true' } as AuthEnv,
+				async () => {
+					throw new Error('Analytics must not reach private assets');
+				}
+			);
+			expect(response.status).toBe(200);
+			expect(await response.json()).toEqual({});
+			expect(response.headers.get('cache-control')).toContain('no-store');
+		}
+		expect(upstreamRequests).toBe(0);
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+});
+
 test('analytics relay runs in workerd and rejects upstream redirects', async () => {
 	const { Miniflare } = await import('miniflare');
 	const bundle = await Bun.build({ entrypoints: ['./worker/analytics.ts'], target: 'browser' });

@@ -40,7 +40,11 @@ async function routeRequest(
 	const url = new URL(request.url);
 	if (url.origin !== env.ORIGIN) return new Response('Misdirected request', { status: 421 });
 	// Analytics also serves anonymous public readers, before session/database access.
-	if (url.pathname.startsWith('/api/analytics/')) return proxyAnalytics(request);
+	if (url.pathname.startsWith('/api/analytics/')) {
+		if (env.DISABLE_ANALYTICS === 'true')
+			return Response.json({}, { headers: { 'Cache-Control': 'no-store' } });
+		return proxyAnalytics(request);
+	}
 	const reading = request.method === 'GET' || request.method === 'HEAD';
 	if (url.pathname === '/_published' || url.pathname.startsWith('/_published/'))
 		return new Response('Not found', { status: 404 });

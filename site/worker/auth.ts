@@ -9,6 +9,7 @@ export { isOwner } from './access';
 export interface AuthEnv {
 	DB: D1Database;
 	ORIGIN: string;
+	DISABLE_ANALYTICS?: string;
 	GITHUB_CLIENT_ID: string;
 	GITHUB_CLIENT_SECRET: string;
 	BETTER_AUTH_SECRET: string;
