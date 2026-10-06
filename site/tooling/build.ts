@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { publicAssetManifest } from './lib/public-assets';
@@ -46,13 +46,15 @@ function build(publicEdition: boolean) {
 		readFileSync(path.join(site, 'src/lib/generated/file-entries.json'), 'utf8')
 	);
 	publicAssets = publicAssetManifest(output, pages, fileEntries);
-	cpSync(output, staged, { recursive: true });
+	// Both editions live on the same filesystem. Move the public tree aside
+	// before the full adapter recreates its output, without copying every asset.
+	renameSync(output, staged);
 	console.log(
 		`publishing: ${Object.keys(pages).length} public pages; ${fileEntries.length} file routes share one shell; history remains private`
 	);
 }
 build(false);
-cpSync(staged, path.join(output, '_published'), { recursive: true });
+renameSync(staged, path.join(output, '_published'));
 writeFileSync(manifestPath, JSON.stringify(publicAssets));
 
 console.log(`build: all completed in ${((performance.now() - started) / 1000).toFixed(2)}s`);

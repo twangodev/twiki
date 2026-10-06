@@ -11,8 +11,8 @@ test('file routes share one static shell and have no per-route HTML or server-da
 }) => {
 	const routes = JSON.parse(readFileSync('build/generated/public-routes.json', 'utf8'));
 	expect(Object.keys(routes).some((route) => /^\/[^/]+\/files(?:\/|$)/.test(route))).toBe(false);
-	expect(existsSync('build/generated/public-site/_file-browser.html')).toBe(true);
-	expect(existsSync(`build/generated/public-site${first}.html`)).toBe(false);
+	expect(existsSync('build/.svelte-kit/cloudflare/_published/_file-browser.html')).toBe(true);
+	expect(existsSync(`build/.svelte-kit/cloudflare/_published${first}.html`)).toBe(false);
 	const full = await request.get(first);
 	expect(full.status()).toBe(200);
 	const html = await full.text();

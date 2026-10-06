@@ -1,6 +1,11 @@
 import { staticDirectory } from './tooling/lib/edition-paths.js';
 import adapter from './tooling/adapter.js';
 import { readFileSync } from 'node:fs';
+import { applicationVersion } from './tooling/lib/app-version.js';
+
+const prerenderConcurrency = Number(process.env.WISCONSIN_PRERENDER_CONCURRENCY ?? 1);
+if (!Number.isInteger(prerenderConcurrency) || prerenderConcurrency < 1)
+	throw new Error('WISCONSIN_PRERENDER_CONCURRENCY must be a positive integer');
 
 /** @param {string} filename @param {string} value */
 function expectedDiagnostic(filename, value) {
@@ -24,7 +29,11 @@ const config = {
 		outDir: 'build/.svelte-kit',
 		files: { assets: staticDirectory(process.cwd()) },
 		adapter: adapter(),
+		// Content is served separately. Rebuilding it should not change the
+		// application version, hydration IDs, and every prerendered HTML asset.
+		version: { name: applicationVersion(process.cwd()) },
 		prerender: {
+			concurrency: prerenderConcurrency,
 			origin: 'https://wisconsin.twango.dev',
 			handleUnseenRoutes: ({ routes, message }) => {
 				if (

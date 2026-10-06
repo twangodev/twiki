@@ -1,4 +1,4 @@
-import { visit } from 'unist-util-visit';
+import { visitElements } from './visit-elements';
 import type { Root } from 'hast';
 import { simplifySlug, stripSlashes, type FullSlug } from './slug';
 
@@ -40,7 +40,7 @@ export function rewriteContentUrls(
 	const pagePath = stripSlashes(simplifySlug(slug), true);
 	const pageUrl = new URL(`/${pagePath}`, 'https://content.invalid');
 
-	visit(tree, 'element', (node) => {
+	visitElements(tree, (node) => {
 		for (const attribute of ['href', 'src']) {
 			const value = node.properties[attribute];
 			if (typeof value === 'string')

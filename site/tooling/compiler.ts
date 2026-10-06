@@ -21,6 +21,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSlug from 'rehype-slug';
 import rehypeKatex from 'rehype-katex';
 import { SKIP as SKIP_VISIT, visit } from 'unist-util-visit';
+import { visitElements } from './lib/visit-elements';
 import { toString as mdastToString } from 'mdast-util-to-string';
 import { toString as hastToString } from 'hast-util-to-string';
 import { toHtml } from 'hast-util-to-html';
@@ -44,7 +45,8 @@ import {
 	slugTag,
 	splitAnchor,
 	stripSlashes,
-	transformLink
+	transformLink,
+	createTransformOptions
 } from './lib/slug';
 import {
 	type OfmFileData,
@@ -62,6 +64,7 @@ import { contentAuthor } from '../src/lib/metadata';
 import { publicationResolver, courseLicenseResolver } from './lib/publishing';
 import { protectPublicLinks } from './lib/public-links';
 import { stageFingerprint } from './fingerprint';
+import { compiledAssetsDirectory } from './lib/edition-paths.js';
 
 export async function compileContent() {
 	const PIPELINE_VERSION = await stageFingerprint('parser');
@@ -71,6 +74,7 @@ export async function compileContent() {
 	const CONTENT_DIR = path.join(REPO_ROOT, 'content');
 	const OUT_DIR = path.join(SITE_DIR, 'build/generated');
 	const CACHE_DIR = path.join(OUT_DIR, 'cache');
+	const ASSETS_DIR = compiledAssetsDirectory(SITE_DIR);
 
 	const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']);
 	const ASSET_EXTS = new Set([...IMAGE_EXTS, '.pdf', '.html']);
@@ -365,10 +369,12 @@ export async function compileContent() {
 	}
 
 	let parseHits = 0;
+	const parseCacheFiles = new Set<string>();
 	async function parsePage(file: SourceFile): Promise<PageParse> {
 		const raw = fs.readFileSync(file.abs, 'utf8');
 		const cacheKey = sha256(`${PIPELINE_VERSION}|${file.rel}|${raw}`);
 		const cacheFile = path.join(CACHE_DIR, 'stage1', cacheKey.slice(0, 2), cacheKey + '.json');
+		parseCacheFiles.add(path.relative(CACHE_DIR, cacheFile).split(path.sep).join('/'));
 		if (fs.existsSync(cacheFile)) {
 			try {
 				const saved = JSON.parse(fs.readFileSync(cacheFile, 'utf8')) as PageParse;
@@ -559,7 +565,7 @@ export async function compileContent() {
 		const curSlug = simplifySlug(page.slug);
 		const outgoing: Set<SimpleSlug> = new Set();
 
-		visit(page.tree, 'element', (node) => {
+		visitElements(page.tree, (node) => {
 			if (node.tagName === 'a' && node.properties && typeof node.properties.href === 'string') {
 				let dest = node.properties.href as RelativeURL;
 				const classes = (node.properties.className ?? []) as string[];
@@ -672,7 +678,7 @@ export async function compileContent() {
 		rel: string
 	) {
 		if (depth > 3) return;
-		visit(root, 'element', (node): typeof SKIP_VISIT | undefined => {
+		visitElements(root, (node): typeof SKIP_VISIT | undefined => {
 			if (node.tagName !== 'blockquote') return;
 			const classNames = (node.properties?.className ?? []) as string[];
 			if (!classNames.includes('transclude')) return;
@@ -830,7 +836,7 @@ export async function compileContent() {
 		fs.mkdirSync(CACHE_DIR, { recursive: true });
 		const wantedPages = new Set<string>();
 		const wantedAssets = new Set<string>();
-		fs.mkdirSync(path.join(OUT_DIR, 'assets'), { recursive: true });
+		fs.mkdirSync(ASSETS_DIR, { recursive: true });
 
 		// stage 0
 		const { files: discovered, submoduleNames } = discover();
@@ -886,7 +892,7 @@ export async function compileContent() {
 
 		// stage 2
 		const t2 = performance.now();
-		const transformOptions: TransformOptions = { strategy: 'shortest', allSlugs };
+		const transformOptions: TransformOptions = createTransformOptions(allSlugs);
 		// emitted output set for broken-link audit: pages + assets + folder pages + tag pages
 		const pageSlugSet = new Set<string>(pages.map((p) => p.slug as string));
 		const folderSet = new Set<string>();
@@ -974,7 +980,7 @@ export async function compileContent() {
 		let assetBytes = 0;
 		for (const asset of assetsSrc) {
 			// html assets: extensionless at slug, exactly like quartz's Assets emitter
-			const dest = path.join(OUT_DIR, 'assets', asset.slug);
+			const dest = path.join(ASSETS_DIR, asset.slug);
 			fs.mkdirSync(path.dirname(dest), { recursive: true });
 			copyChanged(asset.abs, dest);
 			wantedAssets.add(dest);
@@ -1079,9 +1085,9 @@ export async function compileContent() {
 
 		pruneOutputs(path.join(OUT_DIR, 'pages'), wantedPages);
 		pruneOutputs(
-			path.join(OUT_DIR, 'assets'),
+			ASSETS_DIR,
 			wantedAssets,
-			(file) => file === path.join(OUT_DIR, 'assets/_files')
+			(file) => !publicEdition && file === path.join(ASSETS_DIR, '_files')
 		);
 
 		// manifest
@@ -1169,6 +1175,10 @@ export async function compileContent() {
 
 	try {
 		await main();
+		writeChanged(
+			path.join(CACHE_DIR, 'stage1-current.json'),
+			JSON.stringify([...parseCacheFiles].sort())
+		);
 	} finally {
 		highlighter?.dispose();
 	}

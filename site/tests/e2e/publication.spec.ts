@@ -106,13 +106,15 @@ test('locked previews expose titles and headings without bodies, downloads or hi
 });
 
 test('public output contains no private content, history, or navigation bundles', () => {
-	const root = 'build/generated/public-site';
+	const root = 'build/.svelte-kit/cloudflare/_published';
 	for (const file of readdirSync(root, { recursive: true, withFileTypes: true })) {
 		if (!file.isFile()) continue;
 		const contents = readFileSync(path.join(file.parentPath, file.name)).toString();
 		expect(contents, path.join(file.parentPath, file.name)).not.toMatch(canaries);
 	}
 	const assets = JSON.parse(readFileSync('build/generated/public-assets.json', 'utf8'));
+	expect(assets['/navigation.js']).toBe('/_published/navigation.js');
+	expect(assets['/file-icons.js']).toBe('/_published/file-icons.js');
 	expect(Object.keys(assets).some((url) => url.startsWith('/_files/history/'))).toBe(false);
 	expect(Object.keys(assets).some((url) => url.includes('publish.yaml'))).toBe(false);
 });
@@ -131,7 +133,14 @@ test('anonymous HTML, hydration, navigation, graphs and search use only the publ
 		const page = await context.newPage();
 		const errors: string[] = [];
 		page.on('pageerror', (error) => errors.push(error.message));
+		const navigationResponse = page.waitForResponse(
+			(response) => new URL(response.url()).pathname === '/navigation.js'
+		);
 		await page.goto(note);
+		const navigation = await navigationResponse;
+		expect(navigation.status()).toBe(200);
+		expect(navigation.headers()['cache-control']).toBe('no-store');
+		expect(await navigation.text()).not.toMatch(canaries);
 		await expect(page.getByRole('heading', { name: 'Public derivations' })).toBeVisible();
 		await expect(page.getByRole('complementary', { name: 'Content license' })).toContainText(
 			'Example author'

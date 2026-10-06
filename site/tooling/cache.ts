@@ -5,12 +5,13 @@ import {
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
-	readdirSync,
 	readFileSync,
-	rmSync
+	rmSync,
+	writeFileSync
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { compilerCacheFiles } from './lib/cache-selection';
 
 const mode = process.argv[2];
 if (mode !== 'restore' && mode !== 'save') throw new Error('Expected restore or save');
@@ -62,12 +63,10 @@ try {
 		cpSync(staged, cache, { recursive: true });
 		console.log('Compiler cache archive restored; each stage validates its own inputs');
 	} else {
-		const files = readdirSync(cache).filter(
-			(file) =>
-				['stage1', 'file-history', 'social-titles', 'rmd'].includes(file) ||
-				/^gitdates-v3-[\w-]+\.json$/.test(file)
-		);
-		run('tar', ['-czf', archive, '-C', cache, ...files]);
+		const files = compilerCacheFiles(cache);
+		const list = path.join(temporary, 'files');
+		writeFileSync(list, files.map((file) => file + '\0').join(''));
+		run('tar', ['-czf', archive, '-C', cache, '--null', '--files-from', list]);
 		run('gpg', [
 			...gpg,
 			'--symmetric',
@@ -80,7 +79,7 @@ try {
 			archive
 		]);
 		if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'ready=true\n');
-		console.log('Compiler cache encrypted');
+		console.log(`Compiler cache encrypted (${files.length} current files)`);
 	}
 } catch {
 	console.log(

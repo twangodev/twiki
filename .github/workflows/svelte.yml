@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      performance:
+        description: Benchmark builds without deployment or other jobs
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -18,20 +23,25 @@ defaults:
 
 jobs:
   check:
+    if: github.event_name != 'workflow_dispatch' || !inputs.performance
     concurrency:
       group: svelte-check-${{ github.ref }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
-      - run: git config --global submodule.fetchJobs 8
+      - &configure-submodules
+        run: git config --global submodule.fetchJobs 8
         working-directory: ${{ github.workspace }}
-      - uses: actions/checkout@v7
+      - &checkout-content
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           submodules: recursive
           token: ${{ secrets.PAT_TOKEN }}
-      - uses: oven-sh/setup-bun@v2
-      - uses: actions/cache@v6
+      - &setup-bun
+        uses: oven-sh/setup-bun@v2
+      - &bun-cache
+        uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
@@ -51,7 +61,8 @@ jobs:
       - &install-r
         name: Install R worksheet renderer
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core r-cran-knitr
-      - run: bun install --frozen-lockfile
+      - &install-dependencies
+        run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
       - name: Install Lychee 0.24.2
         run: |
@@ -61,6 +72,7 @@ jobs:
       - run: bun run check
 
   unit-tests:
+    if: github.event_name != 'workflow_dispatch' || !inputs.performance
     concurrency:
       group: svelte-unit-tests-${{ github.ref }}
       cancel-in-progress: true
@@ -77,6 +89,7 @@ jobs:
       - run: bun run test
 
   browser-tests:
+    if: github.event_name != 'workflow_dispatch' || !inputs.performance
     concurrency:
       group: svelte-browser-tests-${{ github.ref }}
       cancel-in-progress: true
@@ -111,7 +124,7 @@ jobs:
     concurrency:
       group: svelte-build-and-deploy-${{ github.ref }}
       cancel-in-progress: false
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !inputs.performance
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -134,16 +147,13 @@ jobs:
       - *decrypt-compiler-cache
       - *install-r
       - run: bun install --frozen-lockfile
+      - &record-build-runtimes
+        name: Record build runtimes
+        run: |
+          node --input-type=module -e 'import { availableParallelism } from "node:os"; console.log(JSON.stringify({ node: process.version, availableCpus: availableParallelism(), platform: process.platform, architecture: process.arch }));'
+          bun -e 'console.log("Bun: " + Bun.version)'
+          Rscript --vanilla -e 'cat("R: ", R.version.string, "\nknitr: ", as.character(packageVersion("knitr")), "\n", sep = "")'
       - run: bun run build:all
-      - name: Encrypt compiler cache
-        id: encrypted-cache
-        env: *cache-encryption
-        run: bun tooling/cache.ts save
-      - uses: actions/cache/save@v6
-        if: steps.encrypted-cache.outputs.ready == 'true'
-        with:
-          path: site/build/generated/compiler-cache.gpg
-          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
       - run: bunx wrangler d1 migrations apply wisconsin --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -152,3 +162,57 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      # Persist the optional cache after the site is live, outside the deployment path.
+      - &encrypt-compiler-cache
+        name: Encrypt compiler cache
+        id: encrypted-cache
+        continue-on-error: true
+        env: *cache-encryption
+        run: bun tooling/cache.ts save
+      - &save-compiler-cache
+        uses: actions/cache/save@v6
+        if: steps.encrypted-cache.outputs.ready == 'true'
+        continue-on-error: true
+        with:
+          path: site/build/generated/compiler-cache.gpg
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
+
+  performance:
+    if: github.event_name == 'workflow_dispatch' && inputs.performance
+    concurrency:
+      group: svelte-performance-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BENCHMARK_TIMEOUT_SECONDS: "1200"
+    steps:
+      - *configure-submodules
+      - *checkout-content
+      - *setup-bun
+      - *bun-cache
+      - *restore-compiler-cache
+      - *decrypt-compiler-cache
+      - *install-r
+      - *install-dependencies
+      - *record-build-runtimes
+      - name: Benchmark restored compiler cache with fresh output
+        run: bun tooling/benchmark.ts build ci-first
+      - name: Benchmark retained compiler cache and output
+        run: bun tooling/benchmark.ts build ci-warm
+      - name: Summarize benchmark measurements
+        if: always()
+        run: |
+          bun -e '
+            import { appendFileSync, existsSync, readFileSync } from "node:fs";
+            for (const label of ["ci-first", "ci-warm"]) {
+              const file = `build/benchmarks/${label}.json`;
+              if (!existsSync(file)) continue;
+              const { success, seconds, exitCode, exitSignal, host } = JSON.parse(readFileSync(file, "utf8"));
+              const result = { success, seconds, exitCode, exitSignal, host };
+              appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### ${label}\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n\n`);
+            }
+          '
+      # Retain current fingerprints for a later fresh-runner benchmark.
+      - *encrypt-compiler-cache
+      - *save-compiler-cache

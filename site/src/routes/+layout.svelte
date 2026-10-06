@@ -7,9 +7,9 @@
 	import { ModeWatcher } from 'mode-watcher';
 	import DocShell from '$lib/components/doc/DocShell.svelte';
 	import type { NavNode } from '$lib/types';
-	// Static import (emitted by tooling/assets.ts): the Explorer tree
-	// ships once in a shared JS chunk instead of being serialized into every
-	// prerendered page's data payload (~60 kB x ~960 pages).
+	// SSR and development import the generated Explorer tree. Production clients
+	// resolve this to /navigation.js, an edition-specific asset kept outside the
+	// application chunks and individual pages' serialized data.
 	import navData from '$lib/generated/nav.json';
 
 	interface Props {

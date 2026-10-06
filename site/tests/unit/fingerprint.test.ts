@@ -71,6 +71,31 @@ test('assets and subprocesses invalidate only their declared stages', async () =
 	}
 });
 
+test('lazy dynamic imports retain transitive dependency invalidation', async () => {
+	const { root, write, fingerprint } = fixture();
+	try {
+		write(
+			'tooling/pipeline.ts',
+			"export async function prepare() { return import('./compiler'); }"
+		);
+		const initial = await fingerprint('pipeline');
+		write('tooling/lib/nested.ts', 'export const value = 2;');
+		expect(await fingerprint('pipeline')).not.toBe(initial);
+		write('tooling/lib/added.ts', 'export const value = 3;');
+		write(
+			'tooling/lib/nested.ts',
+			"export const value = 2; export async function parse() { return import('./added'); }"
+		);
+		const added = await fingerprint('pipeline');
+		write('tooling/lib/added.ts', 'export const value = 4;');
+		expect(await fingerprint('pipeline')).not.toBe(added);
+		rmSync(path.join(root, 'tooling/lib/added.ts'));
+		await expect(fingerprint('pipeline')).rejects.toThrow();
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
 test('fingerprints survive checkout relocation and invalidate dependencies and resolver configuration', async () => {
 	const { root, write, fingerprint } = fixture();
 	const relocated = mkdtempSync(path.join(tmpdir(), 'wisconsin-relocated-'));

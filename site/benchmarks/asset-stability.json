@@ -1,0 +1,112 @@
+{
+	"kind": "real full-build static asset inventory comparison",
+	"baselineCommit": "f1a1f5e",
+	"sourceFrozen": true,
+	"completeUnchangedInputControl": {
+		"status": "verified; all non-Pagefind static paths and bytes match across unchanged complete builds",
+		"corpusPages": 1647,
+		"sourceFrozen": true,
+		"firstBuild": {
+			"label": "complete-optimized-warm",
+			"seconds": 63.25,
+			"files": 64541,
+			"inventory": "build/benchmarks/optimized-complete-assets.json",
+			"inventoryContainsSizes": false
+		},
+		"secondBuild": {
+			"label": "complete-optimized-warm-2",
+			"seconds": 65.81,
+			"files": 64541,
+			"bytes": 2154781918,
+			"inventory": "build/benchmarks/optimized-complete-warm-2-assets.json"
+		},
+		"delta": {
+			"added": 6,
+			"removed": 6,
+			"changed": 2,
+			"addedPaths": [
+				"_published/pagefind/filter/en_b57fd8d.pf_filter",
+				"_published/pagefind/filter/en_d048e75.pf_filter",
+				"_published/pagefind/pagefind.en_819d983c4d.pf_meta",
+				"pagefind/filter/en_8eec1e9.pf_filter",
+				"pagefind/filter/en_ab5a861.pf_filter",
+				"pagefind/pagefind.en_d1799cf2db.pf_meta"
+			],
+			"removedPaths": [
+				"_published/pagefind/filter/en_d51be72.pf_filter",
+				"_published/pagefind/filter/en_dc0b510.pf_filter",
+				"_published/pagefind/pagefind.en_d9f9ba92e4.pf_meta",
+				"pagefind/filter/en_5b1b5f4.pf_filter",
+				"pagefind/filter/en_66cda82.pf_filter",
+				"pagefind/pagefind.en_8f7285365c.pf_meta"
+			],
+			"changedPaths": ["_published/pagefind/pagefind-entry.json", "pagefind/pagefind-entry.json"],
+			"allDifferencesConfinedToPagefind": true,
+			"nonPagefindExceptions": []
+		},
+		"immutableFilesAcrossBothEditions": 616,
+		"immutableAdded": [],
+		"immutableRemoved": [],
+		"immutableChanged": [],
+		"immutablePathsAndHashes": "complete-immutable-assets.json",
+		"exactImmutableInventoryEquality": true
+	},
+	"provisionalTitleEditExperiment": {
+		"baseline": {
+			"label": "optimized-final-a",
+			"seconds": 66.43,
+			"files": 64121,
+			"bytes": 2144580361,
+			"availableCpus": 48
+		},
+		"temporaryTitleEdit": {
+			"label": "optimized-title-edit",
+			"seconds": 66.75,
+			"files": 64120,
+			"bytes": 2144600953,
+			"availableCpus": 48,
+			"scope": "public CS 577 course overview title and matching heading",
+			"deltaFromBaseline": {
+				"added": 134,
+				"removed": 135,
+				"changed": 68,
+				"immutableAdded": 0,
+				"immutableRemoved": 0,
+				"immutableChanged": 0,
+				"allDifferencesConfinedToPagefind": false
+			}
+		},
+		"restoredInput": {
+			"label": "optimized-restored-four-cpus",
+			"seconds": 67.47,
+			"files": 64121,
+			"bytes": 2144580306,
+			"availableCpus": 4,
+			"deltaFromBaseline": {
+				"added": 6,
+				"removed": 6,
+				"changed": 2,
+				"immutableAdded": 0,
+				"immutableRemoved": 0,
+				"immutableChanged": 0,
+				"allDifferencesConfinedToPagefind": true
+			}
+		},
+		"immutableFilesAcrossBothEditions": 616,
+		"originalNoteRestoredExactly": true,
+		"limitations": [
+			"Single measurements on one Threadripper workstation, not CI predictions; R and knitr absent.",
+			"Restored-input run used four-core CPU affinity; all non-Pagefind static paths and bytes match baseline.",
+			"Six Pagefind filter/metadata paths and two entry files changed after restoring inputs; the underlying cause is not established.",
+			"Asset file counts describe the local output inventory, not an actual Wrangler upload."
+		],
+		"status": "provisional; title-edit experiment used the incomplete 1625-page fixture",
+		"corpusPages": 1625
+	},
+	"limitations": [
+		"Single measurements on one Threadripper workstation, not CI predictions; these builds used the Source and Interactive R fallback.",
+		"The complete unchanged control still changed six Pagefind filter/metadata paths and two entry files; its underlying cause is not established.",
+		"The first complete asset inventory captured path hashes without sizes; the second inventory records total bytes.",
+		"Asset inventories describe local outputs, not an actual Wrangler upload."
+	]
+}

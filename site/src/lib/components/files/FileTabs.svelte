@@ -3,7 +3,7 @@
 	import { tick } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { X } from '@lucide/svelte';
+	import X from '@lucide/svelte/icons/x';
 	import { fileRoute } from '$lib/files';
 	import { sameFile, tabLabel, type FileTab } from '$lib/file-tabs';
 	import { fileWorkspace } from './file-workspace.svelte';

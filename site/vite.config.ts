@@ -8,6 +8,8 @@ export default defineConfig({
 	// The file viewer imports WebR lazily. Discover it at startup so opening
 	// a file does not trigger dependency optimization and reset the page.
 	optimizeDeps: { include: ['webr'] },
+	// Gzip size reporting recompresses bundles solely for the build log.
+	build: { reportCompressedSize: false },
 	server: {
 		watch: {
 			ignored: ['**/site/build/**']

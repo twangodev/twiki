@@ -2,19 +2,17 @@
 	import SEO from '$lib/components/SEO.svelte';
 	import LicenseNotice from '$lib/components/doc/LicenseNotice.svelte';
 	import LockedContent from '$lib/components/doc/LockedContent.svelte';
-	import {
-		BookOpen,
-		Check,
-		ChevronRight,
-		Copy,
-		Download,
-		Pin,
-		File,
-		ArrowUpRight,
-		History,
-		GitCommitHorizontal,
-		ArrowLeft
-	} from '@lucide/svelte';
+	import BookOpen from '@lucide/svelte/icons/book-open';
+	import Check from '@lucide/svelte/icons/check';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Copy from '@lucide/svelte/icons/copy';
+	import Download from '@lucide/svelte/icons/download';
+	import Pin from '@lucide/svelte/icons/pin';
+	import File from '@lucide/svelte/icons/file';
+	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
+	import History from '@lucide/svelte/icons/history';
+	import GitCommitHorizontal from '@lucide/svelte/icons/git-commit-horizontal';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import { fileRoute, fileSize } from '$lib/files';
 	import FileIcon from '$lib/components/files/FileIcon.svelte';
 	import FileTabs from '$lib/components/files/FileTabs.svelte';

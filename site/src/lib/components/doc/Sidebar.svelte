@@ -3,7 +3,11 @@
 	import { tick, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { BookOpen, FolderCode, ChevronsUpDown, LogOut, LogIn } from '@lucide/svelte';
+	import BookOpen from '@lucide/svelte/icons/book-open';
+	import FolderCode from '@lucide/svelte/icons/folder-code';
+	import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
+	import LogOut from '@lucide/svelte/icons/log-out';
+	import LogIn from '@lucide/svelte/icons/log-in';
 	import { siGithub } from 'simple-icons';
 	import { publicEdition } from '$lib/publication';
 	import type { NavNode } from '$lib/types';

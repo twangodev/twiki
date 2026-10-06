@@ -1,4 +1,4 @@
-import { visit } from 'unist-util-visit';
+import { visitElements } from './visit-elements';
 import type { Root, Element } from 'hast';
 
 export function protectPublicLinks(
@@ -17,7 +17,7 @@ export function protectPublicLinks(
 			(target === '' && targets.has('index'))
 		);
 	};
-	visit(tree, 'element', (node) => {
+	visitElements(tree, (node) => {
 		const classes = node.properties.className;
 		if (node.tagName === 'blockquote' && Array.isArray(classes) && classes.includes('transclude')) {
 			const link = node.children[0] as Element | undefined;

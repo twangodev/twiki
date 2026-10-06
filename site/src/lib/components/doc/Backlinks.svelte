@@ -2,7 +2,7 @@
 	// Backlinks panel — pages that link to the current one, styled as
 	// cca-aesthetic cards (1px border-border, rounded, surface hover, accent on
 	// hover) to match DocPager.
-	import { CornerDownRight } from '@lucide/svelte';
+	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
 	import type { BacklinkRef } from '$lib/types';
 
 	interface Props {

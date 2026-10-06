@@ -1,0 +1,484 @@
+{
+	"kind": "Matched complete-corpus local performance measurements",
+	"baselineCommit": "f1a1f5e0411c54caa03a82b374e251f6c2aa36f9",
+	"corpus": {
+		"pages": 1647,
+		"nestedAssignmentSubmoduleRegistered": true,
+		"comparison": "Original archived site code and optimized site use the same complete content corpus"
+	},
+	"runtime": {
+		"sameHostMetadata": true,
+		"buildRAvailable": false,
+		"buildKnitrAvailable": false,
+		"worksheetBehavior": "Source and Interactive fallback; this is not CI R-rendering parity"
+	},
+	"builds": {
+		"originalPrime": {
+			"label": "complete-original-prime",
+			"mode": "build",
+			"recordedAt": "2026-10-06T04:21:55.156Z",
+			"seconds": 95.27,
+			"exitCode": 0,
+			"exitSignal": null,
+			"success": true,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.0",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v25.9.0",
+				"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+				"availableCpus": 48,
+				"memoryBytes": 134389583872
+			},
+			"cacheState": "Warm parser cache, fresh generated output; not a cold parser measurement",
+			"editions": {
+				"public": {
+					"seconds": 31.03,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 2593,
+						"cached": 1647,
+						"parsed": 0
+					},
+					"resolveMilliseconds": 8782,
+					"contentPipelineSeconds": 14.21
+				},
+				"full": {
+					"seconds": 63.37,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 2465,
+						"cached": 1647,
+						"parsed": 0
+					},
+					"resolveMilliseconds": 13981,
+					"contentPipelineSeconds": 31.02
+				}
+			}
+		},
+		"originalWarm": {
+			"label": "complete-original-warm",
+			"mode": "build",
+			"recordedAt": "2026-10-06T04:24:10.026Z",
+			"seconds": 94.44,
+			"exitCode": 0,
+			"exitSignal": null,
+			"success": true,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.0",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v25.9.0",
+				"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+				"availableCpus": 48,
+				"memoryBytes": 134389583872
+			},
+			"cacheState": "Warm parser cache and retained generated output",
+			"editions": {
+				"public": {
+					"seconds": 33.93,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 2544,
+						"cached": 1647,
+						"parsed": 0
+					},
+					"resolveMilliseconds": 8756,
+					"contentPipelineSeconds": 13.95
+				},
+				"full": {
+					"seconds": 59.43,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 2490,
+						"cached": 1647,
+						"parsed": 0
+					},
+					"resolveMilliseconds": 14492,
+					"contentPipelineSeconds": 27.59
+				}
+			}
+		},
+		"optimizedPrime": {
+			"label": "complete-optimized-prime",
+			"mode": "build",
+			"recordedAt": "2026-10-06T04:35:13.770Z",
+			"seconds": 151.26,
+			"exitCode": 0,
+			"exitSignal": null,
+			"success": true,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.0",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v25.9.0",
+				"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+				"availableCpus": 48,
+				"memoryBytes": 134389583872
+			},
+			"cacheState": "Public parser cache cold after source fingerprint changes; full parser and social cards warm; not fully cold compiler cache",
+			"editions": {
+				"public": {
+					"seconds": 105.42,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 79984,
+						"cached": 0,
+						"parsed": 1647
+					},
+					"resolveMilliseconds": 1587,
+					"contentPipelineSeconds": 88.85
+				},
+				"full": {
+					"seconds": 45.78,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 2547,
+						"cached": 1647,
+						"parsed": 0
+					},
+					"resolveMilliseconds": 1900,
+					"contentPipelineSeconds": 19.33
+				}
+			}
+		},
+		"optimizedWarm": {
+			"label": "complete-optimized-warm",
+			"mode": "build",
+			"recordedAt": "2026-10-06T04:36:33.215Z",
+			"seconds": 63.25,
+			"exitCode": 0,
+			"exitSignal": null,
+			"success": true,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.0",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v25.9.0",
+				"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+				"availableCpus": 48,
+				"memoryBytes": 134389583872
+			},
+			"cacheState": "Warm parser cache and retained generated output",
+			"editions": {
+				"public": {
+					"seconds": 21.95,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 2509,
+						"cached": 1647,
+						"parsed": 0
+					},
+					"resolveMilliseconds": 748,
+					"contentPipelineSeconds": 5.76
+				},
+				"full": {
+					"seconds": 41.24,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 2627,
+						"cached": 1647,
+						"parsed": 0
+					},
+					"resolveMilliseconds": 1775,
+					"contentPipelineSeconds": 15.08
+				}
+			}
+		},
+		"optimizedWarm2": {
+			"label": "complete-optimized-warm-2",
+			"mode": "build",
+			"recordedAt": "2026-10-06T04:39:46.898Z",
+			"seconds": 65.81,
+			"exitCode": 0,
+			"exitSignal": null,
+			"success": true,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.0",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v25.9.0",
+				"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+				"availableCpus": 48,
+				"memoryBytes": 134389583872
+			},
+			"cacheState": "Warm parser cache and retained generated output",
+			"editions": {
+				"public": {
+					"seconds": 22.01,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 2568,
+						"cached": 1647,
+						"parsed": 0
+					},
+					"resolveMilliseconds": 750,
+					"contentPipelineSeconds": 5.86
+				},
+				"full": {
+					"seconds": 43.75,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 2483,
+						"cached": 1647,
+						"parsed": 0
+					},
+					"resolveMilliseconds": 1961,
+					"contentPipelineSeconds": 17.32
+				}
+			}
+		}
+	},
+	"warmComparison": {
+		"originalSeconds": [94.44],
+		"optimizedSeconds": [63.25, 65.81],
+		"optimizedSecondsRange": [63.25, 65.81],
+		"improvementPercentRange": [30.32, 33.03],
+		"pointCounts": {
+			"originalWarm": 1,
+			"optimizedWarm": 2
+		},
+		"limitation": "One original warm point and two optimized warm points; no confidence interval or CI prediction."
+	},
+	"development": {
+		"original": [
+			{
+				"label": "complete-original-dev-after-build",
+				"mode": "dev",
+				"recordedAt": "2026-10-06T04:27:03.742Z",
+				"seconds": 52.99,
+				"readySeconds": 38.83,
+				"firstHttp200Seconds": 52.73,
+				"exitCode": 0,
+				"exitSignal": null,
+				"success": true,
+				"host": {
+					"platform": "linux",
+					"architecture": "x64",
+					"bun": "1.4.0",
+					"nodeCompatibilityVersion": "26.3.0",
+					"actualNodeVersion": "v25.9.0",
+					"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+					"availableCpus": 48,
+					"memoryBytes": 134389583872
+				},
+				"cacheState": "First start after production build"
+			},
+			{
+				"label": "complete-original-dev-warm-1",
+				"mode": "dev",
+				"recordedAt": "2026-10-06T04:27:24.294Z",
+				"seconds": 14.94,
+				"readySeconds": 2.4,
+				"firstHttp200Seconds": 14.83,
+				"exitCode": 0,
+				"exitSignal": null,
+				"success": true,
+				"host": {
+					"platform": "linux",
+					"architecture": "x64",
+					"bun": "1.4.0",
+					"nodeCompatibilityVersion": "26.3.0",
+					"actualNodeVersion": "v25.9.0",
+					"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+					"availableCpus": 48,
+					"memoryBytes": 134389583872
+				},
+				"cacheState": "Warm restart"
+			},
+			{
+				"label": "complete-original-dev-warm-2",
+				"mode": "dev",
+				"recordedAt": "2026-10-06T04:27:45.170Z",
+				"seconds": 14.87,
+				"readySeconds": 2.41,
+				"firstHttp200Seconds": 14.75,
+				"exitCode": 0,
+				"exitSignal": null,
+				"success": true,
+				"host": {
+					"platform": "linux",
+					"architecture": "x64",
+					"bun": "1.4.0",
+					"nodeCompatibilityVersion": "26.3.0",
+					"actualNodeVersion": "v25.9.0",
+					"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+					"availableCpus": 48,
+					"memoryBytes": 134389583872
+				},
+				"cacheState": "Warm restart"
+			}
+		],
+		"optimized": [
+			{
+				"label": "complete-optimized-dev-after-build",
+				"mode": "dev",
+				"recordedAt": "2026-10-06T04:41:25.191Z",
+				"seconds": 30.01,
+				"readySeconds": 24.44,
+				"firstHttp200Seconds": 29.76,
+				"exitCode": 0,
+				"exitSignal": null,
+				"success": true,
+				"host": {
+					"platform": "linux",
+					"architecture": "x64",
+					"bun": "1.4.0",
+					"nodeCompatibilityVersion": "26.3.0",
+					"actualNodeVersion": "v25.9.0",
+					"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+					"availableCpus": 48,
+					"memoryBytes": 134389583872
+				},
+				"cacheState": "First start after production build"
+			},
+			{
+				"label": "complete-optimized-dev-warm-1",
+				"mode": "dev",
+				"recordedAt": "2026-10-06T04:41:42.394Z",
+				"seconds": 7.91,
+				"readySeconds": 2.2,
+				"firstHttp200Seconds": 7.8,
+				"exitCode": 0,
+				"exitSignal": null,
+				"success": true,
+				"host": {
+					"platform": "linux",
+					"architecture": "x64",
+					"bun": "1.4.0",
+					"nodeCompatibilityVersion": "26.3.0",
+					"actualNodeVersion": "v25.9.0",
+					"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+					"availableCpus": 48,
+					"memoryBytes": 134389583872
+				},
+				"cacheState": "Warm restart"
+			},
+			{
+				"label": "complete-optimized-dev-warm-2",
+				"mode": "dev",
+				"recordedAt": "2026-10-06T04:41:55.584Z",
+				"seconds": 7.86,
+				"readySeconds": 2.15,
+				"firstHttp200Seconds": 7.74,
+				"exitCode": 0,
+				"exitSignal": null,
+				"success": true,
+				"host": {
+					"platform": "linux",
+					"architecture": "x64",
+					"bun": "1.4.0",
+					"nodeCompatibilityVersion": "26.3.0",
+					"actualNodeVersion": "v25.9.0",
+					"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+					"availableCpus": 48,
+					"memoryBytes": 134389583872
+				},
+				"cacheState": "Warm restart"
+			}
+		],
+		"pointCounts": {
+			"originalAfterBuild": 1,
+			"originalWarm": 2,
+			"optimizedAfterBuild": 1,
+			"optimizedWarm": 2
+		},
+		"savedStartupValidationMilliseconds": {
+			"minimum": 500,
+			"maximum": 506,
+			"limitation": "Validation of saved generated output on warm development restarts; not a content edit, cold start, or CI deployment timing."
+		}
+	},
+	"limitations": [
+		"One original warm point and two optimized warm points on a Threadripper workstation; not CI predictions or remote deployment timings.",
+		"R and knitr were absent from both build measurements; production CI installs both.",
+		"Earlier 1625-page experiments used incomplete nested-submodule registration and remain provisional.",
+		"Optimized remote CI builds and Cloudflare deployment timings remain unmeasured; no push or remote deployment was performed."
+	],
+	"parity": {
+		"pages": 1647,
+		"byteIdentical": 1644,
+		"metadataMarkdownRenderedTextAndResourceUrlsEqual": true,
+		"exceptions": 3,
+		"exceptionScope": "Three original versus fresh stage1 Shiki code blocks differ; restoring each original block alone reconstructs exact baseline PageDoc bytes. Highlighting cache variation remains unexplained.",
+		"evidence": "page-parity.json"
+	},
+	"validation": {
+		"unitTests": 196,
+		"unitAssertions": 2064,
+		"unitSeconds": 18.53,
+		"unitFailures": 0,
+		"unitRscript": "Isolated R 4.5.0 with knitr 1.50 explicitly selected",
+		"formatterFilesPassed": 73,
+		"workflowFocusedTests": 6,
+		"workflowFocusedAssertions": 79,
+		"publicationBrowserTests": 10,
+		"publicationFixtureBuilds": 3,
+		"rEnabledProductionBuild": {
+			"documents": 1647,
+			"realRWorksheets": 8,
+			"r": "4.5.0",
+			"knitr": "1.50",
+			"buildSeconds": 81.95,
+			"state": "Complete real-course production validation after public fixture tests, with freshly regenerated course outputs and R enabled.",
+			"comparativeWarmBenchmark": false,
+			"rFallbackUsed": false
+		},
+		"check": {
+			"success": true,
+			"svelteErrors": 0,
+			"svelteWarnings": 0,
+			"workerTypeScriptPassed": true,
+			"sameSiteUrlCount": 0,
+			"linkedNotes": 1658,
+			"checkedLinks": 15607,
+			"linkTargetErrors": 0,
+			"diagramNotes": 1650,
+			"mathExpressions": 66653,
+			"mermaidDiagrams": 248,
+			"diagramErrors": 0
+		},
+		"realSiteBrowser": {
+			"passed": 69,
+			"skipped": 10,
+			"failed": 0,
+			"approximateSeconds": 66
+		},
+		"wranglerDryRun": {
+			"version": "4.100.0",
+			"success": true,
+			"scannedAssetFiles": 69881,
+			"workerKiB": 8909.27,
+			"workerGzipKiB": 1639.83,
+			"remoteDeploymentPerformed": false
+		},
+		"encryptedCompilerCacheSave": {
+			"seconds": 6.79281474,
+			"encryptedBytes": 170829440,
+			"selectedFiles": 21114,
+			"remoteTransportMeasured": false
+		},
+		"unitFiles": 45
+	},
+	"assetControl": {
+		"corpusPages": 1647,
+		"filesPerBuild": 64541,
+		"immutableFilesAcrossBothEditions": 616,
+		"exactImmutableInventoryEquality": true,
+		"allNonPagefindPathsAndBytesEqual": true,
+		"delta": {
+			"added": 6,
+			"removed": 6,
+			"changed": 2,
+			"allDifferencesConfinedToPagefind": true
+		},
+		"limitation": "Six added/removed Pagefind filter or metadata paths and two changed entry records remain unexplained. Not measured remote upload savings. R-absent warm output differs from R-enabled dry-run inventory; no direct Cloudflare size parity claim.",
+		"evidence": "asset-stability.json",
+		"rAvailable": false
+	}
+}

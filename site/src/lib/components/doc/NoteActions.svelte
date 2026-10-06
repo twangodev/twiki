@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { Copy, FileText, ChevronDown, Printer } from '@lucide/svelte';
+	import Copy from '@lucide/svelte/icons/copy';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Printer from '@lucide/svelte/icons/printer';
 	import { Popover } from 'bits-ui';
 	import { textExportUrl } from '$lib/text-exports';
 	import { prepareDiagramsForPrint } from '$lib/components/embeds/mermaid';

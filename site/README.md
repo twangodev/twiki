@@ -15,6 +15,9 @@ bun run dev
 Rendered worksheets need R and knitr; without them, source and interactive views
 remain available.
 
+See [build performance experiments](docs/build-performance.md) for the benchmark
+runner, production baseline, and cache constraints.
+
 ## Checks
 
 Install Chromium (`bunx playwright install chromium`) and Lychee **0.24.2** on

@@ -13,13 +13,17 @@ import {
 	unlinkSync
 } from 'node:fs';
 import path from 'node:path';
-import { staticDirectory, courseFilesDirectory } from './lib/edition-paths.js';
+import {
+	staticDirectory,
+	courseFilesDirectory,
+	compiledAssetsDirectory
+} from './lib/edition-paths.js';
 import { writeChanged } from './lib/output';
 import { writeTextExports } from './lib/text-exports';
 import { buildCourseFiles } from './lib/course-files';
 import { addNotebookNavigation } from '../src/lib/notebook-nav';
 import type { CourseFile } from '../src/lib/files';
-import { buildSocialImages } from './lib/social-images';
+import { runtimeDataAssets, runtimeDataModuleSource } from './lib/runtime-data-modules';
 import {
 	contentEntries,
 	displayRoute,
@@ -86,7 +90,7 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	// ---------------------------------------------------------------------------
 
 	const htmlAssetSet = new Set(manifest.htmlAssets);
-	const srcRoot = path.join(GENERATED, 'assets');
+	const srcRoot = compiledAssetsDirectory(SITE_DIR);
 
 	/** rel path in build/generated/assets → rel path in static/. */
 	function destRel(rel: string): string {
@@ -104,7 +108,7 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	let copied = 0;
 	let kept = 0;
 	let oversize = false;
-	const wanted = new Set<string>();
+	const wanted = new Set<string>(Object.values(runtimeDataAssets));
 
 	const sources = [
 		...[...walk(srcRoot)]
@@ -209,6 +213,10 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 			});
 	}
 	writeChanged(navOut, JSON.stringify(navigation));
+	for (const [input, asset] of Object.entries(runtimeDataAssets)) {
+		const data = JSON.parse(readFileSync(path.join(path.dirname(navOut), input), 'utf8'));
+		writeChanged(path.join(STATIC_DIR, asset), runtimeDataModuleSource(data));
+	}
 	console.log(`nav: wrote src/lib/generated/nav.json`);
 
 	// ---------------------------------------------------------------------------
@@ -233,11 +241,7 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	const expected404 = new Set<string>();
 	const attrRe = /(?:href|src)="([^"]*)"/g;
 	for (const slug of Object.keys(manifest.pages)) {
-		const doc = JSON.parse(
-			readFileSync(path.join(GENERATED, 'pages', `${slug}.json`), 'utf-8')
-		) as {
-			html: string;
-		};
+		const doc = loadPage(slug);
 		for (const match of doc.html.matchAll(attrRe)) {
 			const raw = match[1];
 			if (!raw.startsWith('/') || raw.startsWith('//')) continue; // internal only
@@ -263,11 +267,7 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	const pageIds = new Map<string, Set<string>>();
 	const idRe = /id="([^"]*)"/g;
 	for (const slug of Object.keys(manifest.pages)) {
-		const doc = JSON.parse(
-			readFileSync(path.join(GENERATED, 'pages', `${slug}.json`), 'utf-8')
-		) as {
-			html: string;
-		};
+		const doc = loadPage(slug);
 		const ids = new Set<string>();
 		for (const m of doc.html.matchAll(idRe)) ids.add(m[1]);
 		pageIds.set(slug, ids);
@@ -276,11 +276,7 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	const missingAnchor = new Set<string>();
 	const anchorRe = /(?:href|src)="((?:\/[^"#]*)?#[^"]+)"/g;
 	for (const slug of Object.keys(manifest.pages)) {
-		const doc = JSON.parse(
-			readFileSync(path.join(GENERATED, 'pages', `${slug}.json`), 'utf-8')
-		) as {
-			html: string;
-		};
+		const doc = loadPage(slug);
 		for (const m of doc.html.matchAll(anchorRe)) {
 			const raw = m[1];
 			if (raw.startsWith('//')) continue;
@@ -319,5 +315,8 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 		`routes: ${contentEntries().length} content + ${Object.keys(manifest.tags).length + 1} tag + 2 xml + /404`
 	);
 
-	if (!development) await buildSocialImages(SITE_DIR, manifest);
+	if (!development) {
+		const { buildSocialImages } = await import('./lib/social-images');
+		await buildSocialImages(SITE_DIR, manifest);
+	}
 }

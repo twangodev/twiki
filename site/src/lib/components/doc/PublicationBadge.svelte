@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Globe, Lock } from '@lucide/svelte';
+	import Globe from '@lucide/svelte/icons/globe';
+	import Lock from '@lucide/svelte/icons/lock';
 	import { Tooltip } from 'bits-ui';
 	import type { PagePublication } from '$lib/types';
 

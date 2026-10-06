@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Folder, FileText } from '@lucide/svelte';
+	import Folder from '@lucide/svelte/icons/folder';
+	import FileText from '@lucide/svelte/icons/file-text';
 	import NoteActions from '$lib/components/doc/NoteActions.svelte';
 	import { textExportUrl } from '$lib/text-exports';
 	import SEO from '$lib/components/SEO.svelte';

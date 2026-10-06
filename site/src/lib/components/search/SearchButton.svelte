@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Command, Search } from '@lucide/svelte';
+	import Command from '@lucide/svelte/icons/command';
+	import Search from '@lucide/svelte/icons/search';
 	import type { ClassValue } from 'svelte/elements';
 	import { cn } from '$lib/utils';
 	import IconButton from '../ui/IconButton.svelte';

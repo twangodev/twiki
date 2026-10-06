@@ -16,8 +16,18 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { publicationFixture } from './publication-fixture';
+import { nestedPublicationFixture } from './nested-publication-fixture';
 
+const started = performance.now();
 const fixture = publicationFixture();
+const { nested, git } = nestedPublicationFixture(fixture);
+fixture.write(
+	'content/sp99-cs101/publish.yaml',
+	readFileSync(path.join(fixture.course, 'publish.yaml'), 'utf8').replace(
+		'include:\n',
+		'include:\n  - projects/nested.md\n'
+	)
+);
 const isolated = mkdtempSync(path.join(tmpdir(), 'wisconsin-content-dev-'));
 const source = path.resolve(import.meta.dirname, '..');
 const siteDirectory = path.join(isolated, 'site');
@@ -44,6 +54,7 @@ writeFileSync(
 	`import { mergeConfig } from 'vite';
 import config from './vite.config';
 export default mergeConfig(config, {
+  cacheDir: ${JSON.stringify(path.join(siteDirectory, 'build/.vite'))},
   server: { fs: { allow: ${JSON.stringify([siteDirectory, realpathSync(path.join(source, 'node_modules'))])} } }
 });
 `
@@ -139,6 +150,42 @@ try {
 	if (!output.includes('reused saved output') || statSync(initialPage).mtimeMs !== initialTime)
 		throw new Error(`Restart did not reuse output: ${output}`);
 	console.log(output.match(/content startup: .*/)?.[0]);
+	server.kill('SIGTERM');
+	await stopped;
+	fixture.write(
+		'content/sp99-cs101/projects/nested.md',
+		'# Nested project\n\nOffline nested edit.'
+	);
+	({ server, stopped } = startServer());
+	await until(
+		async () =>
+			(await (await fetch(origin + '/sp99-cs101/projects/nested')).text()).includes(
+				'Offline nested edit.'
+			),
+		'offline nested edit on restart'
+	);
+	server.kill('SIGTERM');
+	await stopped;
+	git(fixture.course, 'config', 'submodule.projects.active', 'false');
+	({ server, stopped } = startServer());
+	await until(
+		async () => (await fetch(origin + '/sp99-cs101/projects/nested')).status === 404,
+		'offline nested unregistration removes stale output'
+	);
+	git(fixture.course, 'config', 'submodule.projects.active', 'true');
+	await until(
+		async () =>
+			(await (await fetch(origin + '/sp99-cs101/projects/nested')).text()).includes(
+				'Offline nested edit.'
+			),
+		'live nested registration restores output'
+	);
+	fixture.write('content/sp99-cs101/projects/added.md', '# Nested tracked addition\n');
+	git(nested, 'add', 'added.md');
+	await until(
+		async () => (await fetch(origin + '/sp99-cs101/projects/added')).ok,
+		'live nested index discovers tracked addition'
+	);
 	server.kill('SIGTERM');
 	await stopped;
 	fixture.write('content/sp99-cs101/notes/public.md', fixture.publicNote + '\nOffline edit.');
@@ -320,7 +367,7 @@ try {
 	if (!output.includes('reused saved output'))
 		throw new Error('Lazy history invalidated startup cache');
 	console.log(
-		'Content dev integration passed: restart reuse, offline edits, missing output, lazy history, refresh, failure recovery, add, delete, revoke'
+		`Content dev integration passed: restart reuse, offline edits, missing output, lazy history, refresh, failure recovery, add, delete, revoke (${((performance.now() - started) / 1000).toFixed(2)}s)`
 	);
 } finally {
 	await browser.close();

@@ -15,31 +15,11 @@ import path from 'node:path';
 import { parseRmd } from '../../src/lib/rmd';
 import type { CourseFile, RmdPreview } from '../../src/lib/files';
 import { writeChanged } from './output';
+import { rRuntimeVersion } from './r-runtime';
 
 const runner = path.join(import.meta.dirname, 'knit-rmd.R');
 const digest = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const limit = 25 * 1024 * 1024;
-let version: string | undefined;
-
-function rVersion() {
-	if (version) return version;
-	try {
-		return (version = execFileSync(
-			process.env.RSCRIPT ?? 'Rscript',
-			[
-				'--vanilla',
-				'-e',
-				'cat(R.version.string); for (p in c("knitr", "evaluate", "highr", "xfun", "yaml")) cat(p, as.character(packageVersion(p)))'
-			],
-			{ encoding: 'utf8', timeout: 30_000, stdio: 'pipe' }
-		));
-	} catch (error) {
-		throw new Error(
-			'R Markdown previews require R and knitr. Install r-base-core and r-cran-knitr (see site/README.md).',
-			{ cause: error }
-		);
-	}
-}
 
 /** Knit only available course files, in a temporary copy, never in the source checkout. */
 export async function buildRmdPreviews(
@@ -55,7 +35,7 @@ export async function buildRmdPreviews(
 	if (!worksheets.length) return;
 	let runtime: string;
 	try {
-		runtime = rVersion();
+		runtime = rRuntimeVersion();
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		console.warn(`rmd: ${message} Using Source and Interactive views.`);

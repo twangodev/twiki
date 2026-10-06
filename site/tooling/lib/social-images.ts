@@ -16,6 +16,7 @@ import { staticDirectory } from './edition-paths.js';
 import type { ContentManifest, ManifestPage } from '../../src/lib/types';
 import { site } from '../../src/lib/config';
 import { socialImagePath, socialImageSize } from '../../src/lib/social-image';
+import { writeChanged } from './output';
 
 const fontPath = path.resolve(
 	import.meta.dirname,
@@ -173,11 +174,15 @@ export async function buildSocialImages(siteDir: string, manifest: Pick<ContentM
 	const output = path.join(staticDirectory(siteDir), '_og');
 	mkdirSync(output, { recursive: true });
 	const wanted = new Set<string>();
+	const current = new Set<string>();
 	let rendered = 0;
 	const cards = [defaultSocialCard, ...Object.values(manifest.pages).map(socialCard)];
 	for (const card of cards) {
 		const result = await cachedSocialImage(siteDir, card);
 		const cached = result.cached;
+		current.add(
+			path.relative(path.join(siteDir, 'build/generated/cache'), cached).split(path.sep).join('/')
+		);
 		if (result.rendered) rendered++;
 		const destination = path.join(
 			staticDirectory(siteDir),
@@ -192,6 +197,13 @@ export async function buildSocialImages(siteDir: string, manifest: Pick<ContentM
 		const filename = path.join(file.parentPath, file.name);
 		if (file.isFile() && !wanted.has(filename)) rmSync(filename);
 	}
+	writeChanged(
+		path.join(
+			siteDir,
+			`build/generated/cache/social-titles-current-${process.env.VITE_PUBLIC_EDITION === 'true' ? 'public' : 'full'}.json`
+		),
+		JSON.stringify([...current].sort())
+	);
 	console.log(
 		`social images: ${cards.length} title-only cards (${rendered} rendered, ${cards.length - rendered} cached)`
 	);
