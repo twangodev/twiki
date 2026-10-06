@@ -1,0 +1,307 @@
+{
+	"kind": "Matched fresh-output local builds with encrypted warm compiler cache",
+	"corpusPages": 1647,
+	"r": "4.5.0",
+	"knitr": "1.50",
+	"conditions": {
+		"freshGeneratedAndViteOutput": true,
+		"restoredEncryptedCompilerCacheOnly": true,
+		"sameActualRuntimeHost": true,
+		"buildsSerial": true,
+		"independentDependencyCopies": true,
+		"dependencyPreparation": "Independent reflink copies of the same locked dependency tree, with project Vite caches removed"
+	},
+	"builds": {
+		"original": {
+			"label": "fresh-original-warm-r",
+			"mode": "build",
+			"recordedAt": "2026-10-06T04:59:39.704Z",
+			"seconds": 95.36,
+			"exitCode": 0,
+			"exitSignal": null,
+			"success": true,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.0",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v25.9.0",
+				"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+				"availableCpus": 48,
+				"memoryBytes": 134389583872
+			},
+			"editions": {
+				"public": {
+					"seconds": 32.06,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 2587,
+						"cached": 1647,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 8708
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10953,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 306,
+						"upToDate": 0,
+						"total": 537
+					},
+					"socialCards": {
+						"cards": 1648,
+						"rendered": 0,
+						"cached": 1648
+					},
+					"pipeline": {
+						"seconds": 14.17,
+						"changedOutputs": 2082
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"cacheHitsExplicitlyLogged": false
+					},
+					"viteReportedBuildSeconds": [4.0, 14.47],
+					"timingOverlapCaveat": "Vite client and complete build reports overlap; do not sum subphases.",
+					"search": {
+						"pages": 2086,
+						"fileRecords": 11841,
+						"seconds": 1.51
+					}
+				},
+				"full": {
+					"seconds": 62.36,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 2594,
+						"cached": 1647,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 14159
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10953,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 34248,
+						"upToDate": 0,
+						"total": 37543
+					},
+					"socialCards": {
+						"cards": 1648,
+						"rendered": 0,
+						"cached": 1648
+					},
+					"pipeline": {
+						"seconds": 29.88,
+						"changedOutputs": 12258
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"cacheHitsExplicitlyLogged": false
+					},
+					"viteReportedBuildSeconds": [5.0, 25.66],
+					"timingOverlapCaveat": "Vite client and complete build reports overlap; do not sum subphases.",
+					"history": {
+						"courses": 28,
+						"workers": 8,
+						"seconds": 1.68
+					},
+					"search": {
+						"pages": 2107,
+						"fileRecords": 0,
+						"seconds": 3.34
+					}
+				}
+			},
+			"observedConditions": {
+				"allPagesParserCached": true,
+				"allCatalogsRegenerated": true,
+				"allSocialCardsCached": true,
+				"noWorksheetKnitLogged": true,
+				"noWorksheetFallbackLogged": true
+			},
+			"outputVerification": {
+				"pageDocs": 1647,
+				"worksheetPreviews": 8,
+				"catalogPreviewsAndAllReferencedBlobsPresent": true,
+				"referencedRenderAssetsChecked": 67,
+				"artifactScope": "Generated assets and full-edition adapter output; presence checks, not visual or byte parity"
+			}
+		},
+		"optimized": {
+			"label": "fresh-optimized-warm-r",
+			"mode": "build",
+			"recordedAt": "2026-10-06T05:00:47.319Z",
+			"seconds": 61.7,
+			"exitCode": 0,
+			"exitSignal": null,
+			"success": true,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.0",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v25.9.0",
+				"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+				"availableCpus": 48,
+				"memoryBytes": 134389583872
+			},
+			"editions": {
+				"public": {
+					"seconds": 20.29,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 2567,
+						"cached": 1647,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 768
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10953,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 306,
+						"upToDate": 0,
+						"total": 539
+					},
+					"socialCards": {
+						"cards": 1648,
+						"rendered": 0,
+						"cached": 1648
+					},
+					"pipeline": {
+						"seconds": 6.42,
+						"changedOutputs": 2084
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"cacheHitsExplicitlyLogged": false
+					},
+					"viteReportedBuildSeconds": [2.19, 10.46],
+					"timingOverlapCaveat": "Vite client and complete build reports overlap; do not sum subphases.",
+					"search": {
+						"pages": 2086,
+						"fileRecords": 11841,
+						"seconds": 1.53
+					},
+					"adapterSeconds": 0.37
+				},
+				"full": {
+					"seconds": 41.34,
+					"parse": {
+						"pages": 1647,
+						"milliseconds": 2529,
+						"cached": 1647,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 2020
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10953,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 34248,
+						"upToDate": 0,
+						"total": 37545
+					},
+					"socialCards": {
+						"cards": 1648,
+						"rendered": 0,
+						"cached": 1648
+					},
+					"pipeline": {
+						"seconds": 17.19,
+						"changedOutputs": 12282
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"cacheHitsExplicitlyLogged": false
+					},
+					"viteReportedBuildSeconds": [3.76, 18.04],
+					"timingOverlapCaveat": "Vite client and complete build reports overlap; do not sum subphases.",
+					"history": {
+						"courses": 28,
+						"workers": 8,
+						"seconds": 1.59
+					},
+					"search": {
+						"pages": 2107,
+						"fileRecords": 0,
+						"seconds": 3.13
+					},
+					"adapterSeconds": 1.67
+				}
+			},
+			"observedConditions": {
+				"allPagesParserCached": true,
+				"allCatalogsRegenerated": true,
+				"allSocialCardsCached": true,
+				"noWorksheetKnitLogged": true,
+				"noWorksheetFallbackLogged": true
+			},
+			"outputVerification": {
+				"pageDocs": 1647,
+				"worksheetPreviews": 8,
+				"catalogPreviewsAndAllReferencedBlobsPresent": true,
+				"referencedRenderAssetsChecked": 67,
+				"artifactScope": "Generated assets and full-edition adapter output; presence checks, not visual or byte parity"
+			}
+		}
+	},
+	"comparison": {
+		"originalSeconds": 95.36,
+		"optimizedSeconds": 61.7,
+		"improvementPercent": 35.3,
+		"pointCounts": {
+			"original": 1,
+			"optimized": 1
+		}
+	},
+	"cacheTransportUntimedSetup": {
+		"original": {
+			"transport_seconds_untimed_setup": 62.354,
+			"encrypted_archive_bytes": 1793288293,
+			"restored_stage1_json_count": 1647,
+			"restored_rmd_result_count": 54
+		},
+		"optimized": {
+			"saveSeconds": 6.8822097950000005,
+			"encryptedCopySeconds": 0.03961249800000041,
+			"restoreSeconds": 2.5588597910000006,
+			"encryptedBytes": 170829440,
+			"selectedFiles": 21114,
+			"restoredFiles": 21114,
+			"restoredBytes": 640195985,
+			"aes256": true,
+			"authenticatedDecryptionVerified": true
+		}
+	},
+	"limitations": [
+		"One local fresh-output point per revision on a Threadripper workstation; not a CI performance prediction or remote deployment.",
+		"Encrypted cache preparation/restore is outside the measured build timer.",
+		"Original archive includes accumulated historical entries: 1.79 GB and 62.354 seconds combined setup are not a fair current-entry transport baseline or production prediction.",
+		"No raw build logs, artifact paths or source contents are retained in this aggregate.",
+		"Zero worksheet render logs plus no fallback is consistent with restored previews; per-worksheet cache hits are not explicitly logged."
+	],
+	"baselineCommit": "f1a1f5e0411c54caa03a82b374e251f6c2aa36f9",
+	"optimizedCommit": "226272f5ec39af143cda3b67523cb9e724e1d364"
+}

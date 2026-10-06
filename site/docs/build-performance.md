@@ -4,6 +4,37 @@ The target is a Cloudflare deployment in under 30 seconds and fast development
 startup. **The deployment target remains unachieved and unverified.** Work is
 isolated on `perf/build-performance`; these changes have not been deployed.
 
+## Fresh-output comparison with R enabled
+
+A second matched comparison restores encrypted compiler data into empty site
+output. Both revisions use the same complete 1,647-page corpus, R 4.5.0/knitr
+1.50, actual Node 25.9.0, Bun 1.4.0, and workstation. Dependency trees are
+independent copies of the same locked tree; project Vite caches are removed.
+Neither checkout starts with generated catalogs, static course assets, or
+SvelteKit output. Cache save/restore is untimed setup outside the build timer.
+
+| Fresh-output build |  Total | Public edition | Full edition |
+| ------------------ | -----: | -------------: | -----------: |
+| Original           | 95.36s |         32.06s |       62.36s |
+| Optimized          | 61.70s |         20.29s |       41.34s |
+
+This pair improves build time by **35.3%**. All 28 course catalogs regenerate in
+both editions, all 1,647 pages and 1,648 social cards hit their compiler caches,
+and all eight worksheet previews and their referenced blobs exist in full
+adapter output. No R knitting or fallback was logged. This verifies restored
+compiler data works without retained generated output; it does not establish
+visual parity. [Fresh-output results](../benchmarks/fresh-output-results.json)
+record the conditions, stage timings, output-presence checks, and limitations.
+There is one local point per revision, not a CI performance prediction. The
+build alone still exceeds 30 seconds; Cloudflare deployment is not measured.
+
+The optimized current-entry encrypted archive saved in 6.88s and restored in
+2.56s locally: 162.92 MiB and 21,114 selected files. The original archive retained
+accumulated local cache generations (1.79 GB, 62.35s combined setup), so those
+transport numbers are not a fair current-entry comparison or production
+prediction. Both archives passed authenticated decryption; disposable keys were
+destroyed. Remote cache transport remains unmeasured.
+
 ## Corrected complete-corpus comparison
 
 The original and optimized sites were compared with the same complete
