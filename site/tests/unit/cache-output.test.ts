@@ -14,6 +14,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { publicationFixture } from '../publication-fixture';
+import { compilerCacheFiles, historyCachePath } from '../../tooling/lib/cache-selection';
 
 function outputs(directory: string) {
 	return Object.fromEntries(
@@ -81,6 +82,17 @@ test('restored stage caches reproduce cold public and full output and honor publ
 				.map((file) => `stage1/${file}`)
 				.sort();
 			expect(currentParser()).toEqual(currentKeys);
+			if (!publicEdition) {
+				const history = JSON.parse(
+					readFileSync(path.join(cache, 'history-current.json'), 'utf8')
+				) as string[];
+				const expected = Object.keys(outputs(path.join(cache, 'file-history')))
+					.map((file) => `file-history/${file}`)
+					.filter((file) => historyCachePath.test(file))
+					.sort();
+				expect(history.length).toBeGreaterThan(0);
+				expect(history).toEqual(expected);
+			}
 			const staleParser = `stage1/ff/${'f'.repeat(64)}.json`;
 			mkdirSync(path.dirname(path.join(cache, staleParser)), { recursive: true });
 			writeFileSync(path.join(cache, staleParser), 'stale parse generation');
@@ -98,9 +110,18 @@ test('restored stage caches reproduce cold public and full output and honor publ
 					if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
 				}
 			}
+			if (!publicEdition)
+				cpSync(
+					path.join(cache, 'history-current.json'),
+					path.join(archive, 'history-current.json')
+				);
 			rmSync(path.join(site, 'build/generated'), { recursive: true });
 			rmSync(path.join(site, 'static'), { recursive: true, force: true });
 			cpSync(archive, cache, { recursive: true });
+			if (!publicEdition)
+				expect(
+					compilerCacheFiles(cache).filter((file) => historyCachePath.test(file)).length
+				).toBeGreaterThan(0);
 			expect(run(publicEdition)).toContain('0 parsed)');
 			expect(currentParser()).toEqual(currentKeys);
 			expect(readFileSync(path.join(cache, staleParser), 'utf8')).toBe('stale parse generation');

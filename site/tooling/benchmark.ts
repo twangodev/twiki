@@ -109,15 +109,21 @@ let killTimeout: ReturnType<typeof setTimeout> | undefined;
 function gracefulStop() {
 	if (killTimeout) return;
 	stop();
-	killTimeout = setTimeout(() => {
-		if (!child.pid) return;
-		try {
-			if (process.platform === 'win32') child.kill('SIGKILL');
-			else process.kill(-child.pid, 'SIGKILL');
-		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
-		}
-	}, 2000);
+	killTimeout = setTimeout(
+		() => {
+			if (!child.pid) return;
+			try {
+				if (process.platform === 'win32') child.kill('SIGKILL');
+				else process.kill(-child.pid, 'SIGKILL');
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
+			}
+		},
+		mode === 'build' &&
+			['parallel', 'isolated-serial'].includes(process.env.WISCONSIN_BUILD_MODE ?? '')
+			? 15_000
+			: 2_000
+	);
 }
 try {
 	if (mode === 'dev') {

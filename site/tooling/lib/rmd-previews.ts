@@ -46,22 +46,25 @@ export async function buildRmdPreviews(
 	const inputs = JSON.stringify(available.map(({ path, download }) => [path, download]).sort());
 	const policy = await stageFingerprint('rmd');
 	const base = `${runtime}\n${policy}\n${course}\n${inputs}`;
+	const reusableFonts = !runtime.includes('\nfontconfig-unverified-v1:');
 	for (const worksheet of worksheets) {
 		const key = digest(`${base}\n${worksheet.path}`);
 		const cache = path.join(site, 'build/generated/cache/rmd', key);
 		const record = path.join(cache, 'result.json');
 		let result: { preview: string; blobs: string[] } | undefined;
-		try {
-			const saved = JSON.parse(readFileSync(record, 'utf8'));
-			if (
-				typeof saved.preview === 'string' &&
-				Array.isArray(saved.blobs) &&
-				saved.blobs.includes(saved.preview) &&
-				saved.blobs.every((blob: string) => existsSync(path.join(cache, blob)))
-			)
-				result = saved;
-		} catch {
-			// Missing or damaged previews are safe to regenerate from the worksheet.
+		if (reusableFonts) {
+			try {
+				const saved = JSON.parse(readFileSync(record, 'utf8'));
+				if (
+					typeof saved.preview === 'string' &&
+					Array.isArray(saved.blobs) &&
+					saved.blobs.includes(saved.preview) &&
+					saved.blobs.every((blob: string) => existsSync(path.join(cache, blob)))
+				)
+					result = saved;
+			} catch {
+				// Missing or damaged previews are safe to regenerate from the worksheet.
+			}
 		}
 		if (!result) {
 			const scratch = mkdtempSync(path.join(tmpdir(), 'wisconsin-rmd-'));

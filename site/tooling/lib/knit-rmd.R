@@ -15,4 +15,24 @@ knit_hooks$set(plot = function(x, options) {
   paste0("\n\n![", caption, "](", x, ")\n\n")
 })
 set.seed(1)
-knit(input, output = output, envir = new.env(parent = globalenv()), quiet = TRUE)
+# Worksheets often include setup instructions for their interactive session.
+# Builds use packages provisioned beforehand, without updating shared libraries.
+# This binding applies to unqualified worksheet calls, not utils::install.packages.
+worksheet <- new.env(parent = globalenv())
+worksheet$install.packages <- function(pkgs, lib = .libPaths(), ...) {
+  if (missing(pkgs) || !is.character(pkgs) || anyNA(pkgs) ||
+      any(!grepl("^[A-Za-z][A-Za-z0-9.]*$", pkgs))) {
+    stop("Worksheet package setup requires names of preinstalled R packages.", call. = FALSE)
+  }
+  available <- rownames(utils::installed.packages(lib.loc = lib))
+  missing_packages <- setdiff(pkgs, available)
+  if (length(missing_packages)) {
+    stop(paste0(
+      "Missing preinstalled R packages: ", paste(missing_packages, collapse = ", "),
+      ". Install worksheet dependencies in the build environment before rendering; ",
+      "worksheet package installation is disabled."
+    ), call. = FALSE)
+  }
+  invisible(NULL)
+}
+knit(input, output = output, envir = worksheet, quiet = TRUE)

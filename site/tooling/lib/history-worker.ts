@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { createFileHistoryBuilder } from './file-history';
-import { browsablePath, fileHistoryPolicyKey } from './course-files';
+import { browsablePath, fileHistoryPolicyKey } from './file-policy';
 import type { CourseFile } from '../../src/lib/files';
 
 const job: {

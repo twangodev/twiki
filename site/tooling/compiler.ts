@@ -1,6 +1,6 @@
 import { htmlAssetPaths, rewriteContentUrls } from './lib/content-urls';
 import { fileRoute } from '../src/lib/files';
-import { browsablePath } from './lib/course-files';
+import { browsablePath } from './lib/file-policy';
 import { preserveCurrency } from './lib/currency';
 /** Render tracked notes, resolve links and transclusions, and emit pages, assets, and graph data. */
 import fs from 'node:fs';

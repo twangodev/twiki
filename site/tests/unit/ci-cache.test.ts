@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { parse } from 'yaml';
+import { compilerCacheFiles } from '../../tooling/lib/cache-selection';
 
 type Step = {
 	id?: string;
@@ -13,13 +14,25 @@ type Step = {
 	uses?: string;
 	run?: string;
 	'continue-on-error'?: boolean;
+	env?: Record<string, string>;
 	with?: { path?: string; key?: string; 'restore-keys'?: string };
 };
 const workflow = parse(readFileSync('../.github/workflows/svelte.yml', 'utf8')) as {
 	concurrency?: unknown;
+	on: {
+		workflow_dispatch: {
+			inputs: Record<string, { type: string; default: string | boolean; options?: string[] }>;
+		};
+	};
+	env?: Record<string, string>;
 	jobs: Record<
 		string,
-		{ steps: Step[]; if?: string; concurrency: { group: string; 'cancel-in-progress': boolean } }
+		{
+			steps: Step[];
+			if?: string;
+			env?: Record<string, string>;
+			concurrency: { group: string; 'cancel-in-progress': boolean };
+		}
 	>;
 };
 test('CI uploads only dependencies and encrypted compiler data', () => {
@@ -98,6 +111,45 @@ test('manual performance mode isolates benchmarks from production and normal che
 	expect(steps.some((step) => step.uses?.includes('upload-artifact'))).toBe(false);
 });
 
+test('manual build mode selection cannot alter production deployment', () => {
+	const input = workflow.on.workflow_dispatch.inputs.build_mode;
+	expect(input.type).toBe('choice');
+	expect(input.default).toBe('serial');
+	expect(input.options).toEqual(['serial', 'parallel', 'isolated-serial']);
+	expect(workflow.env?.WISCONSIN_BUILD_MODE).toBeUndefined();
+	for (const [name, job] of Object.entries(workflow.jobs)) {
+		if (name === 'performance') continue;
+		expect(job.env?.WISCONSIN_BUILD_MODE).toBeUndefined();
+		expect(JSON.stringify(job)).not.toContain('inputs.build_mode');
+		for (const step of job.steps) expect(step.env?.WISCONSIN_BUILD_MODE).toBeUndefined();
+	}
+	const performance = workflow.jobs.performance;
+	expect(performance.env?.WISCONSIN_BUILD_MODE).toBe("${{ inputs.build_mode || 'serial' }}");
+	const diagnostics = performance.steps.findIndex(
+		(step) => step.name === 'Record benchmark build mode'
+	);
+	const first = performance.steps.findIndex(
+		(step) => step.run === 'bun tooling/benchmark.ts build ci-first'
+	);
+	expect(diagnostics).toBeGreaterThan(-1);
+	expect(diagnostics).toBeLessThan(first);
+	expect(performance.steps[diagnostics].run).toContain(
+		'JSON.stringify({ buildMode, fontIdentityVerified, probeMilliseconds })'
+	);
+	expect(performance.steps[diagnostics].run).toContain('Unsupported benchmark build mode');
+	expect(performance.steps[diagnostics].run).toContain('rFontIdentity()');
+	expect(performance.steps[diagnostics].run).toContain('/^fontconfig-v1:[a-f0-9]{64}$/');
+	expect(performance.steps[diagnostics].run).not.toContain('console.log(fontIdentity)');
+	expect(performance.steps[diagnostics].run).not.toContain('FONTCONFIG_PATH');
+	for (const step of performance.steps.filter((step) =>
+		step.run?.includes('tooling/benchmark.ts build')
+	))
+		expect(step.env?.WISCONSIN_BUILD_MODE).toBeUndefined();
+	expect(
+		workflow.jobs['build-and-deploy'].steps.some((step) => step.run === 'bun run build:all')
+	).toBe(true);
+});
+
 test('manual benchmarks retain production setup and publish only measurement metadata', () => {
 	const { steps } = workflow.jobs.performance;
 	const first = steps.findIndex((step) => step.run === 'bun tooling/benchmark.ts build ci-first');
@@ -109,11 +161,19 @@ test('manual benchmarks retain production setup and publish only measurement met
 		steps.findIndex((step) => step.run === 'bun install --frozen-lockfile')
 	);
 	expect(steps.find((step) => step.id === 'compiler-cache')?.uses).toBe('actions/cache/restore@v6');
-	expect(steps.some((step) => step.name === 'Install R worksheet renderer')).toBe(true);
+	const renderer = steps.find((step) => step.name === 'Install R worksheet renderer')!;
+	expect(renderer.run).toBe(
+		'sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core r-cran-knitr r-cran-car'
+	);
+	for (const name of ['check', 'browser-tests', 'build-and-deploy'])
+		expect(workflow.jobs[name].steps.find((step) => step.name === renderer.name)).toEqual(renderer);
+	expect(steps[diagnostics].run).toContain('packageVersion("car")');
 	const summary = steps[warm + 1];
 	expect(summary.if).toBe('always()');
 	expect(summary.run).toContain('GITHUB_STEP_SUMMARY');
-	expect(summary.run).toContain('const result = { success, seconds, exitCode, exitSignal, host }');
+	expect(summary.run).toContain(
+		'const result = { success, seconds, exitCode, exitSignal, host, buildMode: process.env.WISCONSIN_BUILD_MODE }'
+	);
 	expect(summary.run).not.toContain('.log');
 	const encryption = steps.findIndex((step) => step.id === 'encrypted-cache');
 	const save = steps.findIndex((step) => step.uses === 'actions/cache/save@v6');
@@ -182,7 +242,7 @@ test('workflow encryption restores selected files and rejects wrong keys and tam
 		const cache = path.join(directory, 'build/generated/cache');
 		const files = [
 			`stage1/ab/${'a'.repeat(64)}.json`,
-			'file-history/course/blame.json',
+			`file-history/course/${'e'.repeat(64)}-blame.json`,
 			'file-history/course/revisions-v1-head.jsonl',
 			'gitdates-v3-course-version-head.json',
 			`social-titles/${'b'.repeat(64)}.png`,
@@ -194,7 +254,8 @@ test('workflow encryption restores selected files and rejects wrong keys and tam
 		}
 		const historyOutput = path.join(directory, 'build/generated/assets/_files/history');
 		mkdirSync(historyOutput, { recursive: true });
-		writeFileSync(path.join(historyOutput, 'blame.json'), 'published history fixture');
+		writeFileSync(path.join(historyOutput, path.basename(files[1])), 'published history fixture');
+		writeFileSync(path.join(cache, 'history-current.json'), JSON.stringify([files[1]]));
 		writeFileSync(path.join(cache, 'stage1-current.json'), JSON.stringify([files[0]]));
 		writeFileSync(
 			path.join(cache, 'social-titles-current-public.json'),
@@ -217,6 +278,7 @@ test('workflow encryption restores selected files and rejects wrong keys and tam
 		const encrypted = readFileSync(archive);
 		expect(encrypted.includes(Buffer.from('private fixture content'))).toBe(false);
 		rmSync(cache, { recursive: true });
+		rmSync(historyOutput, { recursive: true });
 		expect(execute('Decrypt compiler cache', '')).toContain('BUILD_CACHE_KEY is missing');
 		expect(existsSync(cache)).toBe(false);
 		expect(execute('Decrypt compiler cache', 'wrong-key')).toContain('building cold');
@@ -237,6 +299,10 @@ test('workflow encryption restores selected files and rejects wrong keys and tam
 		execute('Decrypt compiler cache');
 		for (const file of files)
 			expect(readFileSync(path.join(cache, file), 'utf8')).toBe('private fixture content');
+		expect(compilerCacheFiles(cache)).toContain(files[1]);
+		expect(JSON.parse(readFileSync(path.join(cache, 'history-current.json'), 'utf8'))).toEqual([
+			files[1]
+		]);
 		expect(existsSync(path.join(cache, staleParser))).toBe(false);
 		expect(existsSync(path.join(cache, staleSocial))).toBe(false);
 		expect(existsSync(path.join(cache, staleHistory))).toBe(false);

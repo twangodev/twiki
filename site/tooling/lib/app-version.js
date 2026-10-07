@@ -14,7 +14,18 @@ const configFiles = [
 	'_headers',
 	'_redirects'
 ];
-const environmentFiles = ['.env', '.env.local', '.env.production', '.env.production.local'];
+// Bun can load these before Vite starts. Include every supported mode so a
+// copied dotenv file changing during an isolated build invalidates its snapshot.
+const environmentFiles = [
+	'.env',
+	'.env.local',
+	'.env.production',
+	'.env.production.local',
+	'.env.development',
+	'.env.development.local',
+	'.env.test',
+	'.env.test.local'
+];
 
 /**
  * Identify application code, independent of checkout paths and course revisions.
@@ -24,6 +35,13 @@ const environmentFiles = ['.env', '.env.local', '.env.production', '.env.product
  * @param {NodeJS.ProcessEnv} environment
  */
 export function applicationVersion(site, environment = process.env) {
+	// Isolated edition snapshots use the canonical maintained-source inventory.
+	const snapshotVersion = environment.WISCONSIN_APPLICATION_VERSION;
+	if (snapshotVersion !== undefined) {
+		if (!/^[a-f0-9]{64}$/.test(snapshotVersion))
+			throw new Error('WISCONSIN_APPLICATION_VERSION must be a SHA-256 application version');
+		return snapshotVersion;
+	}
 	const files = new Set(configFiles);
 	/** @param {string} relative */
 	function walk(relative) {

@@ -1,5 +1,13 @@
 import { expect, test } from 'bun:test';
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	cpSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { stageFingerprint, stages, type Stage } from '../../tooling/fingerprint';
@@ -121,6 +129,36 @@ test('tooling fingerprints work before SvelteKit generates its tsconfig', async 
 		const fresh = await fingerprint('parser');
 		write('build/.svelte-kit/tsconfig.json', '{"compilerOptions":{"target":"esnext"}}');
 		expect(await fingerprint('parser')).toBe(fresh);
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test('production parser depends on file policy without depending on R rendering', async () => {
+	const { root, write, fingerprint } = fixture();
+	const site = path.resolve(import.meta.dirname, '../..');
+	try {
+		// Scan the maintained import graph, so a future accidental course-files import fails.
+		cpSync(path.join(site, 'tooling'), path.join(root, 'tooling'), { recursive: true });
+		cpSync(path.join(site, 'src/lib'), path.join(root, 'src/lib'), { recursive: true });
+		cpSync(path.join(site, 'package.json'), path.join(root, 'package.json'));
+		symlinkSync(path.join(site, 'node_modules'), path.join(root, 'node_modules'), 'dir');
+		const parser = await fingerprint('parser');
+		const files = await fingerprint('files');
+		const source = (file: string) => readFileSync(path.join(root, file), 'utf8');
+		write(
+			'tooling/lib/rmd-previews.ts',
+			source('tooling/lib/rmd-previews.ts') + '\n// renderer change\n'
+		);
+		expect(await fingerprint('parser')).toBe(parser);
+		expect(await fingerprint('files')).not.toBe(files);
+		write('tooling/lib/r-runtime.ts', source('tooling/lib/r-runtime.ts') + '\n// runtime change\n');
+		expect(await fingerprint('parser')).toBe(parser);
+		write(
+			'tooling/lib/file-policy.ts',
+			source('tooling/lib/file-policy.ts').replace("'vendor',", "'vendor', 'generated',")
+		);
+		expect(await fingerprint('parser')).not.toBe(parser);
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}

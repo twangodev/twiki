@@ -20,44 +20,10 @@ import { stageFingerprint } from '../fingerprint';
 import { courseFingerprint, readCourseCache, saveCourseCache } from './course-cache';
 import { publicationFilter, courseLicenseResolver } from './publishing';
 import { buildRmdPreviews } from './rmd-previews';
-
-const excludedDirectories = new Set([
-	'node_modules',
-	'vendor',
-	'build',
-	'dist',
-	'target',
-	'__pycache__'
-]);
-const excludedNames =
-	/^(?:credentials?|secrets?|id_rsa|id_ed25519)(?:[._-]|$)|\.(?:pem|key|p12|pfx|keystore)$/i;
+import { browsablePath } from './file-policy';
+export { browsablePath, fileHistoryPolicyKey } from './file-policy';
 const inlineImages = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif']);
 export const assetLimit = 25 * 1024 * 1024;
-
-export function browsablePath(file: string) {
-	return (
-		!file.includes('\\') &&
-		!file.split('/').includes('publish.yaml') &&
-		!/[\x00-\x1f\x7f]/.test(file) &&
-		file
-			.split('/')
-			.every(
-				(segment) =>
-					segment.length > 0 &&
-					!segment.startsWith('.') &&
-					!excludedDirectories.has(segment.toLowerCase()) &&
-					!excludedNames.test(segment)
-			)
-	);
-}
-
-export function fileHistoryPolicyKey() {
-	return createHash('sha256')
-		.update(browsablePath.toString())
-		.update(JSON.stringify([...excludedDirectories].sort()))
-		.update(excludedNames.source)
-		.digest('hex');
-}
 
 export function previewText(bytes: Uint8Array): { text: string } | undefined {
 	if (Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).includes(0)) return;
@@ -250,6 +216,18 @@ export async function buildCourseFiles(
 		}
 	}
 	pruneOutputs(output, wanted, (file) => file === path.join(output, 'icons'));
+	if (!publicEdition && !development) {
+		const history = [...outputByCourse].flatMap(([course, outputs]) =>
+			[...outputs]
+				.filter((file) => path.dirname(file) === path.join(output, 'history'))
+				.map((file) => `file-history/${course}/${path.basename(file)}`)
+		);
+		// Keep transport selection portable when a fresh runner restores only the cache.
+		writeChanged(
+			path.join(siteDir, 'build/generated/cache/history-current.json'),
+			JSON.stringify([...new Set(history)].sort())
+		);
+	}
 	mkdirSync(path.join(siteDir, 'src/lib/generated'), { recursive: true });
 	writeChanged(path.join(siteDir, 'src/lib/generated/file-entries.json'), JSON.stringify(entries));
 	buildFileIcons(

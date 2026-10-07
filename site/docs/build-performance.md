@@ -4,6 +4,71 @@ The target is a Cloudflare deployment in under 30 seconds and fast development
 startup. **The deployment target remains unachieved and unverified.** Work is
 isolated on `perf/build-performance`; these changes have not been deployed.
 
+## Isolated parallel edition builds
+
+The opt-in parallel implementation builds public and authenticated editions in
+separate site roots, preserving publication policy and deployment output.
+`WISCONSIN_BUILD_MODE=parallel bun run build:all` overlaps the edition builds;
+`isolated-serial` uses the same isolation and assembly with serial execution.
+The default remains `serial`. The manual performance workflow accepts these
+same three modes; remote CI and deployment timing remain pending.
+
+The architecture audit found shared generated page metadata, diagnostics,
+navigation, file catalogs, compiler manifests, SvelteKit output, and Wrangler
+state. Each edition therefore needs its own writable source/generated/static,
+dependency-cache, and build directories. Both must read the same fixed content
+repository and source snapshot. Merely starting the current edition commands
+simultaneously would race on those shared outputs.
+Both snapshots preserve the canonical maintained static inventory and
+application version. Build children default to `NODE_ENV=production`, and
+version hashing includes [Bun's supported dotenv files](https://bun.sh/docs/runtime/environment-variables).
+Tailwind explicitly
+excludes documentation, tests, and benchmark reports from class discovery so
+omitting these files from snapshots cannot change application CSS, using the
+documented [class source exclusions](https://tailwindcss.com/docs/detecting-classes-in-source-files).
+
+After both builds succeed, assembly derives the public allowlist exclusively
+from public output, places that adapter tree under the full tree's `_published`
+directory, and writes the final allowlist before Wrangler packaging. Promotion
+preserves the full SvelteKit output tree and rolls back if a rename fails.
+Isolated compiler caches start from validated current entries; reconciliation
+preserves edition manifests and full-edition history without concurrent cache
+writes. Failures terminate and await sibling processes, clean owned scratch
+directories, and preserve the previous completed deployment output.
+Portable content-addressed cache entries can be copied; course catalogs that
+fingerprint absolute paths and inode metadata rebuild in fresh roots. The
+portable current-history manifest preserves Git history cache hits even when
+only compiler data is restored into empty generated output. Successful isolated
+assembly retains selected cache entries; native serial retains its existing
+local historical cache generations.
+
+Newly merged lecture 6 requires `car`. CI provisions it alongside R/knitr;
+unqualified worksheet package setup reuses preinstalled packages. Render cache
+identity includes installed package versions and build metadata, covering
+transitive dependency changes, plus resolved fonts, font bytes, and active
+Fontconfig configuration. Unverified fonts force preview cache misses while R
+continues rendering. The parser imports a separate file-policy module, so R
+renderer changes no longer invalidate parsed notes; changing the file policy
+still invalidates them. Package provisioning is outside local build timings
+and its CI cost remains unmeasured.
+
+Verification exposed an inherited temporary JetBrains `FONTCONFIG_PATH` that
+provided no usable fonts. Chromium measured text at zero width and R plots
+rendered labels as boxes without warnings. Removing that shell override restored
+all 248 Mermaid checks and readable R plots. The accepted comparison removes
+that override and regenerates all ten worksheet previews with font-aware keys.
+Earlier previews and priming runs from the broken font environment are excluded
+from acceptance. The font probe was stable and verified across two real calls
+in 142ms total; its cost remains inside measured build time.
+
+Acceptance requires publication/privacy and revocation tests, Worker packaging,
+cache cold/miss behavior, and serial-versus-parallel output comparisons. Measure
+complete wall time including snapshot setup, cache copying, assembly, and
+cleanup. Comparisons use identical source, content, R, selected compiler seed,
+and fresh generated/Vite output. Serial remains the default until measured
+benefit and output acceptance justify adoption. Edition overlap alone does not
+establish a sub-30-second deployment.
+
 ## Fresh-output comparison with R enabled
 
 A second matched comparison restores encrypted compiler data into empty site

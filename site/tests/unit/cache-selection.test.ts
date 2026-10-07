@@ -103,3 +103,75 @@ test('missing full history outputs archive only revision lookup metadata', () =>
 		cleanup();
 	}
 });
+
+test('portable history manifest selects complete current assets without any generated output tree', () => {
+	const { cache, write, cleanup } = fixture();
+	const record = `file-history/course/${'a'.repeat(64)}.json`;
+	const blame = `file-history/course/${'a'.repeat(64)}-blame.json`;
+	const diff = `file-history/course/${'a'.repeat(64)}-${'b'.repeat(40)}.diff`;
+	const stale = `file-history/course/${'c'.repeat(64)}.json`;
+	try {
+		for (const file of [record, blame, diff, stale]) write(file);
+		write('history-current.json', [record, blame, diff, record]);
+		write('file-history/course/revisions-version-head.jsonl');
+		expect(compilerCacheFiles(cache)).toEqual(
+			[
+				'history-current.json',
+				record,
+				blame,
+				diff,
+				'file-history/course/revisions-version-head.jsonl'
+			].sort()
+		);
+		// Existing old output cannot override an authoritative live selection.
+		write(`../assets/_files/history/${'c'.repeat(64)}.json`);
+		expect(compilerCacheFiles(cache)).not.toContain(stale);
+		write('history-current.json', []);
+		expect(compilerCacheFiles(cache)).toEqual([
+			'file-history/course/revisions-version-head.jsonl',
+			'history-current.json'
+		]);
+		expect(existsSync(path.join(cache, stale))).toBe(true);
+	} finally {
+		cleanup();
+	}
+});
+
+test('corrupt or traversing history manifests fail cold without falling back to stale output', () => {
+	const { cache, write, cleanup } = fixture();
+	const record = `file-history/course/${'a'.repeat(64)}.json`;
+	try {
+		write(record);
+		write(`../assets/_files/history/${'a'.repeat(64)}.json`);
+		for (const invalid of [
+			'{',
+			[record, '../credentials.env'],
+			[record, `file-history/../${'a'.repeat(64)}.json`]
+		]) {
+			write('history-current.json', invalid);
+			expect(compilerCacheFiles(cache)).toEqual([]);
+		}
+	} finally {
+		cleanup();
+	}
+});
+
+test('history manifest and its files cannot select symlinked data', () => {
+	const { cache, write, cleanup } = fixture();
+	const outside = mkdtempSync(path.join(tmpdir(), 'wisconsin-history-outside-'));
+	const record = `file-history/course/${'a'.repeat(64)}.json`;
+	try {
+		writeFileSync(path.join(outside, 'record'), 'private external data');
+		writeFileSync(path.join(outside, 'manifest'), JSON.stringify([record]));
+		mkdirSync(path.join(cache, 'file-history/course'), { recursive: true });
+		symlinkSync(path.join(outside, 'record'), path.join(cache, record));
+		write('history-current.json', [record]);
+		expect(compilerCacheFiles(cache)).toEqual(['history-current.json']);
+		rmSync(path.join(cache, 'history-current.json'));
+		symlinkSync(path.join(outside, 'manifest'), path.join(cache, 'history-current.json'));
+		expect(compilerCacheFiles(cache)).toEqual([]);
+	} finally {
+		cleanup();
+		rmSync(outside, { recursive: true, force: true });
+	}
+});

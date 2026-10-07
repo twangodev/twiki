@@ -1,6 +1,9 @@
 import { lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 
+export const historyCachePath =
+	/^file-history\/[\w-]+\/[a-f0-9]{64}(?:\.json|-blame\.json|-[a-f0-9]{40,64}\.diff)$/;
+
 /** Archive current entries; historical local generations remain available for undo. */
 export function compilerCacheFiles(cache: string) {
 	const files: string[] = [];
@@ -30,16 +33,22 @@ export function compilerCacheFiles(cache: string) {
 	current('stage1-current.json', /^stage1\/[a-f0-9]{2}\/[a-f0-9]{64}\.json$/);
 	for (const edition of ['public', 'full'])
 		current(`social-titles-current-${edition}.json`, /^social-titles\/[a-f0-9]{64}\.png$/);
-	// Full-edition history outputs contain every published JSON, blame record and diff.
-	// Course output pruning removes obsolete assets before deployment reaches cache save.
+	// A restored runner has no output tree. Prefer the portable manifest emitted
+	// after a full build prunes history output; older caches can still use that tree.
+	const historyManifest = lstatSync(path.join(cache, 'history-current.json'), {
+		throwIfNoEntry: false
+	});
+	if (historyManifest) current('history-current.json', historyCachePath);
 	const histories = new Set<string>();
-	try {
-		for (const entry of readdirSync(path.resolve(cache, '../assets/_files/history'), {
-			withFileTypes: true
-		}))
-			if (entry.isFile()) histories.add(entry.name);
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+	if (!historyManifest) {
+		try {
+			for (const entry of readdirSync(path.resolve(cache, '../assets/_files/history'), {
+				withFileTypes: true
+			}))
+				if (entry.isFile()) histories.add(entry.name);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+		}
 	}
 	const walk = (directory: string, select: (name: string) => boolean) => {
 		try {

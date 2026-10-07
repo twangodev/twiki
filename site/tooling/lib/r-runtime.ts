@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { createHash, randomBytes } from 'node:crypto';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { contentGit, declaredCourseDirectories } from './dev-git-state';
 
@@ -14,9 +15,96 @@ const runtimeEnvironment = [
 	'R_ENVIRON_USER',
 	'R_PROFILE',
 	'R_PROFILE_USER',
-	'LD_LIBRARY_PATH'
+	'LD_LIBRARY_PATH',
+	'FONTCONFIG_PATH',
+	'FONTCONFIG_FILE',
+	'FONTCONFIG_SYSROOT',
+	'FC_LANG',
+	'XDG_CONFIG_HOME',
+	'XDG_DATA_HOME'
 ] as const;
 const probes = new Map<string, string>();
+const unavailableFontIdentity = randomBytes(16).toString('hex');
+
+/** Font paths locate inputs; only portable face metadata and content hashes enter the identity. */
+export function rFontIdentity(environment: NodeJS.ProcessEnv = process.env) {
+	const deadline = performance.now() + 5_000;
+	const maximumBytes = 256 * 1024 * 1024;
+	let bytes = 0;
+	const hashes = new Map<string, string>();
+	const hashFile = (file: string, maximumSize: number) => {
+		if (hashes.has(file)) return hashes.get(file)!;
+		const info = statSync(file);
+		if (
+			!info.isFile() ||
+			info.size > maximumSize ||
+			bytes + info.size > maximumBytes ||
+			hashes.size >= 512 ||
+			performance.now() >= deadline
+		)
+			throw new Error('Font identity exceeds its probe budget');
+		const content = readFileSync(file);
+		bytes += content.length;
+		const hash = createHash('sha256').update(content).digest('hex');
+		hashes.set(file, hash);
+		return hash;
+	};
+	const run = (command: string, args: string[]) => {
+		const remaining = Math.floor(deadline - performance.now());
+		if (remaining < 1) throw new Error('Font identity probe timed out');
+		return execFileSync(command, args, {
+			env: environment,
+			encoding: 'utf8',
+			timeout: Math.min(2_000, remaining),
+			maxBuffer: 1024 * 1024,
+			stdio: ['ignore', 'pipe', 'pipe']
+		});
+	};
+	const format =
+		'%{file}\t%{family}\t%{style}\t%{fontversion}\t%{foundry}\t%{index}\t%{antialias}\t%{hinting}\t%{hintstyle}\t%{rgba}\n';
+	const faces = (output: string) =>
+		[
+			...new Set(
+				output
+					.split('\n')
+					.filter(Boolean)
+					.map((line) => {
+						const [file, ...metadata] = line.split('\t');
+						if (!file || metadata.length !== 9) throw new Error('Invalid resolved font metadata');
+						return JSON.stringify([metadata, hashFile(file, 64 * 1024 * 1024)]);
+					})
+			)
+		].sort();
+	try {
+		const inventory = faces(run('fc-list', ['--format', format]));
+		const matches = [];
+		for (const family of ['', 'sans', 'serif', 'monospace', 'symbol']) {
+			for (const style of ['', 'Bold', 'Italic', 'Bold Italic']) {
+				const pattern = family + (style ? `:style=${style}` : '');
+				matches.push([pattern, faces(run('fc-match', ['--format', format, pattern]))]);
+			}
+		}
+		const configuration = run('fc-conflist', [])
+			.split('\n')
+			.filter((line) => line.startsWith('+ '))
+			.map((line) => {
+				const separator = line.indexOf(': ', 2);
+				if (separator < 0) throw new Error('Invalid active font configuration');
+				return hashFile(line.slice(2, separator), 1024 * 1024);
+			});
+		if (performance.now() >= deadline) throw new Error('Font identity probe timed out');
+		return (
+			'fontconfig-v1:' +
+			createHash('sha256')
+				.update(JSON.stringify([inventory, matches, configuration]))
+				.digest('hex')
+		);
+	} catch {
+		// R can use native devices without Fontconfig tools. Render normally, but
+		// previews bypass cache reads, while the process identity keeps source guards stable.
+		return `fontconfig-unverified-v1:${process.platform}:${unavailableFontIdentity}`;
+	}
+}
 
 function selection(environment: NodeJS.ProcessEnv) {
 	const executable = environment.RSCRIPT ?? 'Rscript';
@@ -52,12 +140,13 @@ export function rRuntimeVersion(environment: NodeJS.ProcessEnv = process.env, re
 			[
 				'--vanilla',
 				'-e',
-				'cat(R.version.string); for (p in c("knitr", "evaluate", "highr", "xfun", "yaml")) cat(p, as.character(packageVersion(p)))'
+				'cat(R.version.string); for (p in c("knitr", "evaluate", "highr", "xfun", "yaml")) cat(p, as.character(packageVersion(p))); packages <- utils::installed.packages(); packages <- packages[order(packages[, "Package"], packages[, "Version"], packages[, "Built"]), c("Package", "Version", "Built"), drop = FALSE]; cat("\\n", apply(packages, 1, paste, collapse = " "), sep = "\\n")'
 			],
 			{ env: environment, encoding: 'utf8', timeout: 30_000, stdio: 'pipe' }
 		);
-		probes.set(key, version);
-		return version;
+		const identity = `${version}\n${rFontIdentity(environment)}`;
+		probes.set(key, identity);
+		return identity;
 	} catch (error) {
 		probes.delete(key);
 		throw new Error(

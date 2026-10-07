@@ -48,7 +48,11 @@ test('application source, dependency lock, maintained assets, and environment in
 		['src/routes/+page.svelte', '<p>Changed</p>'],
 		['bun.lock', 'updated dependencies'],
 		['static/favicon.png', 'updated icon'],
-		['.env.production', 'VITE_ORIGIN=https://example.com']
+		['.env.production', 'VITE_ORIGIN=https://example.com'],
+		['.env.development', 'VITE_ORIGIN=https://development.example.com'],
+		['.env.development.local', 'VITE_ORIGIN=https://local-development.example.com'],
+		['.env.test', 'VITE_ORIGIN=https://test.example.com'],
+		['.env.test.local', 'VITE_ORIGIN=https://local-test.example.com']
 	]) {
 		write(site, file, contents);
 		const current = applicationVersion(site, {});
@@ -74,4 +78,22 @@ test('Git-maintained additional static assets are included without synced course
 	expect(applicationVersion(site, {})).toBe(initial);
 	write(site, 'static/custom.svg', '<svg><path/></svg>');
 	expect(applicationVersion(site, {})).not.toBe(initial);
+});
+
+test('isolated snapshots preserve the canonical maintained static inventory version', () => {
+	const canonical = fixture();
+	const snapshot = fixture();
+	execFileSync('git', ['init', '-q', canonical]);
+	write(canonical, 'static/.gitignore', '*\n!.gitignore\n!favicon.png\n!custom.svg\n');
+	write(canonical, 'static/custom.svg', '<svg/>');
+	const version = applicationVersion(canonical, { NODE_ENV: 'production' });
+	expect(applicationVersion(snapshot, { NODE_ENV: 'production' })).not.toBe(version);
+	expect(applicationVersion(snapshot, { WISCONSIN_APPLICATION_VERSION: version })).toBe(version);
+});
+
+test('invalid isolated application versions fail before compilation', () => {
+	for (const version of ['', '../version', 'a'.repeat(63), 'A'.repeat(64)])
+		expect(() => applicationVersion(fixture(), { WISCONSIN_APPLICATION_VERSION: version })).toThrow(
+			'WISCONSIN_APPLICATION_VERSION'
+		);
 });

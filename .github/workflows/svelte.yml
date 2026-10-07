@@ -10,6 +10,14 @@ on:
         description: Benchmark builds without deployment or other jobs
         type: boolean
         default: false
+      build_mode:
+        description: Build mode for performance benchmarks only
+        type: choice
+        default: serial
+        options:
+          - serial
+          - parallel
+          - isolated-serial
 
 permissions:
   contents: read
@@ -60,7 +68,7 @@ jobs:
         run: bun tooling/cache.ts restore
       - &install-r
         name: Install R worksheet renderer
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core r-cran-knitr
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core r-cran-knitr r-cran-car
       - &install-dependencies
         run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
@@ -152,7 +160,7 @@ jobs:
         run: |
           node --input-type=module -e 'import { availableParallelism } from "node:os"; console.log(JSON.stringify({ node: process.version, availableCpus: availableParallelism(), platform: process.platform, architecture: process.arch }));'
           bun -e 'console.log("Bun: " + Bun.version)'
-          Rscript --vanilla -e 'cat("R: ", R.version.string, "\nknitr: ", as.character(packageVersion("knitr")), "\n", sep = "")'
+          Rscript --vanilla -e 'cat("R: ", R.version.string, "\nknitr: ", as.character(packageVersion("knitr")), "\ncar: ", as.character(packageVersion("car")), "\n", sep = "")'
       - run: bun run build:all
       - run: bunx wrangler d1 migrations apply wisconsin --remote
         env:
@@ -186,6 +194,7 @@ jobs:
     timeout-minutes: 45
     env:
       BENCHMARK_TIMEOUT_SECONDS: "1200"
+      WISCONSIN_BUILD_MODE: ${{ inputs.build_mode || 'serial' }}
     steps:
       - *configure-submodules
       - *checkout-content
@@ -196,6 +205,18 @@ jobs:
       - *install-r
       - *install-dependencies
       - *record-build-runtimes
+      - name: Record benchmark build mode
+        run: |
+          bun -e '
+            import { rFontIdentity } from "./tooling/lib/r-runtime.ts";
+            const buildMode = process.env.WISCONSIN_BUILD_MODE;
+            if (!["serial", "parallel", "isolated-serial"].includes(buildMode)) throw new Error("Unsupported benchmark build mode");
+            const probeStarted = performance.now();
+            const fontIdentity = rFontIdentity();
+            const fontIdentityVerified = /^fontconfig-v1:[a-f0-9]{64}$/.test(fontIdentity);
+            const probeMilliseconds = Math.round(performance.now() - probeStarted);
+            console.log(JSON.stringify({ buildMode, fontIdentityVerified, probeMilliseconds }));
+          '
       - name: Benchmark restored compiler cache with fresh output
         run: bun tooling/benchmark.ts build ci-first
       - name: Benchmark retained compiler cache and output
@@ -209,7 +230,7 @@ jobs:
               const file = `build/benchmarks/${label}.json`;
               if (!existsSync(file)) continue;
               const { success, seconds, exitCode, exitSignal, host } = JSON.parse(readFileSync(file, "utf8"));
-              const result = { success, seconds, exitCode, exitSignal, host };
+              const result = { success, seconds, exitCode, exitSignal, host, buildMode: process.env.WISCONSIN_BUILD_MODE };
               appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### ${label}\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n\n`);
             }
           '
