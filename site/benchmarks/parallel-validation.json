@@ -125,5 +125,23 @@
 		"The latest full E2E suite contains an intermittent navigation failure; its focused unchanged-output recheck passes. This is not a clean 69-test latest full suite.",
 		"Accepted five-trial build performance/parity uses earlier frozen 9faa529 and 1652 pages; current validation/development uses 91bbf34 and 1654 pages.",
 		"All observations are local; optimized remote CI, cache transport and Cloudflare deployment timings remain unmeasured."
-	]
+	],
+	"finalMainSynchronization": {
+		"mergedMainCommit": "1910cfb929e311d70ab57d82625709b208883a90",
+		"applicationAndBuildSourceMatchesMeasuredCommit": "91bbf3493e399dc9c713ce9277d4f4d2fffc714e",
+		"applicationAndBuildSourceUnchanged": true,
+		"newRealRRegressionTests": {
+			"passed": 18,
+			"failed": 0,
+			"assertions": 82,
+			"seconds": 4.64
+		},
+		"requiredCompleteParallelBuild": {
+			"success": true,
+			"seconds": 55.618087761,
+			"publicSeconds": 19.137757918,
+			"fullSeconds": 46.556262567
+		},
+		"matchedPerformanceComparison": false
+	}
 }

@@ -110,6 +110,11 @@ is separate from the accepted five-trial build/parity pin `9faa529` and its
 retained canonical output; it is not another matched fresh-output timing point.
 [Validation evidence](../benchmarks/parallel-validation.json) records both pins.
 
+Main's later `1910cfb` R-provisioning fix is also merged. Its application and
+build source matches `91bbf34`; the new real-R regressions passed 18 tests and
+82 assertions. The required complete build after this synchronization passed
+in 55.62s. These additional checks preserve the recorded measurement pins.
+
 The current unit run passed 238 tests/2,416 assertions across 51 files in 17.62s.
 Svelte reported zero errors/warnings and Worker TypeScript passed. Link checks
 covered 1,667 Markdown/Rmd files and 15,729 local targets with zero errors.
