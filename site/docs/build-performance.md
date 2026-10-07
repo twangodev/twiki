@@ -1,342 +1,261 @@
 # Build performance experiments
 
-The target is a Cloudflare deployment in under 30 seconds and fast development
-startup. **The deployment target remains unachieved and unverified.** Work is
-isolated on `perf/build-performance`; these changes have not been deployed.
+Local build and startup performance improved, but **sub-30-second Cloudflare
+deployment remains unachieved and unverified**. Changes are isolated on
+`perf/build-performance`; no remote deployment was performed. Serial remains
+the production default. Parallel builds are available as an explicit mode.
 
-## Isolated parallel edition builds
+## Matched edition-build comparison
 
-The opt-in parallel implementation builds public and authenticated editions in
-separate site roots, preserving publication policy and deployment output.
-`WISCONSIN_BUILD_MODE=parallel bun run build:all` overlaps the edition builds;
-`isolated-serial` uses the same isolation and assembly with serial execution.
-The default remains `serial`. The manual performance workflow accepts these
-same three modes; remote CI and deployment timing remain pending.
+Five accepted trials use committed source `9faa529`, which includes main
+`8637192`, the same 1,652-page corpus, actual Node 25.9.0/Bun 1.4.0,
+R 4.5.0/knitr 1.50/car 3.1-3, and verified font/runtime identities. The baseline
+is the current optimized native serial build, not the original implementation.
 
-The architecture audit found shared generated page metadata, diagnostics,
-navigation, file catalogs, compiler manifests, SvelteKit output, and Wrangler
-state. Each edition therefore needs its own writable source/generated/static,
-dependency-cache, and build directories. Both must read the same fixed content
-repository and source snapshot. Merely starting the current edition commands
-simultaneously would race on those shared outputs.
-Both snapshots preserve the canonical maintained static inventory and
-application version. Build children default to `NODE_ENV=production`, and
-version hashing includes [Bun's supported dotenv files](https://bun.sh/docs/runtime/environment-variables).
-Tailwind explicitly
-excludes documentation, tests, and benchmark reports from class discovery so
-omitting these files from snapshots cannot change application CSS, using the
-documented [class source exclusions](https://tailwindcss.com/docs/detecting-classes-in-source-files).
+| Mode            | Available CPUs | Complete wall time |
+| --------------- | -------------: | -----------------: |
+| Native serial   |             48 |             63.78s |
+| Isolated serial |             48 |             75.16s |
+| Parallel        |             48 |             55.28s |
+| Native serial   |              4 |             65.06s |
+| Parallel        |              4 |             57.67s |
 
-After both builds succeed, assembly derives the public allowlist exclusively
-from public output, places that adapter tree under the full tree's `_published`
-directory, and writes the final allowlist before Wrangler packaging. Promotion
-preserves the full SvelteKit output tree and rolls back if a rename fails.
-Isolated compiler caches start from validated current entries; reconciliation
-preserves edition manifests and full-edition history without concurrent cache
-writes. Failures terminate and await sibling processes, clean owned scratch
-directories, and preserve the previous completed deployment output.
-Portable content-addressed cache entries can be copied; course catalogs that
-fingerprint absolute paths and inode metadata rebuild in fresh roots. The
-portable current-history manifest preserves Git history cache hits even when
-only compiler data is restored into empty generated output. Successful isolated
-assembly retains selected cache entries; native serial retains its existing
-local historical cache generations.
+Parallel reduced wall time by **13.3% unrestricted** and **11.4% under four-CPU
+affinity**. Isolated serial took 11.38s longer than native serial, exposing the
+cost of isolation. Each row is one local measurement on a Threadripper 9960X;
+there is no confidence interval or CI prediction. A later real parallel
+validation build took 62.18s after publication fixtures reset its output,
+showing that the 55.28s point is not a guaranteed build duration.
 
-Newly merged lecture 6 requires `car`. CI provisions it alongside R/knitr;
-unqualified worksheet package setup reuses preinstalled packages. Render cache
-identity includes installed package versions and build metadata, covering
-transitive dependency changes, plus resolved fonts, font bytes, and active
-Fontconfig configuration. Unverified fonts force preview cache misses while R
-continues rendering. The parser imports a separate file-policy module, so R
-renderer changes no longer invalidate parsed notes; changing the file policy
-still invalidates them. Package provisioning is outside local build timings
-and its CI cost remains unmeasured.
+Every accepted trial starts with fresh generated/SvelteKit/static/course-catalog
+output and cleared project Vite caches. Each receives the same selected-current
+compiler seed: 21,561 files and 649,969,154 uncompressed bytes. Common reset and
+canonical seed restoration are untimed for all modes. Mandatory isolated
+source/dependency snapshots and copying the seed into both workspaces remain
+inside the measured command. All editions regenerate 28 catalogs, hit all
+1,652 parsed pages and 1,653 social cards, and log no new worksheet knitting or R
+fallback. Ten prepared worksheet previews and their blobs are validated
+separately; cache hits per worksheet are not explicitly logged.
 
-Verification exposed an inherited temporary JetBrains `FONTCONFIG_PATH` that
-provided no usable fonts. Chromium measured text at zero width and R plots
-rendered labels as boxes without warnings. Removing that shell override restored
-all 248 Mermaid checks and readable R plots. The accepted comparison removes
-that override and regenerates all ten worksheet previews with font-aware keys.
-Earlier previews and priming runs from the broken font environment are excluded
-from acceptance. The font probe was stable and verified across two real calls
-in 142ms total; its cost remains inside measured build time.
+The unrestricted parallel build includes 4.08s setup, 47.63s child span, 0.09s
+invariant validation, 2.03s cache merge, 0.34s assembly and 1.07s cleanup.
+Public/full children take 19.82s/47.63s and overlap; summing their durations
+would overstate wall time. Four-CPU parallel includes the same required phases
+and a 50.16s child span. Native serial has no isolated phase breakdown; complete
+external command duration remains the comparison metric.
+[Parallel results](../benchmarks/parallel-results.json) record every point,
+source/runtime/seed digests, affinity, stage counts and timing scope.
 
-Acceptance requires publication/privacy and revocation tests, Worker packaging,
-cache cold/miss behavior, and serial-versus-parallel output comparisons. Measure
-complete wall time including snapshot setup, cache copying, assembly, and
-cleanup. Comparisons use identical source, content, R, selected compiler seed,
-and fresh generated/Vite output. Serial remains the default until measured
-benefit and output acceptance justify adoption. Edition overlap alone does not
-establish a sub-30-second deployment.
+Four-CPU trials use allowed IDs 0–3. Affinity constrains this workstation's
+scheduling; it does not reproduce CI CPU speed, memory, disk, network, runner
+provisioning, remote cache transport or Wrangler uploads. The build itself
+still exceeds 30 seconds.
 
-## Fresh-output comparison with R enabled
+## Isolation and output acceptance
 
-A second matched comparison restores encrypted compiler data into empty site
-output. Both revisions use the same complete 1,647-page corpus, R 4.5.0/knitr
-1.50, actual Node 25.9.0, Bun 1.4.0, and workstation. Dependency trees are
-independent copies of the same locked tree; project Vite caches are removed.
-Neither checkout starts with generated catalogs, static course assets, or
-SvelteKit output. Cache save/restore is untimed setup outside the build timer.
+Each edition owns writable generated/static/source catalogs, dependency caches,
+and build directories while reading one fixed content repository and maintained
+source snapshot. This prevents races in navigation, file catalogs, page metadata,
+compiler manifests, SvelteKit and Wrangler state. After both builds succeed,
+assembly derives the public allowlist from public output, places that adapter
+tree under the authenticated tree's `_published`, and promotes the complete
+output with rollback on rename failure. Source/content invariant checks reject
+mixed snapshots. Child failures terminate and await siblings, remove only
+owned scratch directories, and preserve the previous completed output.
+Use one writer for canonical generated output; run a concurrent dev server in
+another worktree. Separate `build:all` invocations do not share a lock.
 
-| Fresh-output build |  Total | Public edition | Full edition |
-| ------------------ | -----: | -------------: | -----------: |
-| Original           | 95.36s |         32.06s |       62.36s |
-| Optimized          | 61.70s |         20.29s |       41.34s |
+Parser, social-card and history selection limits accumulated generations;
+complete R render records are conservatively retained. Portable history
+manifests preserve history hits in fresh roots. Isolated cache
+reconciliation preserves edition manifests and full private history; native
+serial retains its historical local generations. Canonical application/static
+inventories and production environment preserve application versions between
+native and isolated roots. [Bun dotenv inputs](https://bun.sh/docs/runtime/environment-variables)
+participate in versioning. Tailwind explicitly excludes documentation, tests,
+and benchmark reports using its documented
+[class source controls](https://tailwindcss.com/docs/detecting-classes-in-source-files).
 
-This pair improves build time by **35.3%**. All 28 course catalogs regenerate in
-both editions, all 1,647 pages and 1,648 social cards hit their compiler caches,
-and all eight worksheet previews and their referenced blobs exist in full
-adapter output. No R knitting or fallback was logged. This verifies restored
-compiler data works without retained generated output; it does not establish
-visual parity. [Fresh-output results](../benchmarks/fresh-output-results.json)
-record the conditions, stage timings, output-presence checks, and limitations.
-There is one local point per revision, not a CI performance prediction. The
-build alone still exceeds 30 seconds; Cloudflare deployment is not measured.
+[Strict parity](../benchmarks/parallel-parity.json) passes native versus isolated,
+native versus parallel, isolated versus parallel, and native versus four-CPU
+parallel. Each output has 1,652 compiled pages, 64,811 static files, 616 immutable
+assets and ten R previews. PageDoc bytes, application catalogs, public routes,
+source assets, preview references, immutable assets and all non-Pagefind assets
+match exactly. Allowlist differences are confined to Pagefind aliases. Six
+Pagefind files are added, six removed and two changed; content-manifest
+`generatedAt` also differs. This is explicit exception handling, not zero churn
+or measured remote upload savings.
 
-The optimized current-entry encrypted archive saved in 6.88s and restored in
-2.56s locally: 162.92 MiB and 21,114 selected files. The original archive retained
-accumulated local cache generations (1.79 GB, 62.35s combined setup), so those
-transport numbers are not a fair current-entry comparison or production
-prediction. Both archives passed authenticated decryption; disposable keys were
-destroyed. Remote cache transport remains unmeasured.
+Earlier 66.39s/78.72s trials failed immutable parity because Tailwind discovered
+a class name in documentation. They use different source/app versions and are
+excluded from the accepted table. Removing an inherited temporary font override
+also fixed zero-width browser text and unreadable R plot labels. Accepted
+trials use verified fonts and regenerated preview keys, with no raw font
+configuration paths recorded.
 
-## Corrected complete-corpus comparison
+CI preinstalls `car` with R/knitr. Unqualified worksheet package setup reuses
+installed packages and rejects missing requests rather than downloading while
+building. Renderer cache identity includes installed package/build inventory,
+resolved font metadata/bytes and active font configuration. Unverified font
+probes force cache misses while rendering continues. Parser policy is separated
+from renderer identity so changing renderer dependencies does not invalidate
+all parsed notes. Additional CI package-provisioning cost is not measured.
 
-The original and optimized sites were compared with the same complete
-1,647-page corpus, Node 25.9.0, Bun 1.4.0, and workstation. R is absent from both
-build measurements, so worksheet previews use their documented fallback.
+## Validation and development
 
-| Complete-corpus measurement                             |   Total | Public edition | Full edition |
-| ------------------------------------------------------- | ------: | -------------: | -----------: |
-| Original with warm parser cache, fresh generated output |  95.27s |              — |            — |
-| Original warm repeat                                    |  94.44s |         33.93s |       59.43s |
-| Optimized parser-priming build, mixed cache state       | 151.26s |        105.42s |       45.78s |
-| Optimized matched repeat 1                              |  63.25s |         21.95s |       41.24s |
-| Optimized matched repeat 2                              |  65.81s |         22.01s |       43.75s |
+Final validation and development use committed source `91bbf34`, which includes
+main `0c142e3`, and an updated **1,654-page corpus with ten R worksheets**. This
+is separate from the accepted five-trial build/parity pin `9faa529` and its
+1,652 pages. The newer real parallel validation build passed in 55.79s with
+retained canonical output; it is not another matched fresh-output timing point.
+[Validation evidence](../benchmarks/parallel-validation.json) records both pins.
 
-The first row is not a cold-cache measurement: all 1,647 parsed pages were
-already cached. Two optimized warm repeats took **63.25–65.81s**,
-**30.3–33.0% faster** than the single original warm measurement of 94.44s.
-[Complete results](../benchmarks/complete-results.json) record matching host and
-runtime metadata, cache conditions, and per-edition counts. All 1,647 pages hit
-the parser cache in both editions of all warm measurements. These are one
-original and two optimized Threadripper 9960X samples, not CI predictions or
-remote deployment timings.
+The current unit run passed 238 tests/2,416 assertions across 51 files in 17.62s.
+Svelte reported zero errors/warnings and Worker TypeScript passed. Link checks
+covered 1,667 Markdown/Rmd files and 15,729 local targets with zero errors.
+The pinned local Lychee binary was initially absent after output resets;
+restoring version 0.24.2 and rerunning targets separately passed. Diagram checks
+covered 1,657 notes, 67,238 math expressions and 248 Mermaid diagrams with zero
+errors, using normal fonts.
 
-Optimized warm content pipelines took 5.76–5.86s public and 15.08–17.32s full;
-link resolution took 0.75s and 1.78–1.96s, respectively. Complete source, metadata,
-rendered text, and resolved resource URLs match the original.
+The latest real-site E2E suite passed 68 tests, skipped ten and failed one:
+a navigation toggle did not update `aria-expanded` after clicking. Its focused
+unchanged-output recheck passed; no source fix or retry-setting change was made.
+**The latest full suite is not a clean 69-test pass.** The earlier frozen
+`9faa529` real-site full suite passed 69 with ten skipped and zero failures.
+Parallel publication subsequently passed all ten browser tests across three
+fixture builds (eight public, one files-only, one revoked), after an initial
+private-tooltip timeout and a passing unchanged-fixture focused recheck.
 
-The optimized priming build reparsed all 1,647 pages in its public stage after
-helper changes invalidated the parser fingerprint: 79.98s parsing, 1.59s
-resolution, and 88.85s for its content pipeline. Its full stage reused all parsed
-pages, resolved links in 1.90s, and prepared content in 19.33s. Social cards were
-already cached. This primes the parser and mixes cold/warm stages; it is not a
-fully cold compiler-cache comparison.
+Wrangler 4.100.0 `deploy --dry-run` passed locally, reading 70,133 asset files
+and reporting an 8,932.41 KiB Worker (1,644.28 KiB gzip). No deployment occurred.
+These scanner counts have a different scope from the 64,811-file static parity
+inventory; they are not direct Cloudflare transfer-size equality evidence.
 
-Complete-corpus original dev startup measured 38.83s to Vite readiness and
-52.73s to valid home-page HTML after the production build. Warm restarts measured
-2.40–2.41s to readiness and 14.75–14.83s to HTML. Optimized startup after the
-production build took 24.44s to readiness and 29.76s to HTML; warm restarts took
-2.15–2.20s and 7.74–7.80s, respectively. Saved-output validation on warm restarts took
-500–506ms; this does not measure a content edit.
+The development watcher now revalidates Git-only events against semantic
+inputs and reuses saved output when an unrelated ref or unchanged index moves.
+This avoids two unnecessary pipelines observed after another worktree updated
+main's ref, while content/index changes still rebuild. The 41.56s integration
+passed nested-registration, offline-edit, missing-output, recovery, privacy and
+history cases; a browser edit took 824ms and fixture warm validation took 40ms.
+Ordinary untracked notes intentionally remain undiscovered until indexed.
+No untracked-cache-policy or `dev-state` change was needed.
 
-An early worktree copied nested CS 759 assignment files without registering
-their submodule. Git discovery consequently omitted 58 files, including 22
-notes. Its 1,625-page experiments remain provisional: original warm 94.02s,
-optimized warm 66.43–69.06s, and four-CPU-affinity restored build 67.47s. Four/eight
-prerender workers took 76.19s/84.78s, so the default remains one. The fixture was
-corrected before the complete-corpus comparison above.
+| Current development measurement             | Vite ready | Expected HTML 200 |
+| ------------------------------------------- | ---------: | ----------------: |
+| First start after parallel production build |     23.65s |            29.22s |
+| Warm restart 1                              |      2.61s |             8.79s |
+| Warm restart 2                              |      2.62s |             8.67s |
 
-## Production baseline
+Both warm starts reused their snapshot with zero content pipelines. These are
+local current-source measurements with verified fonts and actual Node/Bun/R
+versions; the servers were stopped after each run.
+[Development results](../benchmarks/parallel-dev-results.json) retain the exact
+conditions. First-start readiness and serving the first valid page are distinct.
 
-Five successful October 5–6, 2026 GitHub Actions runs establish the baseline.
-Durations use step timestamps with one-second resolution; deployment starts
-independently of the check and browser-test jobs.
+## Earlier optimization evidence
 
-| Production stage                | Median | Observed range |
-| ------------------------------- | -----: | -------------: |
-| Entire deployment job           |   445s |       431–575s |
-| Recursive checkout              |    32s |         29–96s |
-| Bun package-cache restore       |     5s |           4–5s |
-| Compiler archive restore        |     3s |           3–4s |
-| Compiler decrypt/extract        |    20s |         19–30s |
-| R/knitr installation            |    17s |         14–34s |
-| Locked dependency installation  |     4s |           4–7s |
-| Public and authenticated builds |   236s |       225–246s |
-| Compiler encrypt/save           |    36s |         35–39s |
-| Remote D1 migrations            |     2s |           1–2s |
-| Wrangler deployment             |    80s |        69–130s |
+The earlier speedup came from indexed link resolution, direct icon imports,
+separate runtime navigation/icon data, stable application versions, selective
+compiler caching, and moving public output during assembly. Deferred renderer
+and history imports plus Cloudflare emulator prewarming reduced development
+startup work. The parallel comparison measures an additional change on top of
+those optimizations.
+
+An earlier R-enabled fresh-output comparison used the same complete 1,647-page
+corpus for original and optimized source, actual Node/Bun versions and R/knitr.
+Original took 95.36s; optimized took 61.70s, a **35.3% improvement**, with fresh
+catalog/static/SvelteKit output and encrypted warm compiler data. All 28 catalogs
+rebuilt, all parser/social entries hit, eight preview outputs were present, and
+no R knitting/fallback was logged. There was one point per revision.
+[Fresh-output results](../benchmarks/fresh-output-results.json) retain its exact
+conditions. This older corpus/source comparison is distinct from the current
+native-versus-parallel table.
+
+[Earlier warm results](../benchmarks/complete-results.json) include the matched
+R-absent 94.44s original versus 63.25–65.81s optimized pair and earlier dev
+startups. [Page parity](../benchmarks/page-parity.json),
+[asset stability](../benchmarks/asset-stability.json), and
+[algorithm microbenchmarks](../benchmarks/resolve-micro.json) preserve detailed
+acceptance and stated Shiki/Pagefind exceptions. The initial 1,625-page worktree
+fixture omitted nested assignment registration; its timings are provisional
+same-fixture exploration, not complete-corpus acceptance.
+
+Selecting current parser/social/history entries while retaining complete R
+records reduced structural gzip-6 output from 316.4 to 155.7 MiB
+and archive time from 10.97s to 5.41s. Gzip-1 saved 1.8s but added 7.8% bytes, so
+level 6 remains. An older complete R-enabled snapshot saved 21,114 selected
+entries as a 162.92 MiB authenticated encrypted archive in 6.79s. These are
+[local cache measurements](../benchmarks/cache-transport.json), excluding remote
+transport and predating the latest content/renderer identity. The original
+1.79 GB accumulated-history archive is not a fair current-entry comparison.
+Cache persistence now follows deployment and tolerates optional-save failures,
+removing its previously observed 35–39s wait from time until the site is live.
+
+A measured final-product cache proxy selected 107.5 MiB archived output in 6.51s
+and extracted in 2.06s. Whole-edition caching is not implemented: safe reuse needs
+adapter-derived inventories, complete fingerprints and current static reassembly.
+Required binaries remain part of deployment; product presence alone cannot
+verify publication policy.
+
+## Historical production CI baseline
+
+Five successful October 5–6, 2026 GitHub Actions runs observed a median 236s
+public/full build and 445s complete deployment job. Wrangler took 69–130s;
+the latest changed-asset upload alone took 45.18s. Median checkout was 32s,
+compiler decrypt/extract 20s, R/knitr installation 17s and compiler encrypt/save
+36s. These predate the optimized parallel implementation and car provisioning.
+The latest parser/social caches were already warm, but all 28 catalogs and
+34,248 full-edition assets regenerated. Fresh output, runtimes and R fidelity
+contribute alongside hardware to the gap from local retained-output timings.
 
 Runs: [37396634943](https://github.com/twangodev/wisconsin/actions/runs/37396634943),
 [37358998002](https://github.com/twangodev/wisconsin/actions/runs/37358998002),
 [37347350802](https://github.com/twangodev/wisconsin/actions/runs/37347350802),
 [37255238239](https://github.com/twangodev/wisconsin/actions/runs/37255238239), and
 [37252406647](https://github.com/twangodev/wisconsin/actions/runs/37252406647).
+Optimized remote CI and deployment timings remain unmeasured.
 
-The latest run scanned 69,877 files and uploaded 4,222 changed assets; upload
-alone took 45.18s. Its encrypted compiler archive was 485 MiB. Parser cache hits
-were 1,646/1,647 in the public stage and 1,647/1,647 in the full stage; all 1,648
-social cards were cached. CI still rebuilt 28 course catalogs and synced 34,248
-full-edition assets into fresh output. Local warm runs reused 27 catalogs and
-retained existing output. Cache state, R availability, runtimes, and hardware
-all contribute to the comparison; CPU strength alone does not explain it.
+## Reproduction
 
-The latest CI content pipelines took 30.99s/66.61s for public/full editions,
-Vite reported 32.76s/about 63s, and search indexing took 5.48s/10.50s. Stage
-measurements overlap and must not be summed; older CI lacked adapter subphase
-timers. The deployment job now records actual Node version/available CPUs,
-Bun version, and R/knitr versions before building.
-
-## Adopted changes and experiments
-
-Changes include indexed link resolution, direct icon imports, separated runtime
-navigation/icon assets and stable application versions, edition-aware asset
-output, moving the public build instead of copying it, current-entry compiler
-cache selection, and deferred development imports. In the early fixture, SSR
-transforms fell from 4,703 to 1,093 modules. Complete warm full-edition link
-resolution fell from 14.49s to 1.78–1.96s.
-[Complete-corpus microbenchmarks](../benchmarks/resolve-micro.json) checked exact
-callback identity/order over 3.13 million elements and exact resolved URLs for
-15,772 references. Preloaded traversal took 621–632ms versus 97–103ms; indexed
-resolution took 75ms plus 8ms initialization versus 5,936ms. These isolate
-algorithms and are not deployment timings.
-
-Compiler cache persistence now follows deployment and tolerates optional-save
-failures. This removes the observed 35–39s persistence wait from time until the
-site is live while total job duration still includes it.
-
-[Structural cache measurements](../benchmarks/cache-transport.json): selecting
-current entries reduced gzip-6 output from 316.4 to 155.7 MiB and archive time
-from 10.97s to 5.41s. Gzip-1 took 3.62s but produced 167.8 MiB. Retain level 6:
-the extra 1.8s saving adds 7.8% transport bytes, and saving happens after deploy.
-These single local compression trials mix available development/build manifests
-and exclude encryption/network transport; they are not the final CI snapshot.
-A final R-enabled production validation saved 21,114 selected entries as a
-162.92 MiB encrypted archive in 6.79s, using the existing GPG format and a
-disposable benchmark key. Remote cache upload/restore remain unmeasured.
-
-A final-product cache exploration selected 23,144 files: 777.2 MiB raw,
-107.5 MiB archived, 6.51s creation, and 2.06s extraction. **Whole-edition caching
-is not implemented.** Its proxy selection needs an adapter-derived product
-inventory, complete input fingerprints, validated output manifests, and current
-static-asset reassembly before it can safely skip builds. Required binary assets
-remain part of deployment. Final files alone cannot verify publication policy.
-
-Development prewarms the Cloudflare emulator with shared initialization,
-observed failures and retry, and protected prerender options; production retains
-its existing initializer. Earlier incomplete-fixture warm startups took
-2.00–2.16s to Vite readiness and 9.78–10.64s to valid home-page HTML before this
-change. The maintained complete-fixture results are reported above.
-
-## Validation and limitations
-
-The final unit run passed 196 tests/2,064 assertions across 45 files in 18.53s
-with isolated R
-explicitly selected; formatting passed for 73 files. The final complete-corpus
-production validation built successfully in 81.95s with R 4.5.0/knitr 1.50:
-eight worksheets rendered and no R fallback was used. This followed publication
-fixtures that reset generated output, so it is not the matched warm comparison.
-
-`bun run check` passed: Svelte reported zero errors/warnings, Worker TypeScript
-passed, and 15,607 links across 1,658 notes had zero target errors. Diagram checks
-covered 1,650 notes, 66,653 math expressions, and 248 Mermaid diagrams with zero
-errors. Real-site E2E passed 69 tests, skipped 10, and failed none in about 1.1
-minutes; all three initial failures were resolved. Publication fixtures passed
-all 10 browser tests across three builds (eight public, one files-only, one
-revoked). Prewarming content integration passed in 29.86s, covering privacy,
-revocation, private history, and recovery; an incremental edit took 632ms
-without rewriting an unrelated page. Workflow guards and optional cache
-persistence passed six focused tests/79 assertions.
-
-Wrangler 4.100.0 `deploy --dry-run` passed locally, scanning 69,881 assets and
-reporting a Worker of 8,909.27 KiB (1,639.83 KiB gzip). This performs no remote
-deployment. Optimized remote CI and Cloudflare timings remain unmeasured.
-
-[Complete page parity](../benchmarks/page-parity.json) preserves all source,
-metadata, rendered text, and resource URLs across 1,647 pages; 1,644 are byte
-identical. Three pages each contain one Shiki code block that differs between
-original and fresh stage-one parse caches. Restoring just each original block
-reconstructs the exact baseline PageDoc bytes. This isolates the differences
-before link resolution; the highlighting cache variation remains unexplained.
-Syntax-highlighting behavior was not changed.
-
-[Complete unchanged-input asset control](../benchmarks/asset-stability.json)
-compared 64,541 output files in each R-absent warm build. The later R-enabled
-dry-run inventory has different output conditions, so these counts do not
-establish direct Cloudflare size parity. All 616 immutable application
-assets across both editions retain exactly the same paths and bytes, and all
-non-Pagefind static paths/bytes match. Six Pagefind filter/metadata files were
-added, six removed, and two entry records changed; the underlying cause remains
-unexplained. The earlier title-edit experiment remains provisional because it
-used the incomplete fixture. These inventories do not establish visual parity,
-zero churn, or measured Wrangler upload savings.
-
-## Reproduce and compare fairly
-
-For CI measurement, the Svelte workflow now has an optional manual `performance`
-boolean, defaulting to false. Selecting it runs only the performance job and
-disables production deployment even when the selected ref is `main`. Once the
-branch is available on GitHub, it can be selected in the workflow UI or with:
+From `site/`, keep normal font settings and use locked dependencies:
 
 ```sh
-gh workflow run svelte.yml --ref perf/build-performance -f performance=true
+WISCONSIN_BUILD_MODE=serial bun tooling/benchmark.ts build native-comparison
+WISCONSIN_BUILD_MODE=isolated-serial bun tooling/benchmark.ts build isolated-comparison
+WISCONSIN_BUILD_MODE=parallel bun tooling/benchmark.ts build parallel-comparison
+bun tooling/benchmark.ts dev dev-comparison
 ```
 
-The job reuses production checkout, runtime setup, dependency/compiler-cache
-restoration, R installation, and frozen dependencies. It records runtime
-diagnostics, then measures `ci-first` with fresh output and available restored
-compiler data, followed by `ci-warm` with retained cache/output. Cache misses or
-new compiler fingerprints can make the first build cold; build logs retain
-actual hit counts. The second measurement does not model deployment on a fresh
-runner. Each CI benchmark allows 1,200s for cold or mixed restores; the manual
-job is capped at 45 minutes. The local runner's default remains 300s.
-Whitelisted timing/runtime JSON appears in the job summary; generated
-private content and raw benchmark logs are not uploaded as artifacts. This
-manual path has been validated locally but has not been triggered remotely.
-After measurements and their summary, the job optionally encrypts and persists
-current compiler entries with the existing authenticated cache format. This
-lets a subsequent dispatch restore updated parser fingerprints on a fresh
-runner. Both persistence steps tolerate failures and add no deployment action;
-GitHub retains its normal branch-scoped cache access rules.
+For fair comparison, freeze the source/content/runtime pins, restore the same
+portable compiler seed, reset the same generated/Vite outputs and run trials
+serially. Ignored `build/benchmarks` holds timing JSON and private logs. Dev
+records Vite readiness and the first HTTP 200 with expected home-page HTML and
+terminates only its own process group. Local timeout is 300s; override
+`BENCHMARK_TIMEOUT_SECONDS` when appropriate. Actual Node version is separate
+from Bun's Node compatibility version.
 
-From `site/`, install locked dependencies and run:
+The optional manual workflow runs benchmarks only, with production/check jobs
+disabled. `build_mode` defaults to serial and affects only that job:
 
 ```sh
-bun tooling/benchmark.ts build comparison-build
-bun tooling/benchmark.ts dev comparison-dev
+gh workflow run svelte.yml --ref perf/build-performance -f performance=true -f build_mode=parallel
 ```
 
-Ignored `build/benchmarks/<label>.json` and `.log` retain results and full output.
-Use unique labels. Dev records Vite readiness and the first HTTP 200 containing
-the expected home-page HTML, uses a fresh port, and terminates only its own
-process group. Default timeout: 300s; override `BENCHMARK_TIMEOUT_SECONDS`.
-The runner distinguishes actual Node from Bun's Node compatibility version;
-older artifacts' `host.node` denotes compatibility, not the executable version.
+No remote dispatch has been performed. It reuses production recursive checkout,
+R/car setup and dependency/compiler restore, records actual runtimes/mode/font
+verification, then measures `ci-first` fresh output and `ci-warm` retained output.
+Cold/new compiler fingerprints can make the first slow; the second does not
+model a fresh deployment runner. Each allows 1,200s within a 45-minute job.
+Summary JSON is whitelisted; private body/logs/artifact paths are not uploaded.
+Optional authenticated cache save follows both measurements and summary, with
+normal branch-scoped access rules.
 
-Keep the complete recursively registered corpus and R availability equal across
-comparisons; distinguish cold caches, warm caches, and fresh generated outputs.
-Finish maintained-source edits before unchanged-asset comparisons because the
-application version hashes tooling. Run builds serially per checkout.
-
-CPU affinity can constrain a Linux comparison:
-
-```sh
-taskset -c 0-3 bun tooling/benchmark.ts build four-cpu-comparison
-```
-
-Choose allowed CPU IDs. Affinity does not match CPU speed, memory, disk, network,
-or runner provisioning. [Standard GitHub Ubuntu runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
-provide four CPUs for public repositories and two for private repositories.
-
-CI currently pins neither Node nor Bun; the measured latest CI used Bun 1.4.2,
-versus local 1.4.0. [Vite requires Node 20.19+ or 22.12+](https://vite.dev/guide/);
-[Node 24 is active LTS](https://github.com/nodejs/Release/blob/main/README.md) as of
-these experiments. A tested shared runtime policy through
-[setup-node](https://github.com/actions/setup-node) and explicit Bun selection
-would improve reproducibility; runtime migration is not part of this patch.
-Retain [frozen-lockfile installs](https://bun.com/docs/pm/cli/install), complete
-Git history, R fidelity, correct cold-cache fallback, and encrypted private
-content because [base-branch caches are readable by fork PRs](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
+Runtime pinning remains a separate tested migration: local uses Node 25.9.0/Bun
+1.4.0 while the historical latest CI used Bun 1.4.2 and unknown Node. The workflow
+now records actual runtimes. Retain
+[frozen-lockfile installs](https://bun.com/docs/pm/cli/install), complete Git
+history, R fidelity, cold/miss-safe caches and encryption because
+[base-branch caches can be read by fork PRs](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
 [Cloudflare already deduplicates unchanged assets](https://developers.cloudflare.com/workers/static-assets/direct-upload/).
-Remote deployment timing still needs direct validation.
+Direct remote measurements remain necessary to assess the deployment target.
