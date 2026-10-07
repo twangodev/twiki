@@ -31,6 +31,7 @@ export function content(): Plugin {
 			let closed = false;
 			let failure: Error | undefined;
 			let changedInputs = new Set<string>();
+			let forceRebuild = false;
 			let gitTopologyChanged = true;
 			const gitWatchers = new Map<
 				string,
@@ -41,11 +42,16 @@ export function content(): Plugin {
 				try {
 					const inputs = changedInputs;
 					changedInputs = new Set();
+					const reuse = !forceRebuild && !failure;
+					forceRebuild = false;
 					if (gitTopologyChanged) {
 						refreshGitWatchers();
 						gitTopologyChanged = false;
 					}
-					const changed = await prepareContent(false, inputs, true);
+					// Git can refresh an index or another worktree's ref without changing
+					// our inputs. Validate its snapshot; content events and failure
+					// recovery still force reconciliation.
+					const changed = await prepareContent(reuse, inputs, true);
 					const recovered = Boolean(failure);
 					failure = undefined;
 					if (!changed?.size && !recovered) return;
@@ -71,6 +77,7 @@ export function content(): Plugin {
 				} catch (error) {
 					failure = error instanceof Error ? error : new Error(String(error));
 					changedInputs.add(repo); // Recovery must reconcile every course after a partial failure.
+					forceRebuild = true;
 					gitTopologyChanged = true;
 					server.config.logger.error(failure.message);
 					server.ws.send({
@@ -80,7 +87,12 @@ export function content(): Plugin {
 				}
 			});
 			const rebuild = (file: string) => {
+				forceRebuild = true;
 				changedInputs.add(file);
+				queue.schedule();
+			};
+			const rebuildGit = (repository: string) => {
+				changedInputs.add(repository);
 				queue.schedule();
 			};
 			const changed = (event: string, file: string) => {
@@ -159,7 +171,7 @@ export function content(): Plugin {
 							const current = gitWatchers.get(directory);
 							if (closed || !current) return;
 							gitTopologyChanged = true;
-							for (const repository of current.repositories) rebuild(repository);
+							for (const repository of current.repositories) rebuildGit(repository);
 						}
 					);
 					if (!watcher) continue;
@@ -169,7 +181,7 @@ export function content(): Plugin {
 						gitWatchers.delete(directory);
 						if (closed) return;
 						gitTopologyChanged = true;
-						for (const repository of current?.repositories ?? []) rebuild(repository);
+						for (const repository of current?.repositories ?? []) rebuildGit(repository);
 					});
 					gitWatchers.set(directory, { ...entry, watcher });
 				}
