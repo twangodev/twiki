@@ -99,7 +99,8 @@ building. Renderer cache identity includes installed package/build inventory,
 resolved font metadata/bytes and active font configuration. Unverified font
 probes force cache misses while rendering continues. Parser policy is separated
 from renderer identity so changing renderer dependencies does not invalidate
-all parsed notes. Additional CI package-provisioning cost is not measured.
+all parsed notes. The first remote benchmark observed 35s combined R/knitr/car
+provisioning; the incremental cost of car alone remains unmeasured.
 
 ## Validation and development
 
@@ -114,6 +115,12 @@ Main's later `1910cfb` R-provisioning fix is also merged. Its application and
 build source matches `91bbf34`; the new real-R regressions passed 18 tests and
 82 assertions. The required complete build after this synchronization passed
 in 55.62s. These additional checks preserve the recorded measurement pins.
+
+Main `a919c51` is also merged, including its published STAT 324 pointer. Its
+1,655-page corpus passed the required complete parallel build in 80.70s. Both
+editions reused 1,651 parsed pages and parsed four; each rendered three cards.
+The course-wide worksheet inputs changed, so all ten R previews regenerated
+without fallback. This synchronization build is not a matched performance trial.
 
 The current unit run passed 238 tests/2,416 assertions across 51 files in 17.62s.
 Svelte reported zero errors/warnings and Worker TypeScript passed. Link checks
@@ -203,6 +210,38 @@ adapter-derived inventories, complete fingerprints and current static reassembly
 Required binaries remain part of deployment; product presence alone cannot
 verify publication policy.
 
+## Observed optimized GitHub CI
+
+[Run 37640282525, attempt 1](https://github.com/twangodev/wisconsin/actions/runs/37640282525)
+successfully tested serial source `70d7433` on a four-CPU AMD EPYC 9V74 runner
+with 16 GB RAM, Node 22.23.3, Bun 1.4.2, R 4.3.3, knitr 1.45 and car 3.1.2.
+Font identity verification passed. Only the performance job ran; checks,
+browser tests and deployment were skipped.
+
+| Measurement | Complete build wall time | Cache/output conditions                                |
+| ----------- | -----------------------: | ------------------------------------------------------ |
+| `ci-first`  |                  587.59s | Fresh output; new compiler fingerprints needed priming |
+| `ci-warm`   |                  176.27s | Same runner, retained compiler cache and output        |
+
+The first public edition parsed all 1,654 pages and rendered all 1,655 cards;
+the following full edition hit those caches and knitted ten worksheets. The
+retained-output build hit every page/card cache, knitted no worksheets, logged
+no R fallback, and reused 27 of 28 catalogs per edition. It does not represent
+a fresh deployment runner or establish a CI parallel speedup.
+
+Checkout took 40s, compiler decrypt/extract 22s, R provisioning 35s and locked
+installation 4s. The restored encrypted archive was 548,606,419 bytes; the
+selected-current archive saved afterward was 181,638,593 bytes and 21,975 files.
+Encryption took 14s and remote cache save 3s. These are observed steps with
+one-second timestamp resolution, not matched archive-size performance trials.
+The complete benchmark job took 904s and includes both builds and setup.
+[Sanitized remote evidence](../benchmarks/github-ci-results.json) preserves
+the exact source, runtime, stage counts, cache keys and timing scopes.
+
+Subsequent fresh-runner serial/parallel dispatches and a rerun returned HTTP 500. A branch-scoped push fallback primes current compiler fingerprints before
+sequential serial and parallel jobs. The matched remote comparison remains
+pending; no optimized Cloudflare deployment has been measured.
+
 ## Historical production CI baseline
 
 Five successful October 5–6, 2026 GitHub Actions runs observed a median 236s
@@ -219,7 +258,8 @@ Runs: [37396634943](https://github.com/twangodev/wisconsin/actions/runs/37396634
 [37347350802](https://github.com/twangodev/wisconsin/actions/runs/37347350802),
 [37255238239](https://github.com/twangodev/wisconsin/actions/runs/37255238239), and
 [37252406647](https://github.com/twangodev/wisconsin/actions/runs/37252406647).
-Optimized remote CI and deployment timings remain unmeasured.
+These production runs are not directly comparable to the benchmark-only job
+above, which performs two builds and includes cold fingerprint priming.
 
 ## Reproduction
 
@@ -247,7 +287,7 @@ disabled. `build_mode` defaults to serial and affects only that job:
 gh workflow run svelte.yml --ref perf/build-performance -f performance=true -f build_mode=parallel
 ```
 
-No remote dispatch has been performed. It reuses production recursive checkout,
+The serial dispatch above was performed. It reuses production recursive checkout,
 R/car setup and dependency/compiler restore, records actual runtimes/mode/font
 verification, then measures `ci-first` fresh output and `ci-warm` retained output.
 Cold/new compiler fingerprints can make the first slow; the second does not
@@ -255,6 +295,13 @@ model a fresh deployment runner. Each allows 1,200s within a 45-minute job.
 Summary JSON is whitelisted; private body/logs/artifact paths are not uploaded.
 Optional authenticated cache save follows both measurements and summary, with
 normal branch-scoped access rules.
+
+The temporary `Build performance` fallback runs only on pushes to
+`perf/build-performance` that change `.github/workflows/build-performance.yml`.
+It has no deployment job. A separate priming job saves current fingerprints;
+serial and parallel jobs then run sequentially with fresh checkouts/output and
+restored encrypted compiler data. Per-job cache keys prevent save collisions.
+Actual cache hits still determine whether a comparison is accepted.
 
 Runtime pinning remains a separate tested migration: local uses Node 25.9.0/Bun
 1.4.0 while the historical latest CI used Bun 1.4.2 and unknown Node. The workflow
