@@ -50,7 +50,7 @@ jobs:
         run: bun tooling/cache.ts restore
       - &install-r
         name: Install R worksheet renderer
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core r-cran-knitr
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core r-cran-knitr r-cran-car
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
       - name: Install Lychee 0.24.2

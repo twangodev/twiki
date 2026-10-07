@@ -29,7 +29,7 @@ function rVersion() {
 			[
 				'--vanilla',
 				'-e',
-				'cat(R.version.string); for (p in c("knitr", "evaluate", "highr", "xfun", "yaml")) cat(p, as.character(packageVersion(p)))'
+				'cat(R.version.string); for (p in c("knitr", "evaluate", "highr", "xfun", "yaml")) cat(p, as.character(packageVersion(p))); cat("car", if (requireNamespace("car", quietly = TRUE)) as.character(packageVersion("car")) else "missing")'
 			],
 			{ encoding: 'utf8', timeout: 30_000, stdio: 'pipe' }
 		));

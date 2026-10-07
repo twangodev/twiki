@@ -13,7 +13,8 @@ bun run dev
 ```
 
 Rendered worksheets need R and knitr; without them, source and interactive views
-remain available.
+remain available. CI also preinstalls `car`. Worksheet package-install calls reuse
+installed packages; missing dependencies must be installed before rendering.
 
 ## Checks
 

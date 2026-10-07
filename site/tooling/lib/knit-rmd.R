@@ -15,4 +15,15 @@ knit_hooks$set(plot = function(x, options) {
   paste0("\n\n![", caption, "](", x, ")\n\n")
 })
 set.seed(1)
-knit(input, output = output, envir = new.env(parent = globalenv()), quiet = TRUE)
+worksheet <- new.env(parent = globalenv())
+# Course files can contain setup instructions for students. During a build,
+# reuse provisioned packages instead of installing them from those instructions.
+worksheet$install.packages <- function(pkgs, ...) {
+  missing <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]
+  if (length(missing)) {
+    stop("Install required R packages before rendering worksheets: ",
+         paste(missing, collapse = ", "), call. = FALSE)
+  }
+  invisible(NULL)
+}
+knit(input, output = output, envir = worksheet, quiet = TRUE)

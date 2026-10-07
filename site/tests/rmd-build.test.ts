@@ -42,6 +42,9 @@ title: Rendered example
 \`\`\`{r setup, include=FALSE}
 knitr::opts_chunk$set(echo=TRUE, out.width="50%")
 hidden_setup_value <- 123
+install.packages("car", repos="https://invalid.example")
+library(car)
+stopifnot(is.function(qqPlot))
 \`\`\`
 
 \`\`\`{r data, echo=FALSE}
@@ -109,6 +112,13 @@ file.exists("private.csv")
 		expect(preview().html).toContain('Inline result: 10');
 		input('notes/values.csv', 'wrong_column\n2\n3\n');
 		await expect(render()).rejects.toThrow('Could not render test-course/notes/example.Rmd');
+		input(
+			'notes/example.Rmd',
+			'```{r}\ninstall.packages("wisconsin_missing_test_dependency", repos="https://invalid.example")\n```\n'
+		);
+		await expect(render()).rejects.toThrow(
+			'Install required R packages before rendering worksheets: wisconsin_missing_test_dependency'
+		);
 	} finally {
 		rmSync(site, { recursive: true, force: true });
 	}
