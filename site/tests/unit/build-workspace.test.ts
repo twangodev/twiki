@@ -94,6 +94,9 @@ test('Git snapshot captures maintained dirty/untracked source and env once, with
 	write(cache, 'course-files/course.json', 'absolute-path output stamps');
 	write(cache, 'file-history/course/current.json', 'live history');
 	write(cache, 'file-history/course/stale.json', 'old history');
+	write(cache, 'file-history/course/revisions-version-head.jsonl', 'history revision metadata');
+	write(cache, 'gitdates-v3-course-version-head.json', 'note dates');
+	write(cache, 'rmd/worksheet/result.json', 'cached worksheet');
 	write(site, 'build/generated/assets/_files/history/current.json', 'deployed history');
 	const workspaces = await createBuildWorkspaces(site, root);
 	try {
@@ -115,7 +118,8 @@ test('Git snapshot captures maintained dirty/untracked source and env once, with
 			])
 				expect(existsSync(path.join(snapshot, missing))).toBe(false);
 			expect(read(cacheOf(snapshot), parse)).toBe('live parse');
-			expect(read(cacheOf(snapshot), 'file-history/course/current.json')).toBe('live history');
+			expect(read(cacheOf(snapshot), 'gitdates-v3-course-version-head.json')).toBe('note dates');
+			expect(read(cacheOf(snapshot), 'rmd/worksheet/result.json')).toBe('cached worksheet');
 			for (const missing of [
 				staleParse,
 				'course-files/course.json',
@@ -132,6 +136,13 @@ test('Git snapshot captures maintained dirty/untracked source and env once, with
 				path.join(snapshot, 'node_modules/library/index.js')
 			);
 		}
+		expect(existsSync(path.join(cacheOf(workspaces.publicSite), 'file-history'))).toBe(false);
+		expect(read(cacheOf(workspaces.fullSite), 'file-history/course/current.json')).toBe(
+			'live history'
+		);
+		expect(
+			read(cacheOf(workspaces.fullSite), 'file-history/course/revisions-version-head.jsonl')
+		).toBe('history revision metadata');
 		const publicDependency = path.join(workspaces.publicSite, 'node_modules/library/index.js');
 		const fullDependency = path.join(workspaces.fullSite, 'node_modules/library/index.js');
 		expect(statSync(publicDependency).ino).not.toBe(statSync(fullDependency).ino);
@@ -189,11 +200,13 @@ test('cache-only restored runner seeds and merges current history without genera
 	expect(existsSync(path.join(site, 'build/generated/assets'))).toBe(false);
 	const workspaces = await createBuildWorkspaces(site, root);
 	try {
-		for (const snapshot of [workspaces.publicSite, workspaces.fullSite]) {
-			expect(read(cacheOf(snapshot), history)).toBe('current history');
-			expect(read(cacheOf(snapshot), blame)).toBe('current blame');
-			expect(existsSync(path.join(cacheOf(snapshot), stale))).toBe(false);
-		}
+		expect(existsSync(path.join(cacheOf(workspaces.publicSite), 'file-history'))).toBe(false);
+		expect(existsSync(path.join(cacheOf(workspaces.publicSite), 'history-current.json'))).toBe(
+			false
+		);
+		expect(read(cacheOf(workspaces.fullSite), history)).toBe('current history');
+		expect(read(cacheOf(workspaces.fullSite), blame)).toBe('current blame');
+		expect(existsSync(path.join(cacheOf(workspaces.fullSite), stale))).toBe(false);
 		write(cacheOf(workspaces.publicSite), 'history-current.json', []);
 		write(
 			cacheOf(workspaces.publicSite),
@@ -201,10 +214,12 @@ test('cache-only restored runner seeds and merges current history without genera
 			'public inherited history must not override full'
 		);
 		const target = cacheOf(workspaces.fullSite);
+		const historyInode = statSync(path.join(target, history)).ino;
 		mergeBuildCaches(workspaces.publicSite, workspaces.fullSite, target);
 		expect(JSON.parse(read(target, 'history-current.json'))).toEqual([blame, history].sort());
 		expect(read(target, history)).toBe('current history');
 		expect(read(target, blame)).toBe('current blame');
+		expect(statSync(path.join(target, history)).ino).toBe(historyInode);
 		expect(read(cache, history)).toBe('current history');
 	} finally {
 		workspaces.cleanup();
@@ -257,6 +272,8 @@ test('merged cache contains live parser union, each own-edition social manifest 
 	write(fullSite, 'build/generated/assets/_files/history/current.json', 'deployed history');
 	write(fullCache, 'gitdates-v3-course-version-head.json', 'full git dates');
 	write(publicCache, 'gitdates-v3-course-version-head.json', 'different public git dates');
+	const parserInode = statSync(path.join(fullCache, parse)).ino;
+	const cardInode = statSync(path.join(fullCache, fullCard)).ino;
 	const merged = mergeBuildCaches(publicSite, fullSite, fullCache);
 	expect(merged.files).toBe(10);
 	expect(JSON.parse(read(fullCache, 'stage1-current.json'))).toEqual([parse, otherParse]);
@@ -264,6 +281,8 @@ test('merged cache contains live parser union, each own-edition social manifest 
 	expect(JSON.parse(read(fullCache, 'social-titles-current-full.json'))).toEqual([fullCard]);
 	expect(read(fullCache, publicCard)).toBe('public image');
 	expect(read(fullCache, fullCard)).toBe('full image');
+	expect(statSync(path.join(fullCache, parse)).ino).toBe(parserInode);
+	expect(statSync(path.join(fullCache, fullCard)).ino).toBe(cardInode);
 	expect(read(fullCache, 'file-history/course/current.json')).toBe('full history');
 	expect(read(fullCache, 'file-history/course/revisions-version-head.jsonl')).toBe(
 		'full revision metadata'
@@ -272,6 +291,142 @@ test('merged cache contains live parser union, each own-edition social manifest 
 	for (const missing of [staleParse, 'course-files', 'file-history/course/stale.json'])
 		expect(existsSync(path.join(fullCache, missing))).toBe(false);
 	expect(read(publicCache, parse)).toBe('shared parser');
+});
+
+test('disposable full cache retains identical inherited public files and adds public-only entries without modifying either seed', () => {
+	const publicSite = fixture().site;
+	const fullSite = fixture().site;
+	const canonical = fixture().site;
+	const publicCache = manifests(publicSite, [otherParse], [publicCard]);
+	const fullCache = manifests(fullSite, [parse]);
+	write(publicCache, otherParse, 'public-only parser');
+	write(publicCache, publicCard, 'same inherited public image');
+	write(fullCache, publicCard, 'same inherited public image');
+	write(fullCache, parse, 'full parser');
+	write(fullCache, staleParse, 'unreferenced old parser');
+	write(cacheOf(canonical), 'sentinel', 'canonical compiler seed');
+	const inode = statSync(path.join(fullCache, publicCard)).ino;
+	mergeBuildCaches(publicSite, fullSite, fullCache);
+	expect(statSync(path.join(fullCache, publicCard)).ino).toBe(inode);
+	expect(read(fullCache, otherParse)).toBe('public-only parser');
+	expect(statSync(path.join(fullCache, otherParse)).ino).not.toBe(
+		statSync(path.join(publicCache, otherParse)).ino
+	);
+	expect(JSON.parse(read(fullCache, 'stage1-current.json'))).toEqual([parse, otherParse]);
+	expect(existsSync(path.join(fullCache, staleParse))).toBe(false);
+	expect(read(publicCache, otherParse)).toBe('public-only parser');
+	expect(read(cacheOf(canonical), 'sentinel')).toBe('canonical compiler seed');
+	expect(readdirSync(path.dirname(fullCache))).toEqual(['cache']);
+});
+
+test('immutable conflicts in a disposable full cache fail before replacing manifests or pruning seed entries', () => {
+	const publicSite = fixture().site;
+	const fullSite = fixture().site;
+	const publicCache = manifests(publicSite, [parse]);
+	const fullCache = manifests(fullSite, [parse]);
+	write(publicCache, parse, 'conflicting public parser');
+	write(fullCache, parse, 'full parser');
+	write(fullCache, staleParse, 'must survive failed merge');
+	const manifest = read(fullCache, 'stage1-current.json');
+	expect(() => mergeBuildCaches(publicSite, fullSite, fullCache)).toThrow('Conflicting immutable');
+	expect(read(fullCache, parse)).toBe('full parser');
+	expect(read(fullCache, staleParse)).toBe('must survive failed merge');
+	expect(read(fullCache, 'stage1-current.json')).toBe(manifest);
+});
+
+test('public addition cannot write through symlink directory ancestors in a disposable full cache', () => {
+	const publicSite = fixture().site;
+	const fullSite = fixture().site;
+	const outside = fixture().root;
+	const publicCache = manifests(publicSite, [], [publicCard]);
+	const fullCache = manifests(fullSite);
+	write(publicCache, publicCard, 'public image');
+	write(outside, path.basename(publicCard), 'outside bytes');
+	write(fullCache, staleParse, 'must survive refused merge');
+	symlinkSync(outside, path.join(fullCache, 'social-titles'));
+	expect(() => mergeBuildCaches(publicSite, fullSite, fullCache)).toThrow(
+		'owned directory ancestors'
+	);
+	expect(read(outside, path.basename(publicCard))).toBe('outside bytes');
+	expect(read(fullCache, staleParse)).toBe('must survive refused merge');
+	expect(readdirSync(path.dirname(fullCache))).toEqual(['cache']);
+});
+
+test('failed staging of a public addition preserves the disposable full cache and canonical previous output', () => {
+	const publicSite = fixture().site;
+	const fullSite = fixture().site;
+	const canonical = fixture().site;
+	const publicCache = manifests(publicSite, [otherParse]);
+	const fullCache = manifests(fullSite, [parse]);
+	write(publicCache, otherParse, 'public-only parser');
+	write(fullCache, parse, 'full parser');
+	write(fullCache, staleParse, 'must survive failed copy');
+	write(canonical, 'build/.svelte-kit/cloudflare/index.html', 'previous successful deployment');
+	const copy = fs.cpSync;
+	const injected = spyOn(fs, 'cpSync').mockImplementation((source, destination, options) => {
+		if (String(destination).includes('.cache-merge-'))
+			throw new Error('Injected staging copy failure');
+		return copy(source, destination, options);
+	});
+	try {
+		expect(() => mergeBuildCaches(publicSite, fullSite, fullCache)).toThrow(
+			'Injected staging copy failure'
+		);
+		expect(read(fullCache, parse)).toBe('full parser');
+		expect(read(fullCache, staleParse)).toBe('must survive failed copy');
+		expect(JSON.parse(read(fullCache, 'stage1-current.json'))).toEqual([parse]);
+		expect(existsSync(path.join(fullCache, otherParse))).toBe(false);
+		expect(read(canonical, 'build/.svelte-kit/cloudflare/index.html')).toBe(
+			'previous successful deployment'
+		);
+		expect(readdirSync(path.dirname(fullCache))).toEqual(['cache']);
+	} finally {
+		injected.mockRestore();
+	}
+});
+
+test('failure after an in-place replacement leaves canonical output and the public cache intact, then cleans the discarded workspace', async () => {
+	const { root, site } = fixture();
+	const canonicalCache = manifests(site, [parse]);
+	write(canonicalCache, parse, 'canonical parser seed');
+	write(site, 'build/.svelte-kit/cloudflare/index.html', 'previous successful deployment');
+	const workspace = await createBuildWorkspaces(site, root);
+	const publicCache = cacheOf(workspace.publicSite);
+	const fullCache = cacheOf(workspace.fullSite);
+	write(publicCache, 'stage1-current.json', [otherParse]);
+	write(publicCache, otherParse, 'public-only parser');
+	const rename = fs.renameSync;
+	const injected = spyOn(fs, 'renameSync').mockImplementation((source, destination) => {
+		if (
+			String(source).includes('.cache-merge-') &&
+			path.basename(String(source)) === 'stage1-current.json'
+		)
+			throw new Error('Injected in-place manifest rename failure');
+		return rename(source, destination);
+	});
+	try {
+		expect(() => mergeBuildCaches(workspace.publicSite, workspace.fullSite, fullCache)).toThrow(
+			'Injected in-place manifest rename failure'
+		);
+		// An earlier addition reached only the disposable full cache.
+		expect(read(fullCache, otherParse)).toBe('public-only parser');
+		expect(read(publicCache, otherParse)).toBe('public-only parser');
+		expect(JSON.parse(read(publicCache, 'stage1-current.json'))).toEqual([otherParse]);
+		expect(read(canonicalCache, parse)).toBe('canonical parser seed');
+		expect(JSON.parse(read(canonicalCache, 'stage1-current.json'))).toEqual([parse]);
+		expect(existsSync(path.join(canonicalCache, otherParse))).toBe(false);
+		expect(read(site, 'build/.svelte-kit/cloudflare/index.html')).toBe(
+			'previous successful deployment'
+		);
+		expect(readdirSync(path.dirname(fullCache))).toEqual(['cache']);
+	} finally {
+		injected.mockRestore();
+		workspace.cleanup();
+	}
+	expect(existsSync(workspace.directory)).toBe(false);
+	expect(read(site, 'build/.svelte-kit/cloudflare/index.html')).toBe(
+		'previous successful deployment'
+	);
 });
 
 test('conflicting immutable entries leave the target and both successful edition caches unchanged', () => {

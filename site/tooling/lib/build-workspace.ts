@@ -146,7 +146,14 @@ export async function createBuildWorkspaces(site: string, contentRepo: string) {
 			}
 		}
 		// Clone the captured tree, rather than rereading a potentially changing source inventory.
-		cpSync(fullSite, publicSite, copyOptions);
+		// Public course catalogs never build history. Git dates and worksheet caches
+		// remain shared inputs; private history is seeded only into the full edition.
+		const history = path.join(fullSite, 'build/generated/cache/file-history');
+		const historyManifest = path.join(fullSite, 'build/generated/cache/history-current.json');
+		cpSync(fullSite, publicSite, {
+			...copyOptions,
+			filter: (file) => file !== historyManifest && !within(history, file)
+		});
 		return {
 			directory,
 			publicSite,
@@ -186,6 +193,75 @@ function manifest(cache: string, name: string, pattern: RegExp): string[] | unde
 	} catch {
 		console.log(`No valid ${name}; omitting its entries from merged cache`);
 		return undefined;
+	}
+}
+
+/** Reuse an already disposable full cache; canonical promotion belongs to build assembly. */
+function reconcileFullCache(
+	cache: string,
+	entries: Map<string, string>,
+	manifests: Map<string, string[]>
+) {
+	if (realpathSync(cache) !== cache)
+		throw new Error('Disposable cache must not have symlink ancestors');
+	const wanted = new Set([...entries.keys(), ...manifests.keys()]);
+	const checked = new Set([cache]);
+	// A public-only addition must not write through an untrusted seeded directory.
+	for (const file of wanted) {
+		let directory = path.dirname(path.join(cache, file));
+		while (!checked.has(directory)) {
+			const info = lstatSync(directory, { throwIfNoEntry: false });
+			if (info && (!info.isDirectory() || realpathSync(directory) !== directory))
+				throw new Error('Disposable cache entry must have owned directory ancestors');
+			checked.add(directory);
+			directory = path.dirname(directory);
+		}
+	}
+	const transaction = mkdtempSync(path.join(path.dirname(cache), '.cache-merge-'));
+	try {
+		const replacements: string[] = [];
+		// Prepare every addition before mutating the disposable full cache. Retain
+		// existing identical files, including public cards inherited from the seed.
+		for (const [file, source] of entries) {
+			const target = path.join(cache, file);
+			if (
+				path.resolve(source) === target ||
+				(regular(cache, file) && readFileSync(source).equals(readFileSync(target)))
+			)
+				continue;
+			const staged = path.join(transaction, file);
+			mkdirSync(path.dirname(staged), { recursive: true });
+			cpSync(source, staged, copyOptions);
+			replacements.push(file);
+		}
+		for (const [name, files] of manifests) {
+			writeFileSync(path.join(transaction, name), JSON.stringify(files));
+			replacements.push(name);
+		}
+		for (const file of replacements) {
+			const target = path.join(cache, file);
+			mkdirSync(path.dirname(target), { recursive: true });
+			renameSync(path.join(transaction, file), target);
+		}
+		const retainedDirectories = new Set<string>();
+		for (const file of wanted) {
+			let directory = path.posix.dirname(file);
+			while (directory !== '.') {
+				retainedDirectories.add(directory);
+				directory = path.posix.dirname(directory);
+			}
+		}
+		function prune(directory: string) {
+			for (const entry of readdirSync(path.join(cache, directory), { withFileTypes: true })) {
+				const file = directory ? `${directory}/${entry.name}` : entry.name;
+				if (wanted.has(file)) continue;
+				if (entry.isDirectory() && retainedDirectories.has(file)) prune(file);
+				else rmSync(path.join(cache, file), { recursive: true, force: true });
+			}
+		}
+		prune('');
+	} finally {
+		rmSync(transaction, { recursive: true, force: true });
 	}
 }
 
@@ -262,6 +338,12 @@ export function mergeBuildCaches(publicSite: string, fullSite: string, targetCac
 	const existing = lstatSync(targetCache, { throwIfNoEntry: false });
 	if (existing && !existing.isDirectory())
 		throw new Error('Cache merge target must be an owned directory');
+	if (existing && targetCache === path.resolve(fullCache)) {
+		// This tree is discarded on any error and promoted only after both editions
+		// pass. Recopying all of its immutable files adds no canonical protection.
+		reconcileFullCache(targetCache, entries, manifests);
+		return { files: entries.size + manifests.size };
+	}
 	mkdirSync(path.dirname(targetCache), { recursive: true });
 	const transaction = mkdtempSync(path.join(path.dirname(targetCache), '.cache-merge-'));
 	const staged = path.join(transaction, 'cache');
