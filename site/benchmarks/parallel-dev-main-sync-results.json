@@ -1,0 +1,104 @@
+{
+	"schemaVersion": 1,
+	"source": {
+		"commit": "0b91a49fee2dda9c8f0bf54267306e92c58252a0",
+		"mergedMainCommit": "a919c51d1dd22bb7dcaf1b8df2ac1ba410cd3bad",
+		"STAT324Commit": "e96291da997f2ad95543819003392d332f26c850",
+		"trackedSiteClean": true
+	},
+	"conditions": {
+		"notes": 1655,
+		"RmdWorksheets": 10,
+		"RPreviewsAvailable": 10,
+		"edition": "full",
+		"FONTCONFIG_PATH": "unset",
+		"realRAvailable": true,
+		"RVersion": "4.5.0",
+		"knitrVersion": "1.50",
+		"carVersion": "3.1-3",
+		"installedRInventorySHA256": "e3f266df227322df3cd6df8acbe58df72c2e9af3c57d9d80679d02f5b3b70c16",
+		"installedRPackageCount": 148,
+		"RInventoryEncoding": "installed.packages sorted Package, Version, Built; rows joined by LF without final LF",
+		"RscriptWrapperSHA256": "f597fe1c75cc2c9343e069833c6cebfbd871273779d6dfca7349deb725ebd5b2",
+		"fontIdentity": "fontconfig-v1:c091400432145f88123d00f88923b432dd63d0b622e9dca026d017eb9032afe2",
+		"fontProbeVerified": true,
+		"firstStart": "after successful real-font R-enabled parallel public and full production gate",
+		"measurement": "serial local starts; exclusive local generated-output/server ownership; expected homepage HTML200 verified; server ports closed",
+		"externalGitHubRunUsesIndependentCPUs": true,
+		"benchmarkDriver": "maintained driver copied to temporary storage with only site/output-directory constants overridden"
+	},
+	"measurements": [
+		{
+			"label": "ci-phase-dev-after-build",
+			"recordedAt": "2026-10-07T15:24:58.132Z",
+			"seconds": 28.93,
+			"readySeconds": 23.38,
+			"firstHttp200Seconds": 28.7,
+			"exitCode": 0,
+			"exitSignal": null,
+			"success": true,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.0",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v25.9.0",
+				"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+				"availableCpus": 48,
+				"memoryBytes": 134389583872
+			},
+			"snapshotReuseCount": 0,
+			"contentPipelineRuns": 1,
+			"serverPortClosed": true,
+			"parserCacheHits": 1655,
+			"pagesParsed": 0,
+			"RPreviewCacheHits": 10
+		},
+		{
+			"label": "ci-phase-dev-warm-1",
+			"recordedAt": "2026-10-07T15:25:25.263Z",
+			"seconds": 8.63,
+			"readySeconds": 2.53,
+			"firstHttp200Seconds": 8.53,
+			"exitCode": 0,
+			"exitSignal": null,
+			"success": true,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.0",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v25.9.0",
+				"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+				"availableCpus": 48,
+				"memoryBytes": 134389583872
+			},
+			"snapshotReuseCount": 1,
+			"contentPipelineRuns": 0,
+			"serverPortClosed": true
+		},
+		{
+			"label": "ci-phase-dev-warm-2",
+			"recordedAt": "2026-10-07T15:25:59.583Z",
+			"seconds": 8.27,
+			"readySeconds": 2.5,
+			"firstHttp200Seconds": 8.16,
+			"exitCode": 0,
+			"exitSignal": null,
+			"success": true,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.0",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v25.9.0",
+				"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+				"availableCpus": 48,
+				"memoryBytes": 134389583872
+			},
+			"snapshotReuseCount": 1,
+			"contentPipelineRuns": 0,
+			"serverPortClosed": true
+		}
+	]
+}

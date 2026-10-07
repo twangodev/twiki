@@ -1,4 +1,4 @@
-# Benchmark-only push fallback while Actions dispatch and rerun APIs return HTTP 500.
+# Controlled single-runner experiment: no Cloudflare deployment or artifact upload.
 name: Build performance
 on:
   push:
@@ -14,141 +14,101 @@ concurrency:
 env:
   FORCE_COLOR: "3"
 jobs:
-  prime:
+  controlled:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    defaults: &site-run-defaults
+    defaults:
       run:
         working-directory: site
     env:
       BENCHMARK_TIMEOUT_SECONDS: "1200"
-      WISCONSIN_BUILD_MODE: serial
+      HAS_ENCRYPTED_CACHE_KEY: ${{ secrets.BUILD_CACHE_KEY != '' }}
     steps:
-      - &configure-submodules
-        run: git config --global submodule.fetchJobs 8
+      - run: git config --global submodule.fetchJobs 8
         working-directory: ${{ github.workspace }}
-      - &checkout-content
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           submodules: recursive
           token: ${{ secrets.PAT_TOKEN }}
-      - &setup-bun
-        uses: oven-sh/setup-bun@v2
-      - &bun-cache
-        uses: actions/cache@v6
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
-      - &restore-compiler-cache
-        uses: actions/cache/restore@v6
+      # Optional warm starting point only. Prime below resolves all current fingerprints.
+      # Only the encrypted archive can enter Actions cache; no plaintext seed/log upload.
+      - uses: actions/cache/restore@v6
+        if: env.HAS_ENCRYPTED_CACHE_KEY == 'true'
         id: compiler-cache
         with:
           path: site/build/generated/compiler-cache.gpg
-          key: compiler-encrypted-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          key: compiler-encrypted-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}-controlled
           restore-keys: compiler-encrypted-v2-${{ runner.os }}-${{ runner.arch }}-
-      - &decrypt-compiler-cache
-        name: Decrypt compiler cache
-        env: &cache-encryption
+      - name: Restore optional encrypted compiler cache
+        if: env.HAS_ENCRYPTED_CACHE_KEY == 'true' && steps.compiler-cache.outputs.cache-matched-key != ''
+        env:
           BUILD_CACHE_KEY: ${{ secrets.BUILD_CACHE_KEY }}
         run: bun tooling/cache.ts restore
-      - &install-r
-        name: Install R worksheet renderer
+      - name: Install R worksheet renderer
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core r-cran-knitr r-cran-car
-      - &install-dependencies
-        run: bun install --frozen-lockfile
-      - &record-build-runtimes
-        name: Record build runtimes
+      - run: bun install --frozen-lockfile
+      - name: Record common runtime and font identity
         run: |
-          node --input-type=module -e 'import { availableParallelism } from "node:os"; console.log(JSON.stringify({ node: process.version, availableCpus: availableParallelism(), platform: process.platform, architecture: process.arch }));'
-          bun -e 'console.log("Bun: " + Bun.version)'
+          node --input-type=module -e 'import { availableParallelism, cpus, totalmem } from "node:os"; console.log(JSON.stringify({ node: process.version, availableCpus: availableParallelism(), cpu: cpus()[0]?.model, memoryBytes: totalmem(), platform: process.platform, architecture: process.arch }));'
           Rscript --vanilla -e 'cat("R: ", R.version.string, "\nknitr: ", as.character(packageVersion("knitr")), "\ncar: ", as.character(packageVersion("car")), "\n", sep = "")'
-      - &record-build-mode
-        name: Record benchmark build mode
-        run: |
           bun -e '
+            import { writeFileSync } from "node:fs";
             import { rFontIdentity } from "./tooling/lib/r-runtime.ts";
-            const buildMode = process.env.WISCONSIN_BUILD_MODE;
-            if (!["serial", "parallel", "isolated-serial"].includes(buildMode)) throw new Error("Unsupported benchmark build mode");
             const probeStarted = performance.now();
             const fontIdentity = rFontIdentity();
-            const fontIdentityVerified = /^fontconfig-v1:[a-f0-9]{64}$/.test(fontIdentity);
             const probeMilliseconds = Math.round(performance.now() - probeStarted);
-            console.log(JSON.stringify({ buildMode, fontIdentityVerified, probeMilliseconds }));
+            if (!/^fontconfig-v1:[a-f0-9]{64}$/.test(fontIdentity)) throw new Error("Font identity could not be verified");
+            const runtime = { bun: Bun.version, fontIdentity, fontIdentityVerified: true, probeMilliseconds };
+            writeFileSync(`${process.env.RUNNER_TEMP}/wisconsin-controlled-runtime.json`, JSON.stringify(runtime));
+            console.log(JSON.stringify(runtime));
           '
-      - name: Prime compiler cache for the current source and content
-        run: bun tooling/benchmark.ts build ci-prime
-      - name: Summarize benchmark measurements
+      - name: Prime all current source, content and renderer fingerprints
+        env:
+          WISCONSIN_BUILD_MODE: serial
+        run: bun tooling/benchmark.ts build ci-controlled-prime
+      - name: Capture one selected compiler seed
+        run: bun benchmarks/scripts/controlled-reset.ts capture --site "$GITHUB_WORKSPACE/site" --state-file "$RUNNER_TEMP/wisconsin-controlled-state.json"
+      - name: Native serial from the common seed and fresh output
+        env:
+          WISCONSIN_BUILD_MODE: serial
+        run: |
+          bun benchmarks/scripts/controlled-reset.ts reset --site "$GITHUB_WORKSPACE/site" --state-file "$RUNNER_TEMP/wisconsin-controlled-state.json"
+          bun tooling/benchmark.ts build ci-controlled-serial
+      - name: Parallel from the same seed and fresh output
+        env:
+          WISCONSIN_BUILD_MODE: parallel
+        run: |
+          bun benchmarks/scripts/controlled-reset.ts reset --site "$GITHUB_WORKSPACE/site" --state-file "$RUNNER_TEMP/wisconsin-controlled-state.json"
+          bun tooling/benchmark.ts build ci-controlled-parallel
+      - name: Summarize controlled measurements
         if: always()
         run: |
           bun -e '
             import { appendFileSync, existsSync, readFileSync } from "node:fs";
-            for (const label of ["ci-prime"]) {
+            const runtimeFile = `${process.env.RUNNER_TEMP}/wisconsin-controlled-runtime.json`;
+            const runtime = existsSync(runtimeFile) ? JSON.parse(readFileSync(runtimeFile, "utf8")) : {};
+            for (const [label, buildMode] of [["ci-controlled-prime", "serial"], ["ci-controlled-serial", "serial"], ["ci-controlled-parallel", "parallel"]]) {
               const file = `build/benchmarks/${label}.json`;
               if (!existsSync(file)) continue;
               const { success, seconds, exitCode, exitSignal, host } = JSON.parse(readFileSync(file, "utf8"));
-              const result = { success, seconds, exitCode, exitSignal, host, buildMode: process.env.WISCONSIN_BUILD_MODE };
+              const log = readFileSync(`build/benchmarks/${label}.log`, "utf8");
+              const match = log.match(/^build: metrics (.+)$/m);
+              const metrics = match ? JSON.parse(match[1]) : {};
+              const phases = Object.fromEntries(Object.entries(metrics).filter(([key, value]) => key.endsWith("Seconds") && typeof value === "number"));
+              const result = { success, seconds, exitCode, exitSignal, host, buildMode, ...runtime, phases, conditions: "One runner, one captured compiler seed; fresh output before both measured builds. Common reset untimed; required isolation setup/merge/assembly/cleanup timed inside parallel." };
               appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### ${label}\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n\n`);
             }
           '
-      - &encrypt-compiler-cache
-        name: Encrypt compiler cache
-        id: encrypted-cache
-        continue-on-error: true
-        env: *cache-encryption
-        run: bun tooling/cache.ts save
-      - &save-compiler-cache
-        uses: actions/cache/save@v6
-        if: steps.encrypted-cache.outputs.ready == 'true'
-        continue-on-error: true
-        with:
-          path: site/build/generated/compiler-cache.gpg
-          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
-  serial:
-    needs: prime
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    defaults: *site-run-defaults
-    env:
-      BENCHMARK_TIMEOUT_SECONDS: "1200"
-      WISCONSIN_BUILD_MODE: serial
-    steps: &benchmark-edition-steps
-      - *configure-submodules
-      - *checkout-content
-      - *setup-bun
-      - *bun-cache
-      - *restore-compiler-cache
-      - *decrypt-compiler-cache
-      - *install-r
-      - *install-dependencies
-      - *record-build-runtimes
-      - *record-build-mode
-      - name: Benchmark restored compiler cache with fresh output
-        run: bun tooling/benchmark.ts build ci-first
-      - name: Benchmark retained compiler cache and output
-        run: bun tooling/benchmark.ts build ci-warm
-      - name: Summarize benchmark measurements
+      - name: Remove the private plaintext seed
         if: always()
         run: |
-          bun -e '
-            import { appendFileSync, existsSync, readFileSync } from "node:fs";
-            for (const label of ["ci-first", "ci-warm"]) {
-              const file = `build/benchmarks/${label}.json`;
-              if (!existsSync(file)) continue;
-              const { success, seconds, exitCode, exitSignal, host } = JSON.parse(readFileSync(file, "utf8"));
-              const result = { success, seconds, exitCode, exitSignal, host, buildMode: process.env.WISCONSIN_BUILD_MODE };
-              appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### ${label}\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n\n`);
-            }
-          '
-      - *encrypt-compiler-cache
-      - *save-compiler-cache
-  parallel:
-    needs: serial
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    defaults: *site-run-defaults
-    env:
-      BENCHMARK_TIMEOUT_SECONDS: "1200"
-      WISCONSIN_BUILD_MODE: parallel
-    steps: *benchmark-edition-steps
+          if [ -f "$RUNNER_TEMP/wisconsin-controlled-state.json" ]; then
+            bun benchmarks/scripts/controlled-reset.ts cleanup --site "$GITHUB_WORKSPACE/site" --state-file "$RUNNER_TEMP/wisconsin-controlled-state.json"
+          fi

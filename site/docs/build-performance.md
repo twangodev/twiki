@@ -122,6 +122,21 @@ editions reused 1,651 parsed pages and parsed four; each rendered three cards.
 The course-wide worksheet inputs changed, so all ten R previews regenerated
 without fallback. This synchronization build is not a matched performance trial.
 
+Local development was rechecked at `0b91a49` with the same current-main corpus:
+
+| Startup     | Vite ready | Expected homepage served |
+| ----------- | ---------: | -----------------------: |
+| After build |     23.38s |                   28.70s |
+| Warm 1      |      2.53s |                    8.53s |
+| Warm 2      |      2.50s |                    8.16s |
+
+The first start reused all 1,655 parsed pages and ten R previews. Both warm
+starts reused the saved snapshot without running the content pipeline. Fonts
+were verified and every owned server/port was stopped. These are local
+Threadripper measurements, separate from the GitHub CI runner.
+[Current-main development evidence](../benchmarks/parallel-dev-main-sync-results.json)
+preserves the exact source, runtime and measurement conditions.
+
 The current unit run passed 238 tests/2,416 assertions across 51 files in 17.62s.
 Svelte reported zero errors/warnings and Worker TypeScript passed. Link checks
 covered 1,667 Markdown/Rmd files and 15,729 local targets with zero errors.
@@ -238,9 +253,45 @@ The complete benchmark job took 904s and includes both builds and setup.
 [Sanitized remote evidence](../benchmarks/github-ci-results.json) preserves
 the exact source, runtime, stage counts, cache keys and timing scopes.
 
-Subsequent fresh-runner serial/parallel dispatches and a rerun returned HTTP 500. A branch-scoped push fallback primes current compiler fingerprints before
-sequential serial and parallel jobs. The matched remote comparison remains
-pending; no optimized Cloudflare deployment has been measured.
+Subsequent dispatches and a rerun returned HTTP 500, so a branch-scoped push
+fallback completed [run 37643009989](https://github.com/twangodev/wisconsin/actions/runs/37643009989)
+at `0b91a49`, including main `a919c51` and its 1,655-page corpus. All three
+benchmark jobs passed; no deployment job ran.
+
+| Mode     | Fresh-runner output | Retained canonical output | Runner CPU model |
+| -------- | ------------------: | ------------------------: | ---------------- |
+| Serial   |             165.83s |                   178.42s | AMD EPYC 7763    |
+| Parallel |             175.33s |                   212.24s | AMD EPYC 9V74    |
+
+Both measured jobs had four CPUs, about 16 GB RAM and matching software
+versions. Every edition hit all 1,655 parsed pages and 1,656 social cards,
+knitted no worksheets and logged no R fallback. Both fresh-runner measurements
+regenerated 28 catalogs. Native retained output reused 27 catalogs; isolated
+parallel children always start with fresh output and regenerated all 28.
+
+The first parallel command spent 16.46s on setup, 131.14s in overlapping child
+builds, 0.21s validating invariants, 9.29s merging caches, 3.06s assembling output
+and 15.15s cleaning up. Its retained-output repeat spent 28.19s on setup and
+24.24s assembling output. These actual CI overheads are much larger than local
+measurements. Child public/full durations were 57.48s/131.13s; they overlap.
+
+Parallel did not beat serial in these observations, and the different CPU
+models prevent a controlled speedup claim. The earlier priming job used a third
+model, EPYC 9V45. Serial remains the production default. GitHub's live step
+status lagged completed log timestamps; the benchmark JSON and final completed
+metadata are the recorded timing authorities.
+
+A follow-up places priming and both measurements on one runner. It captures
+one private compiler seed, verifies its complete content digest and restores it
+before each fresh-output measurement. Common seed capture/reset is untimed;
+all required parallel setup, merging, assembly and cleanup remain timed. The
+guarded reset preserves maintained files and rejects redirected paths or an
+altered seed before deleting generated output. Eight temporary fixture checks
+passed. Fixed serial-then-parallel order still leaves normal timing variation.
+The required local complete build before this experiment passed in 57.57s,
+with no new R knitting or fallback; helper TypeScript and workflow guards passed.
+That controlled remote comparison is pending; optimized Cloudflare deployment
+remains unmeasured.
 
 ## Historical production CI baseline
 
@@ -298,10 +349,13 @@ normal branch-scoped access rules.
 
 The temporary `Build performance` fallback runs only on pushes to
 `perf/build-performance` that change `.github/workflows/build-performance.yml`.
-It has no deployment job. A separate priming job saves current fingerprints;
-serial and parallel jobs then run sequentially with fresh checkouts/output and
-restored encrypted compiler data. Per-job cache keys prevent save collisions.
-Actual cache hits still determine whether a comparison is accepted.
+It has no deployment job. Its first revision used separate priming, serial and
+parallel jobs with distinct cache-save keys. The current controlled revision
+uses one runner and one captured compiler seed, then resets generated output
+before each explicitly selected mode. A private plaintext seed is removed at
+the end; only the existing encrypted archive can be restored from Actions
+cache. Summary data contains numeric timings, runtime/font identity and host
+metadata. Actual cache hits still determine whether a comparison is accepted.
 
 Runtime pinning remains a separate tested migration: local uses Node 25.9.0/Bun
 1.4.0 while the historical latest CI used Bun 1.4.2 and unknown Node. The workflow
