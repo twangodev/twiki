@@ -1,4 +1,5 @@
 # Controlled single-runner experiment: no Cloudflare deployment or artifact upload.
+# Recheck reduced isolated cache copies; production prerender concurrency stays 1.
 name: Build performance
 on:
   push:

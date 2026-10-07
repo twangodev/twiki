@@ -281,17 +281,76 @@ model, EPYC 9V45. Serial remains the production default. GitHub's live step
 status lagged completed log timestamps; the benchmark JSON and final completed
 metadata are the recorded timing authorities.
 
-A follow-up places priming and both measurements on one runner. It captures
-one private compiler seed, verifies its complete content digest and restores it
-before each fresh-output measurement. Common seed capture/reset is untimed;
-all required parallel setup, merging, assembly and cleanup remain timed. The
-guarded reset preserves maintained files and rejects redirected paths or an
-altered seed before deleting generated output. Eight temporary fixture checks
-passed. Fixed serial-then-parallel order still leaves normal timing variation.
-The required local complete build before this experiment passed in 57.57s,
-with no new R knitting or fallback; helper TypeScript and workflow guards passed.
-That controlled remote comparison is pending; optimized Cloudflare deployment
-remains unmeasured.
+The controlled [run 37647014646](https://github.com/twangodev/wisconsin/actions/runs/37647014646)
+completed at `aca711e` on one four-CPU EPYC 9V74 runner with about 16 GB RAM.
+It captured one private compiler seed and verified identical selection/content
+digests before restoring it for each fresh-output measurement: 22,086 files and
+666,145,924 uncompressed bytes. Software versions and verified font identity
+matched. Common seed capture/reset remained untimed; required parallel setup,
+merging, assembly and cleanup remained inside the complete command timer.
+
+| Controlled mode | Complete build wall time |
+| --------------- | -----------------------: |
+| Native serial   |                  170.59s |
+| Parallel        |                  214.05s |
+
+Parallel was **43.46s (25.48%) slower** in this trial. All editions reused all
+1,655 parsed pages and 1,656 cards, regenerated 28 catalogs, knitted no new
+worksheets and logged no R fallback. Parallel spent 19.55s on setup, 162.55s
+in overlapping children, 0.19s on validation, 11.99s merging caches, 3.78s
+assembling output and 15.96s cleaning up. Its 51.46s outside the child span
+exceeded the approximately 8s saved by overlap; the full child also slowed
+from 121.99s in native serial to 162.55s under concurrent load. Serial remains
+the production default. This is one point per mode with fixed order, not a
+confidence interval or a measurement of Cloudflare deployment.
+
+The guarded reset preserves maintained files and rejects redirected paths or
+altered seed bytes before deleting generated output. Eight temporary fixture
+checks passed; seed cleanup succeeded remotely. The required local complete
+build before this controlled experiment passed in 57.57s. Sanitized evidence
+preserves all three completed remote runs and their separate measurement pins.
+
+## Subsequent experiments
+
+`7471360` skips unused private-history cache entries when cloning the public
+workspace and reconciles directly into the disposable full cache, retaining
+existing immutable files instead of recopying them. It validates every selected
+manifest, complete R record and immutable collision before mutation, stages
+public additions, rejects directory symlinks and prunes stale entries.
+Canonical promotion and rollback remain unchanged. An independent review and
+36 focused tests with 274 assertions passed, including staging/rename failure,
+seed isolation, inode retention and collision refusal. Strict TypeScript passed.
+
+The real-R complete build passed in 61.70s with 0.55s cache reconciliation;
+all 1,655 parser and 1,656 card entries hit in both editions and no worksheets
+knitted or fell back. Earlier retained-source reconciliation took 2.01s locally,
+but these gates used different source versions and uncontrolled conditions;
+**there is no fair before/after wall-time speedup claim**. The new cache cuts
+still need their controlled GitHub comparison. After reverting the temporary
+prerender experiment, the final retained-source complete build passed in 55.78s
+with every parser/card hit and no new R knitting or fallback.
+[Cache validation evidence](../benchmarks/isolated-cache-cuts-validation.json)
+records the exact local phase and corpus checks.
+
+A separate temporary experiment tried prerender concurrency 1 then 4 with the
+same private compiler seed and fresh output under four-CPU workstation affinity.
+Concurrency 1 passed in 68.00s. Concurrency 4 failed after 16.03s: installed
+SvelteKit 2.65 shared relative-path state across overlapping renders and emitted
+a JavaScript entry URL that returned 404. The adapter's initialization was
+serialized for this experiment, so the failure was independent of duplicate
+emulator startup. Higher concurrency is rejected; no error checks were relaxed.
+The temporary helper/test changes were reverted and concurrency remains 1.
+
+A recovery at concurrency 1 passed in 64.36s and passed strict output parity:
+1,655 PageDocs, 616 immutable assets, ten R previews and all 84 referenced
+preview blobs remained valid, with no missing public route/allowlist targets.
+Only Pagefind artifacts and the generated timestamp were allowed to differ.
+The recovery used a recaptured current seed whose file/byte counts matched but
+whose inventory/content digests differed, so it is correctness evidence, not
+a matched timing control or an accepted speed comparison.
+[Rejected concurrency experiment](../benchmarks/prerender-concurrency-results.json)
+records the temporary source digest, controls, failure and recovery limits.
+Optimized Cloudflare deployment remains unmeasured.
 
 ## Historical production CI baseline
 

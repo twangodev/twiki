@@ -1,0 +1,250 @@
+{
+	"kind": "Cache optimization validation from retained child logs; phase descriptives only",
+	"optimizationCommittedAs": "747136011a18b1cb6adad22aa17145cf556d3435",
+	"priorGate": {
+		"mode": "parallel",
+		"phases": {
+			"setupSeconds": 4.237893672999999,
+			"publicSeconds": 20.628171306,
+			"fullSeconds": 48.24504701,
+			"buildSpanSeconds": 48.247575846,
+			"validationSeconds": 0.08468665899999905,
+			"cacheMergeSeconds": 2.0142557640000014,
+			"assemblySeconds": 1.9133185040000025,
+			"cleanupSeconds": 1.0708299310000002,
+			"totalSeconds": 57.568619854999994
+		},
+		"editions": {
+			"public": {
+				"parser": {
+					"pages": 1655,
+					"milliseconds": 2565,
+					"cached": 1655,
+					"parsed": 0
+				},
+				"socialCards": {
+					"cards": 1656,
+					"rendered": 0,
+					"cached": 1656
+				},
+				"catalogs": {
+					"trackedFiles": 10983,
+					"changedCourses": 28,
+					"reusedCourses": 0
+				},
+				"emitted": {
+					"pages": 115,
+					"drafts": 0,
+					"assets": 22,
+					"images": 22,
+					"pdfs": 0,
+					"html": 0,
+					"dropped": 1,
+					"tags": 250,
+					"folders": 464
+				},
+				"worksheetKnitsLogged": 0,
+				"worksheetFallbackLogged": false,
+				"history": null
+			},
+			"full": {
+				"parser": {
+					"pages": 1655,
+					"milliseconds": 2526,
+					"cached": 1655,
+					"parsed": 0
+				},
+				"socialCards": {
+					"cards": 1656,
+					"rendered": 0,
+					"cached": 1656
+				},
+				"catalogs": {
+					"trackedFiles": 10983,
+					"changedCourses": 28,
+					"reusedCourses": 0
+				},
+				"emitted": {
+					"pages": 1655,
+					"drafts": 0,
+					"assets": 7102,
+					"images": 7021,
+					"pdfs": 60,
+					"html": 21,
+					"dropped": 2228,
+					"tags": 250,
+					"folders": 464
+				},
+				"worksheetKnitsLogged": 0,
+				"worksheetFallbackLogged": false,
+				"history": {
+					"courses": 28,
+					"workers": 8,
+					"seconds": 2.1
+				}
+			}
+		},
+		"publication": {
+			"publicPages": 2094,
+			"fileRoutes": 11877
+		}
+	},
+	"cacheCutsGate": {
+		"mode": "parallel",
+		"phases": {
+			"setupSeconds": 3.96249172,
+			"publicSeconds": 23.139919102,
+			"fullSeconds": 54.28358015,
+			"buildSpanSeconds": 54.286049015,
+			"validationSeconds": 0.09206248599999527,
+			"cacheMergeSeconds": 0.5541100460000016,
+			"assemblySeconds": 1.8499298249999994,
+			"cleanupSeconds": 0.9314702749999997,
+			"totalSeconds": 61.676175019
+		},
+		"editions": {
+			"public": {
+				"parser": {
+					"pages": 1655,
+					"milliseconds": 2953,
+					"cached": 1655,
+					"parsed": 0
+				},
+				"socialCards": {
+					"cards": 1656,
+					"rendered": 0,
+					"cached": 1656
+				},
+				"catalogs": {
+					"trackedFiles": 10983,
+					"changedCourses": 28,
+					"reusedCourses": 0
+				},
+				"emitted": {
+					"pages": 115,
+					"drafts": 0,
+					"assets": 22,
+					"images": 22,
+					"pdfs": 0,
+					"html": 0,
+					"dropped": 1,
+					"tags": 250,
+					"folders": 464
+				},
+				"worksheetKnitsLogged": 0,
+				"worksheetFallbackLogged": false,
+				"history": null
+			},
+			"full": {
+				"parser": {
+					"pages": 1655,
+					"milliseconds": 2881,
+					"cached": 1655,
+					"parsed": 0
+				},
+				"socialCards": {
+					"cards": 1656,
+					"rendered": 0,
+					"cached": 1656
+				},
+				"catalogs": {
+					"trackedFiles": 10983,
+					"changedCourses": 28,
+					"reusedCourses": 0
+				},
+				"emitted": {
+					"pages": 1655,
+					"drafts": 0,
+					"assets": 7102,
+					"images": 7021,
+					"pdfs": 60,
+					"html": 21,
+					"dropped": 2228,
+					"tags": 250,
+					"folders": 464
+				},
+				"worksheetKnitsLogged": 0,
+				"worksheetFallbackLogged": false,
+				"history": {
+					"courses": 28,
+					"workers": 8,
+					"seconds": 0.82
+				}
+			}
+		},
+		"publication": {
+			"publicPages": 2094,
+			"fileRoutes": 11877
+		}
+	},
+	"limitations": [
+		"Different application source versions and uncontrolled run conditions; no wall-time speedup claim.",
+		"Counts and zero worksheet knit/fallback logs verified in both retained edition logs.",
+		"Canonical output was reset for subsequent trials; preview/blob integrity verification deferred to retained per-trial snapshots. No current filesystem counts asserted here.",
+		"No rebuilds, artifact hashing, Cloudflare deployment, upload timing or real-CI optimization result measured here."
+	],
+	"retainedSourceCommit": "747136011a18b1cb6adad22aa17145cf556d3435",
+	"validationOnly": true,
+	"finalRetainedSourceGate": {
+		"success": true,
+		"wallSeconds": 55.782843980006874,
+		"sourceCommit": "747136011a18b1cb6adad22aa17145cf556d3435",
+		"phases": {
+			"setupSeconds": 3.94145262,
+			"publicSeconds": 20.061577849000003,
+			"fullSeconds": 48.147600192000006,
+			"buildSpanSeconds": 48.15016390299999,
+			"validationSeconds": 0.09018062400000053,
+			"cacheMergeSeconds": 0.5201664439999949,
+			"assemblySeconds": 2.113872417999999,
+			"cleanupSeconds": 0.9439445489999998,
+			"totalSeconds": 55.759840817
+		},
+		"experimentalHelperReverted": true,
+		"prerenderConcurrency": 1,
+		"editions": {
+			"public": {
+				"pages": 1655,
+				"parserHits": 1655,
+				"parserMisses": 0,
+				"cards": 1656,
+				"cardsRendered": 0,
+				"cardHits": 1656,
+				"rKnits": 0,
+				"rFallback": false
+			},
+			"full": {
+				"pages": 1655,
+				"parserHits": 1655,
+				"parserMisses": 0,
+				"cards": 1656,
+				"cardsRendered": 0,
+				"cardHits": 1656,
+				"rKnits": 0,
+				"rFallback": false
+			}
+		},
+		"outputIntegrity": {
+			"counts": {
+				"applicationCatalogs": 3,
+				"applicationVersions": 2,
+				"cloudflareAssets": 64860,
+				"contentMetadata": 3,
+				"fullFileCatalogs": 28,
+				"immutableAssets": 616,
+				"pages": 1655,
+				"publicSourceAssets": 2507,
+				"publication": 2,
+				"stage1Seeds": 1656
+			},
+			"assetBytes": 2163406137,
+			"rPreviews": 10,
+			"uniqueRPreviewBlobs": 84,
+			"missingRPreviews": 0,
+			"missingRPreviewBlobs": 0,
+			"missingPublicRouteTargets": 0,
+			"missingPublicAliasTargets": 0,
+			"publicCompiledSourceAssetsPreservedExactly": true
+		}
+	}
+}
