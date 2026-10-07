@@ -2,6 +2,7 @@
 	"kind": "Sanitized benchmark-only CI measurements",
 	"sourceCommits": [
 		"0b91a49fee2dda9c8f0bf54267306e92c58252a0",
+		"52404e9f25f40505c646b7db73bfe336d0895eb1",
 		"70d7433f0dcbf2ab66abccef73d5ac644f1abcfc",
 		"aca711e5d3890af777d61c206bb77eeb86103cce"
 	],
@@ -2263,6 +2264,625 @@
 					}
 				}
 			}
+		},
+		{
+			"runId": 37649521123,
+			"sourceCommit": "52404e9f25f40505c646b7db73bfe336d0895eb1",
+			"event": "push",
+			"status": "completed",
+			"conclusion": "success",
+			"url": "https://github.com/twangodev/wisconsin/actions/runs/37649521123",
+			"runAttempt": 1,
+			"sourceBranch": "perf/build-performance",
+			"limitations": [
+				"ci-prime intentionally populates compiler entries for current source and content; it is excluded from mode comparisons.",
+				"ci-first has fresh runner output and restored compiler data; fingerprint/runtime changes may still require priming.",
+				"ci-warm retains canonical output on the same runner; isolated modes still create fresh child output and catalogs, so it is not a fresh-runner deployment comparison.",
+				"Step durations have one-second timestamp resolution; Vite and parallel-child subphase timers overlap.",
+				"The workflow performs no deployment, migration or private-content/log artifact upload.",
+				"Controlled common reset/cache restoration is outside both benchmark timers; obligatory isolation setup, cache copies, validation, merge, assembly and cleanup remain inside the parallel timer."
+			],
+			"workflowKind": "controlled-single-runner",
+			"benchmarkOnlyGuardsVerified": true,
+			"benchmarkJobs": {
+				"controlled": {
+					"jobId": 112888882875,
+					"status": "completed",
+					"conclusion": "success",
+					"seconds": 678.0,
+					"steps": [
+						{
+							"number": 1,
+							"name": "Set up job",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 1.0
+						},
+						{
+							"number": 2,
+							"name": "Run git config --global submodule.fetchJobs 8",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 1.0
+						},
+						{
+							"number": 3,
+							"name": "Run actions/checkout@v7",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 37.0
+						},
+						{
+							"number": 4,
+							"name": "Run oven-sh/setup-bun@v2",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 2.0
+						},
+						{
+							"number": 5,
+							"name": "Run actions/cache@v6",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 7.0
+						},
+						{
+							"number": 6,
+							"name": "Run actions/cache/restore@v6",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 3.0
+						},
+						{
+							"number": 7,
+							"name": "Restore optional encrypted compiler cache",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 10.0
+						},
+						{
+							"number": 8,
+							"name": "Install R worksheet renderer",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 76.0
+						},
+						{
+							"number": 9,
+							"name": "Run bun install --frozen-lockfile",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 5.0
+						},
+						{
+							"number": 10,
+							"name": "Record common runtime and font identity",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 0.0
+						},
+						{
+							"number": 11,
+							"name": "Prime all current source, content and renderer fingerprints",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 166.0
+						},
+						{
+							"number": 12,
+							"name": "Capture one selected compiler seed",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 8.0
+						},
+						{
+							"number": 13,
+							"name": "Native serial from the common seed and fresh output",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 180.0
+						},
+						{
+							"number": 14,
+							"name": "Parallel from the same seed and fresh output",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 175.0
+						},
+						{
+							"number": 15,
+							"name": "Summarize controlled measurements",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 0.0
+						},
+						{
+							"number": 16,
+							"name": "Remove the private plaintext seed",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 1.0
+						},
+						{
+							"number": 30,
+							"name": "Post Run actions/cache@v6",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 1.0
+						},
+						{
+							"number": 31,
+							"name": "Post Run oven-sh/setup-bun@v2",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 0.0
+						},
+						{
+							"number": 32,
+							"name": "Post Run actions/checkout@v7",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 1.0
+						},
+						{
+							"number": 33,
+							"name": "Complete job",
+							"status": "completed",
+							"conclusion": "success",
+							"seconds": 0.0
+						}
+					],
+					"runtime": {
+						"node": "v22.23.3",
+						"availableCpus": 4,
+						"platform": "linux",
+						"architecture": "x64",
+						"cpu": "AMD EPYC 9V74 80-Core Processor",
+						"memoryBytes": 16766414848,
+						"r": "4.3.3",
+						"knitr": "1.45",
+						"car": "3.1.2",
+						"bun": "1.4.2"
+					},
+					"buildMode": "mixed",
+					"fontProbe": {
+						"fontIdentityVerified": true,
+						"probeMilliseconds": 271,
+						"fontIdentity": "fontconfig-v1:478dc1d4dd9a0464872b5ab4713292a8dcb7a2b0e775775ffcec6ccfe3591c41"
+					},
+					"seedOperations": [
+						{
+							"operation": "capture",
+							"files": 22086,
+							"bytes": 666146182,
+							"selectionSha256": "070a619999ee2763a556631e391266c918abbdd49ec6b050b73adcc4367db773",
+							"seedContentSha256": "6341a1e1ee93359dba9b98aebd23bca34e90a0784f782568b19ce49112ea874d"
+						},
+						{
+							"operation": "reset",
+							"beforeBuild": "ci-controlled-serial",
+							"files": 22086,
+							"bytes": 666146182,
+							"selectionSha256": "070a619999ee2763a556631e391266c918abbdd49ec6b050b73adcc4367db773",
+							"seedContentSha256": "6341a1e1ee93359dba9b98aebd23bca34e90a0784f782568b19ce49112ea874d"
+						},
+						{
+							"operation": "reset",
+							"beforeBuild": "ci-controlled-parallel",
+							"files": 22086,
+							"bytes": 666146182,
+							"selectionSha256": "070a619999ee2763a556631e391266c918abbdd49ec6b050b73adcc4367db773",
+							"seedContentSha256": "6341a1e1ee93359dba9b98aebd23bca34e90a0784f782568b19ce49112ea874d"
+						},
+						{
+							"operation": "cleanup",
+							"success": true
+						}
+					],
+					"cacheOperations": [
+						{
+							"operation": "restore",
+							"key": "bun-Linux-X64-2b44e9d8971cb91ebc4cc6f12b68927b1b1a7de3394d85ae19e9bc2af98090c6",
+							"archiveBytes": 330613288
+						},
+						{
+							"operation": "restore",
+							"key": "compiler-encrypted-v2-Linux-X64-37643009989-1-parallel",
+							"archiveBytes": 183056005
+						}
+					],
+					"compilerArchiveRestored": true,
+					"cacheSelectedFileCount": null,
+					"builds": {
+						"ci-controlled-prime": {
+							"label": "ci-controlled-prime",
+							"recordedAt": "2026-10-07T16:12:21.263Z",
+							"seconds": 165.61,
+							"success": true,
+							"exitCode": 0,
+							"exitSignal": null,
+							"host": {
+								"platform": "linux",
+								"architecture": "x64",
+								"bun": "1.4.2",
+								"nodeCompatibilityVersion": "26.3.0",
+								"actualNodeVersion": "v22.23.3",
+								"cpu": "AMD EPYC 9V74 80-Core Processor",
+								"availableCpus": 4,
+								"memoryBytes": 16766414848
+							},
+							"buildMode": "serial",
+							"editions": {
+								"public": {
+									"parse": {
+										"pages": 1655,
+										"milliseconds": 7596,
+										"cached": 1655,
+										"parsed": 0
+									},
+									"resolution": {
+										"milliseconds": 1157
+									},
+									"courseCatalogs": {
+										"trackedFiles": 10983,
+										"changedCourses": 28,
+										"reusedCourses": 0
+									},
+									"assets": {
+										"synced": 306,
+										"upToDate": 0,
+										"total": 539
+									},
+									"socialCards": {
+										"cards": 1656,
+										"rendered": 0,
+										"cached": 1656
+									},
+									"pipeline": {
+										"seconds": 15.02,
+										"changedOutputs": 2092
+									},
+									"worksheets": {
+										"newlyRenderedLogCount": 0,
+										"fallbackLogged": false,
+										"explicitCacheHitCountsAvailable": false
+									},
+									"viteReportedBuildSeconds": [5.69, 25.77],
+									"search": {
+										"pages": 2094,
+										"fileRecords": 11877,
+										"seconds": 5.25
+									},
+									"adapter": {
+										"seconds": 1.03
+									},
+									"viteReportedBuildDisplays": ["5.69s", "25.77s"],
+									"childSeconds": 50.37
+								},
+								"full": {
+									"parse": {
+										"pages": 1655,
+										"milliseconds": 6920,
+										"cached": 1655,
+										"parsed": 0
+									},
+									"resolution": {
+										"milliseconds": 2718
+									},
+									"courseCatalogs": {
+										"trackedFiles": 10983,
+										"changedCourses": 28,
+										"reusedCourses": 0
+									},
+									"assets": {
+										"synced": 34384,
+										"upToDate": 0,
+										"total": 37697
+									},
+									"socialCards": {
+										"cards": 1656,
+										"rendered": 0,
+										"cached": 1656
+									},
+									"pipeline": {
+										"seconds": 35.93,
+										"changedOutputs": 12343
+									},
+									"worksheets": {
+										"newlyRenderedLogCount": 0,
+										"fallbackLogged": false,
+										"explicitCacheHitCountsAvailable": false
+									},
+									"viteReportedBuildSeconds": [13.47, 58.58],
+									"history": {
+										"courses": 28,
+										"workers": 4,
+										"seconds": 1.83
+									},
+									"search": {
+										"pages": 2115,
+										"fileRecords": 0,
+										"seconds": 10.68
+									},
+									"adapter": {
+										"seconds": 6.95
+									},
+									"viteReportedBuildDisplays": ["13.47s", "58.58s"],
+									"childSeconds": 115.12
+								}
+							},
+							"stageCountsComplete": true,
+							"timedOut": false
+						},
+						"ci-controlled-serial": {
+							"label": "ci-controlled-serial",
+							"recordedAt": "2026-10-07T16:15:29.249Z",
+							"seconds": 162.12,
+							"success": true,
+							"exitCode": 0,
+							"exitSignal": null,
+							"host": {
+								"platform": "linux",
+								"architecture": "x64",
+								"bun": "1.4.2",
+								"nodeCompatibilityVersion": "26.3.0",
+								"actualNodeVersion": "v22.23.3",
+								"cpu": "AMD EPYC 9V74 80-Core Processor",
+								"availableCpus": 4,
+								"memoryBytes": 16766414848
+							},
+							"buildMode": "serial",
+							"editions": {
+								"public": {
+									"parse": {
+										"pages": 1655,
+										"milliseconds": 7133,
+										"cached": 1655,
+										"parsed": 0
+									},
+									"resolution": {
+										"milliseconds": 1149
+									},
+									"courseCatalogs": {
+										"trackedFiles": 10983,
+										"changedCourses": 28,
+										"reusedCourses": 0
+									},
+									"assets": {
+										"synced": 306,
+										"upToDate": 0,
+										"total": 539
+									},
+									"socialCards": {
+										"cards": 1656,
+										"rendered": 0,
+										"cached": 1656
+									},
+									"pipeline": {
+										"seconds": 14.41,
+										"changedOutputs": 2092
+									},
+									"worksheets": {
+										"newlyRenderedLogCount": 0,
+										"fallbackLogged": false,
+										"explicitCacheHitCountsAvailable": false
+									},
+									"viteReportedBuildSeconds": [5.76, 25.89],
+									"search": {
+										"pages": 2094,
+										"fileRecords": 11877,
+										"seconds": 5.21
+									},
+									"adapter": {
+										"seconds": 0.95
+									},
+									"viteReportedBuildDisplays": ["5.76s", "25.89s"],
+									"childSeconds": 49.16
+								},
+								"full": {
+									"parse": {
+										"pages": 1655,
+										"milliseconds": 6923,
+										"cached": 1655,
+										"parsed": 0
+									},
+									"resolution": {
+										"milliseconds": 2873
+									},
+									"courseCatalogs": {
+										"trackedFiles": 10983,
+										"changedCourses": 28,
+										"reusedCourses": 0
+									},
+									"assets": {
+										"synced": 34384,
+										"upToDate": 0,
+										"total": 37697
+									},
+									"socialCards": {
+										"cards": 1656,
+										"rendered": 0,
+										"cached": 1656
+									},
+									"pipeline": {
+										"seconds": 36.21,
+										"changedOutputs": 12343
+									},
+									"worksheets": {
+										"newlyRenderedLogCount": 0,
+										"fallbackLogged": false,
+										"explicitCacheHitCountsAvailable": false
+									},
+									"viteReportedBuildSeconds": [10.42, 55.8],
+									"history": {
+										"courses": 28,
+										"workers": 4,
+										"seconds": 1.89
+									},
+									"search": {
+										"pages": 2115,
+										"fileRecords": 0,
+										"seconds": 10.78
+									},
+									"adapter": {
+										"seconds": 6.98
+									},
+									"viteReportedBuildDisplays": ["10.42s", "55.80s"],
+									"childSeconds": 112.83
+								}
+							},
+							"stageCountsComplete": true,
+							"timedOut": false,
+							"seedReset": {
+								"operation": "reset",
+								"beforeBuild": "ci-controlled-serial",
+								"files": 22086,
+								"bytes": 666146182,
+								"selectionSha256": "070a619999ee2763a556631e391266c918abbdd49ec6b050b73adcc4367db773",
+								"seedContentSha256": "6341a1e1ee93359dba9b98aebd23bca34e90a0784f782568b19ce49112ea874d"
+							}
+						},
+						"ci-controlled-parallel": {
+							"label": "ci-controlled-parallel",
+							"recordedAt": "2026-10-07T16:18:24.012Z",
+							"seconds": 156.91,
+							"success": true,
+							"exitCode": 0,
+							"exitSignal": null,
+							"host": {
+								"platform": "linux",
+								"architecture": "x64",
+								"bun": "1.4.2",
+								"nodeCompatibilityVersion": "26.3.0",
+								"actualNodeVersion": "v22.23.3",
+								"cpu": "AMD EPYC 9V74 80-Core Processor",
+								"availableCpus": 4,
+								"memoryBytes": 16766414848
+							},
+							"buildMode": "parallel",
+							"phases": {
+								"setupSeconds": 16.489631148,
+								"publicSeconds": 59.944927187999994,
+								"fullSeconds": 127.26751383499999,
+								"buildSpanSeconds": 127.271342526,
+								"cacheMergeSeconds": 4.0257666820000155,
+								"validationSeconds": 0.21006023599999024,
+								"assemblySeconds": 1.9512218669999857,
+								"cleanupSeconds": 6.92301671299999,
+								"totalSeconds": 156.871118598
+							},
+							"cacheSeedIncludedInSetup": true,
+							"editions": {
+								"public": {
+									"parse": {
+										"pages": 1655,
+										"milliseconds": 8715,
+										"cached": 1655,
+										"parsed": 0
+									},
+									"resolution": {
+										"milliseconds": 1272
+									},
+									"courseCatalogs": {
+										"trackedFiles": 10983,
+										"changedCourses": 28,
+										"reusedCourses": 0
+									},
+									"assets": {
+										"synced": 306,
+										"upToDate": 0,
+										"total": 539
+									},
+									"socialCards": {
+										"cards": 1656,
+										"rendered": 0,
+										"cached": 1656
+									},
+									"pipeline": {
+										"seconds": 16.98,
+										"changedOutputs": 2093
+									},
+									"worksheets": {
+										"newlyRenderedLogCount": 0,
+										"fallbackLogged": false,
+										"explicitCacheHitCountsAvailable": false
+									},
+									"viteReportedBuildSeconds": [6.58, 30.97],
+									"search": {
+										"pages": 2094,
+										"fileRecords": 11877,
+										"seconds": 6.92
+									},
+									"adapter": {
+										"seconds": 1.13
+									},
+									"viteReportedBuildDisplays": ["6.58s", "30.97s"]
+								},
+								"full": {
+									"parse": {
+										"pages": 1655,
+										"milliseconds": 8535,
+										"cached": 1655,
+										"parsed": 0
+									},
+									"resolution": {
+										"milliseconds": 2988
+									},
+									"courseCatalogs": {
+										"trackedFiles": 10983,
+										"changedCourses": 28,
+										"reusedCourses": 0
+									},
+									"assets": {
+										"synced": 34384,
+										"upToDate": 0,
+										"total": 37697
+									},
+									"socialCards": {
+										"cards": 1656,
+										"rendered": 0,
+										"cached": 1656
+									},
+									"pipeline": {
+										"seconds": 45.94,
+										"changedOutputs": 12345
+									},
+									"worksheets": {
+										"newlyRenderedLogCount": 0,
+										"fallbackLogged": false,
+										"explicitCacheHitCountsAvailable": false
+									},
+									"viteReportedBuildSeconds": [10.41, 59.46],
+									"history": {
+										"courses": 28,
+										"workers": 4,
+										"seconds": 2.77
+									},
+									"search": {
+										"pages": 2115,
+										"fileRecords": 0,
+										"seconds": 10.84
+									},
+									"adapter": {
+										"seconds": 6.83
+									},
+									"viteReportedBuildDisplays": ["10.41s", "59.46s"]
+								}
+							},
+							"stageCountsComplete": true,
+							"timedOut": false,
+							"seedReset": {
+								"operation": "reset",
+								"beforeBuild": "ci-controlled-parallel",
+								"files": 22086,
+								"bytes": 666146182,
+								"selectionSha256": "070a619999ee2763a556631e391266c918abbdd49ec6b050b73adcc4367db773",
+								"seedContentSha256": "6341a1e1ee93359dba9b98aebd23bca34e90a0784f782568b19ce49112ea874d"
+							}
+						}
+					}
+				}
+			}
 		}
 	],
 	"comparisonRows": [
@@ -3909,6 +4529,526 @@
 			},
 			"primingDetected": false,
 			"rFallbackLogged": false
+		},
+		{
+			"runId": 37649521123,
+			"runAttempt": 1,
+			"job": "controlled",
+			"jobId": 112888882875,
+			"sourceCommit": "52404e9f25f40505c646b7db73bfe336d0895eb1",
+			"mode": "serial",
+			"label": "ci-controlled-prime",
+			"seconds": 165.61,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.2",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v22.23.3",
+				"cpu": "AMD EPYC 9V74 80-Core Processor",
+				"availableCpus": 4,
+				"memoryBytes": 16766414848
+			},
+			"runtime": {
+				"node": "v22.23.3",
+				"availableCpus": 4,
+				"platform": "linux",
+				"architecture": "x64",
+				"cpu": "AMD EPYC 9V74 80-Core Processor",
+				"memoryBytes": 16766414848,
+				"r": "4.3.3",
+				"knitr": "1.45",
+				"car": "3.1.2",
+				"bun": "1.4.2"
+			},
+			"fontProbe": {
+				"fontIdentityVerified": true,
+				"probeMilliseconds": 271,
+				"fontIdentity": "fontconfig-v1:478dc1d4dd9a0464872b5ab4713292a8dcb7a2b0e775775ffcec6ccfe3591c41"
+			},
+			"editions": {
+				"public": {
+					"parse": {
+						"pages": 1655,
+						"milliseconds": 7596,
+						"cached": 1655,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 1157
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10983,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 306,
+						"upToDate": 0,
+						"total": 539
+					},
+					"socialCards": {
+						"cards": 1656,
+						"rendered": 0,
+						"cached": 1656
+					},
+					"pipeline": {
+						"seconds": 15.02,
+						"changedOutputs": 2092
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"explicitCacheHitCountsAvailable": false
+					},
+					"viteReportedBuildSeconds": [5.69, 25.77],
+					"search": {
+						"pages": 2094,
+						"fileRecords": 11877,
+						"seconds": 5.25
+					},
+					"adapter": {
+						"seconds": 1.03
+					},
+					"viteReportedBuildDisplays": ["5.69s", "25.77s"],
+					"childSeconds": 50.37
+				},
+				"full": {
+					"parse": {
+						"pages": 1655,
+						"milliseconds": 6920,
+						"cached": 1655,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 2718
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10983,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 34384,
+						"upToDate": 0,
+						"total": 37697
+					},
+					"socialCards": {
+						"cards": 1656,
+						"rendered": 0,
+						"cached": 1656
+					},
+					"pipeline": {
+						"seconds": 35.93,
+						"changedOutputs": 12343
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"explicitCacheHitCountsAvailable": false
+					},
+					"viteReportedBuildSeconds": [13.47, 58.58],
+					"history": {
+						"courses": 28,
+						"workers": 4,
+						"seconds": 1.83
+					},
+					"search": {
+						"pages": 2115,
+						"fileRecords": 0,
+						"seconds": 10.68
+					},
+					"adapter": {
+						"seconds": 6.95
+					},
+					"viteReportedBuildDisplays": ["13.47s", "58.58s"],
+					"childSeconds": 115.12
+				}
+			},
+			"cacheOperations": [
+				{
+					"operation": "restore",
+					"key": "bun-Linux-X64-2b44e9d8971cb91ebc4cc6f12b68927b1b1a7de3394d85ae19e9bc2af98090c6",
+					"archiveBytes": 330613288
+				},
+				{
+					"operation": "restore",
+					"key": "compiler-encrypted-v2-Linux-X64-37643009989-1-parallel",
+					"archiveBytes": 183056005
+				}
+			],
+			"cacheSelectedFileCount": null,
+			"conditions": {
+				"freshOutput": true,
+				"intentionalPrime": true,
+				"retainedSameRunnerCanonicalOutput": false,
+				"freshChildWorkspaces": false,
+				"commonResetUntimed": false
+			},
+			"seedCapture": {
+				"operation": "capture",
+				"files": 22086,
+				"bytes": 666146182,
+				"selectionSha256": "070a619999ee2763a556631e391266c918abbdd49ec6b050b73adcc4367db773",
+				"seedContentSha256": "6341a1e1ee93359dba9b98aebd23bca34e90a0784f782568b19ce49112ea874d"
+			},
+			"primingDetected": false,
+			"rFallbackLogged": false
+		},
+		{
+			"runId": 37649521123,
+			"runAttempt": 1,
+			"job": "controlled",
+			"jobId": 112888882875,
+			"sourceCommit": "52404e9f25f40505c646b7db73bfe336d0895eb1",
+			"mode": "serial",
+			"label": "ci-controlled-serial",
+			"seconds": 162.12,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.2",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v22.23.3",
+				"cpu": "AMD EPYC 9V74 80-Core Processor",
+				"availableCpus": 4,
+				"memoryBytes": 16766414848
+			},
+			"runtime": {
+				"node": "v22.23.3",
+				"availableCpus": 4,
+				"platform": "linux",
+				"architecture": "x64",
+				"cpu": "AMD EPYC 9V74 80-Core Processor",
+				"memoryBytes": 16766414848,
+				"r": "4.3.3",
+				"knitr": "1.45",
+				"car": "3.1.2",
+				"bun": "1.4.2"
+			},
+			"fontProbe": {
+				"fontIdentityVerified": true,
+				"probeMilliseconds": 271,
+				"fontIdentity": "fontconfig-v1:478dc1d4dd9a0464872b5ab4713292a8dcb7a2b0e775775ffcec6ccfe3591c41"
+			},
+			"editions": {
+				"public": {
+					"parse": {
+						"pages": 1655,
+						"milliseconds": 7133,
+						"cached": 1655,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 1149
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10983,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 306,
+						"upToDate": 0,
+						"total": 539
+					},
+					"socialCards": {
+						"cards": 1656,
+						"rendered": 0,
+						"cached": 1656
+					},
+					"pipeline": {
+						"seconds": 14.41,
+						"changedOutputs": 2092
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"explicitCacheHitCountsAvailable": false
+					},
+					"viteReportedBuildSeconds": [5.76, 25.89],
+					"search": {
+						"pages": 2094,
+						"fileRecords": 11877,
+						"seconds": 5.21
+					},
+					"adapter": {
+						"seconds": 0.95
+					},
+					"viteReportedBuildDisplays": ["5.76s", "25.89s"],
+					"childSeconds": 49.16
+				},
+				"full": {
+					"parse": {
+						"pages": 1655,
+						"milliseconds": 6923,
+						"cached": 1655,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 2873
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10983,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 34384,
+						"upToDate": 0,
+						"total": 37697
+					},
+					"socialCards": {
+						"cards": 1656,
+						"rendered": 0,
+						"cached": 1656
+					},
+					"pipeline": {
+						"seconds": 36.21,
+						"changedOutputs": 12343
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"explicitCacheHitCountsAvailable": false
+					},
+					"viteReportedBuildSeconds": [10.42, 55.8],
+					"history": {
+						"courses": 28,
+						"workers": 4,
+						"seconds": 1.89
+					},
+					"search": {
+						"pages": 2115,
+						"fileRecords": 0,
+						"seconds": 10.78
+					},
+					"adapter": {
+						"seconds": 6.98
+					},
+					"viteReportedBuildDisplays": ["10.42s", "55.80s"],
+					"childSeconds": 112.83
+				}
+			},
+			"cacheOperations": [
+				{
+					"operation": "restore",
+					"key": "bun-Linux-X64-2b44e9d8971cb91ebc4cc6f12b68927b1b1a7de3394d85ae19e9bc2af98090c6",
+					"archiveBytes": 330613288
+				},
+				{
+					"operation": "restore",
+					"key": "compiler-encrypted-v2-Linux-X64-37643009989-1-parallel",
+					"archiveBytes": 183056005
+				}
+			],
+			"cacheSelectedFileCount": null,
+			"conditions": {
+				"freshOutput": true,
+				"intentionalPrime": false,
+				"retainedSameRunnerCanonicalOutput": false,
+				"freshChildWorkspaces": false,
+				"commonResetUntimed": true
+			},
+			"seedReset": {
+				"operation": "reset",
+				"beforeBuild": "ci-controlled-serial",
+				"files": 22086,
+				"bytes": 666146182,
+				"selectionSha256": "070a619999ee2763a556631e391266c918abbdd49ec6b050b73adcc4367db773",
+				"seedContentSha256": "6341a1e1ee93359dba9b98aebd23bca34e90a0784f782568b19ce49112ea874d"
+			},
+			"seedCapture": {
+				"operation": "capture",
+				"files": 22086,
+				"bytes": 666146182,
+				"selectionSha256": "070a619999ee2763a556631e391266c918abbdd49ec6b050b73adcc4367db773",
+				"seedContentSha256": "6341a1e1ee93359dba9b98aebd23bca34e90a0784f782568b19ce49112ea874d"
+			},
+			"primingDetected": false,
+			"rFallbackLogged": false
+		},
+		{
+			"runId": 37649521123,
+			"runAttempt": 1,
+			"job": "controlled",
+			"jobId": 112888882875,
+			"sourceCommit": "52404e9f25f40505c646b7db73bfe336d0895eb1",
+			"mode": "parallel",
+			"label": "ci-controlled-parallel",
+			"seconds": 156.91,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.2",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v22.23.3",
+				"cpu": "AMD EPYC 9V74 80-Core Processor",
+				"availableCpus": 4,
+				"memoryBytes": 16766414848
+			},
+			"runtime": {
+				"node": "v22.23.3",
+				"availableCpus": 4,
+				"platform": "linux",
+				"architecture": "x64",
+				"cpu": "AMD EPYC 9V74 80-Core Processor",
+				"memoryBytes": 16766414848,
+				"r": "4.3.3",
+				"knitr": "1.45",
+				"car": "3.1.2",
+				"bun": "1.4.2"
+			},
+			"fontProbe": {
+				"fontIdentityVerified": true,
+				"probeMilliseconds": 271,
+				"fontIdentity": "fontconfig-v1:478dc1d4dd9a0464872b5ab4713292a8dcb7a2b0e775775ffcec6ccfe3591c41"
+			},
+			"editions": {
+				"public": {
+					"parse": {
+						"pages": 1655,
+						"milliseconds": 8715,
+						"cached": 1655,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 1272
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10983,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 306,
+						"upToDate": 0,
+						"total": 539
+					},
+					"socialCards": {
+						"cards": 1656,
+						"rendered": 0,
+						"cached": 1656
+					},
+					"pipeline": {
+						"seconds": 16.98,
+						"changedOutputs": 2093
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"explicitCacheHitCountsAvailable": false
+					},
+					"viteReportedBuildSeconds": [6.58, 30.97],
+					"search": {
+						"pages": 2094,
+						"fileRecords": 11877,
+						"seconds": 6.92
+					},
+					"adapter": {
+						"seconds": 1.13
+					},
+					"viteReportedBuildDisplays": ["6.58s", "30.97s"]
+				},
+				"full": {
+					"parse": {
+						"pages": 1655,
+						"milliseconds": 8535,
+						"cached": 1655,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 2988
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10983,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 34384,
+						"upToDate": 0,
+						"total": 37697
+					},
+					"socialCards": {
+						"cards": 1656,
+						"rendered": 0,
+						"cached": 1656
+					},
+					"pipeline": {
+						"seconds": 45.94,
+						"changedOutputs": 12345
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"explicitCacheHitCountsAvailable": false
+					},
+					"viteReportedBuildSeconds": [10.41, 59.46],
+					"history": {
+						"courses": 28,
+						"workers": 4,
+						"seconds": 2.77
+					},
+					"search": {
+						"pages": 2115,
+						"fileRecords": 0,
+						"seconds": 10.84
+					},
+					"adapter": {
+						"seconds": 6.83
+					},
+					"viteReportedBuildDisplays": ["10.41s", "59.46s"]
+				}
+			},
+			"cacheOperations": [
+				{
+					"operation": "restore",
+					"key": "bun-Linux-X64-2b44e9d8971cb91ebc4cc6f12b68927b1b1a7de3394d85ae19e9bc2af98090c6",
+					"archiveBytes": 330613288
+				},
+				{
+					"operation": "restore",
+					"key": "compiler-encrypted-v2-Linux-X64-37643009989-1-parallel",
+					"archiveBytes": 183056005
+				}
+			],
+			"cacheSelectedFileCount": null,
+			"conditions": {
+				"freshOutput": true,
+				"intentionalPrime": false,
+				"retainedSameRunnerCanonicalOutput": false,
+				"freshChildWorkspaces": true,
+				"commonResetUntimed": true
+			},
+			"phases": {
+				"setupSeconds": 16.489631148,
+				"publicSeconds": 59.944927187999994,
+				"fullSeconds": 127.26751383499999,
+				"buildSpanSeconds": 127.271342526,
+				"cacheMergeSeconds": 4.0257666820000155,
+				"validationSeconds": 0.21006023599999024,
+				"assemblySeconds": 1.9512218669999857,
+				"cleanupSeconds": 6.92301671299999,
+				"totalSeconds": 156.871118598
+			},
+			"seedReset": {
+				"operation": "reset",
+				"beforeBuild": "ci-controlled-parallel",
+				"files": 22086,
+				"bytes": 666146182,
+				"selectionSha256": "070a619999ee2763a556631e391266c918abbdd49ec6b050b73adcc4367db773",
+				"seedContentSha256": "6341a1e1ee93359dba9b98aebd23bca34e90a0784f782568b19ce49112ea874d"
+			},
+			"seedCapture": {
+				"operation": "capture",
+				"files": 22086,
+				"bytes": 666146182,
+				"selectionSha256": "070a619999ee2763a556631e391266c918abbdd49ec6b050b73adcc4367db773",
+				"seedContentSha256": "6341a1e1ee93359dba9b98aebd23bca34e90a0784f782568b19ce49112ea874d"
+			},
+			"primingDetected": false,
+			"rFallbackLogged": false
 		}
 	],
 	"freshOutputWarmCompilerComparisons": [
@@ -3966,6 +5106,34 @@
 			"eligibleForTimingComparison": true,
 			"limitation": "Single serial/parallel points; serial ran first, so runner load, disk page cache and order effects remain. Common reset untimed; required isolation work timed. No deployment was executed.",
 			"improvementPercent": -25.48
+		},
+		{
+			"sourceCommit": "52404e9f25f40505c646b7db73bfe336d0895eb1",
+			"comparisonKind": "controlled-single-runner",
+			"serial": {
+				"runId": 37649521123,
+				"runAttempt": 1,
+				"job": "controlled",
+				"jobId": 112888882875,
+				"seconds": 162.12
+			},
+			"parallel": {
+				"runId": 37649521123,
+				"runAttempt": 1,
+				"job": "controlled",
+				"jobId": 112888882875,
+				"seconds": 156.91
+			},
+			"sameRecordedRuntimeAndCpuCount": true,
+			"samePerBuildNodeBunAndCpuCount": true,
+			"sameCpuModel": true,
+			"sameCorpusAndAssetCounts": true,
+			"bothCatalogsFresh": true,
+			"bothFontProbesVerified": true,
+			"sameCapturedSeedBeforeBothBuilds": true,
+			"eligibleForTimingComparison": true,
+			"limitation": "Single serial/parallel points; serial ran first, so runner load, disk page cache and order effects remain. Common reset untimed; required isolation work timed. No deployment was executed.",
+			"improvementPercent": 3.21
 		}
 	],
 	"limitations": [

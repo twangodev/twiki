@@ -1,0 +1,127 @@
+{
+	"kind": "Read-only remaining performance opportunities",
+	"sourceCommit": "52404e9f25f40505c646b7db73bfe336d0895eb1",
+	"mainIncluded": "a919c51d1dd22bb7dcaf1b8df2ac1ba410cd3bad",
+	"localSelectedCompilerCache": {
+		"files": 21786,
+		"bytes": 654481752,
+		"categories": {
+			"history": {
+				"files": 17777,
+				"bytes": 19894517
+			},
+			"gitdates": {
+				"files": 30,
+				"bytes": 1039126
+			},
+			"manifests": {
+				"files": 4,
+				"bytes": 2283085
+			},
+			"rmd": {
+				"files": 664,
+				"bytes": 9920057
+			},
+			"social": {
+				"files": 1656,
+				"bytes": 145459591
+			},
+			"stage1": {
+				"files": 1655,
+				"bytes": 475885376
+			}
+		}
+	},
+	"rRecords": {
+		"records": 66,
+		"invalidRecords": 0,
+		"incompleteRecords": 0,
+		"uniqueLivePreviews": 10,
+		"livePreviewCandidateRecords": 34,
+		"livePreviewCandidateClosure": {
+			"files": 314,
+			"bytes": 5324757
+		},
+		"oneMatchingCompleteRecordPerLivePreview": {
+			"minimumBytes": 1622207,
+			"maximumBytes": 1622207,
+			"minimumFiles": 102,
+			"maximumFiles": 102,
+			"note": "Ten-record output-compatible closure bounds, not identification of current policy/runtime keys"
+		}
+	},
+	"exactCurrentRManifestPotential": {
+		"maximumBytesSaved": 8297850,
+		"selectedByteFractionSaved": 0.01267850474767706,
+		"implemented": false,
+		"limit": "Matching preview bytes do not identify actual current policy/runtime keys. Keep complete dependencies; emit consumed key manifests if implemented."
+	},
+	"developmentAndPortableCatalogDiagnosis": {
+		"schemaVersion": 1,
+		"scope": "read-only source and existing artifacts; no servers, full builds or maintained edits",
+		"acceptedDevSource": "0b91a49fee2dda9c8f0bf54267306e92c58252a0",
+		"dev": {
+			"warmReadySeconds": [2.53, 2.5],
+			"warmExpectedHtml200Seconds": [8.53, 8.16],
+			"readyToHtmlSeconds": [6.0, 5.66],
+			"warmContentPipelineRuns": 0,
+			"snapshotReuseMilliseconds": [500, 498],
+			"catalogReadParseProbe": {
+				"bytes": 3842881,
+				"readMilliseconds": 2.39,
+				"parseMilliseconds": 4.88,
+				"scope": "one read-only local Bun probe; not extrapolated to CI"
+			},
+			"remainingGap": "first-request framework/SSR module and CSS work, with possible remaining emulator initialization overlap; current logs do not provide a time breakdown",
+			"historicalTrace": {
+				"source": "experiment-dev-profile.log",
+				"currentSource": false,
+				"isolatedSsrBitsUiOptimizer": true,
+				"transformCount": 365,
+				"summedTransformMillisecondsNotWallTime": 2185.65,
+				"largestInlinePopoverCssMilliseconds": 459.33,
+				"navigationJsonTransformMilliseconds": 1.63,
+				"prePlatformRouteTransformQuietGapSeconds": 2.645
+			}
+		},
+		"prewarming": {
+			"developmentOnly": true,
+			"directProductionCiBenefit": false,
+			"productionGuard": "NODE_ENV must equal development"
+		},
+		"ciEvidence": {
+			"runId": 37647014646,
+			"label": "ci-controlled-serial",
+			"seconds": 170.59,
+			"publicChildSeconds": 48.49,
+			"fullChildSeconds": 121.99,
+			"fullContentPipelineSeconds": 37.83,
+			"changedCourses": 28,
+			"reusedCourses": 0,
+			"fullSyncedAssetFiles": 34384,
+			"fullAlreadyUpToDateAssets": 0,
+			"parserCacheHitsPerEdition": 1655,
+			"newlyParsedPagesPerEdition": 0
+		},
+		"nextExperiment": {
+			"area": "portable per-course file catalog and materialized-output cache",
+			"sourceEvidence": [
+				"course fingerprint includes absolute repo/output identity and inode/ctime stamps",
+				"saved output validation includes absolute paths and filesystem stamps",
+				"cache transport currently excludes course-files records"
+			],
+			"requiredValidation": [
+				"portable content/blob identities plus stage/edition/publication/renderer/font identities",
+				"bounded validated output restore",
+				"nested tracked changes, missing products and privacy revocation correctness",
+				"measure archive/download/extraction against saved materialization"
+			],
+			"limit": "Targets a subset of the 37.83 s full content pipeline; complete bundling, prerender, adapter and search remain. No forecast of sub-30 s CI."
+		}
+	},
+	"limits": [
+		"Local selected cache composition differs from the GitHub runner because runtime/renderer identities differ.",
+		"Read-only diagnostics do not establish build or deployment speedups.",
+		"Portable catalog/output caching and compressed parser storage are not implemented."
+	]
+}

@@ -325,12 +325,42 @@ The real-R complete build passed in 61.70s with 0.55s cache reconciliation;
 all 1,655 parser and 1,656 card entries hit in both editions and no worksheets
 knitted or fell back. Earlier retained-source reconciliation took 2.01s locally,
 but these gates used different source versions and uncontrolled conditions;
-**there is no fair before/after wall-time speedup claim**. The new cache cuts
-still need their controlled GitHub comparison. After reverting the temporary
-prerender experiment, the final retained-source complete build passed in 55.78s
-with every parser/card hit and no new R knitting or fallback.
+**there is no fair before/after wall-time speedup claim from these local gates**.
+After reverting the temporary prerender experiment, the final retained-source
+complete build passed in 55.78s with every parser/card hit and no new R knitting
+or fallback. Its final output verified all ten R previews, 84 referenced blobs,
+1,655 PageDocs, 616 immutable assets and every public route/allowlist target.
 [Cache validation evidence](../benchmarks/isolated-cache-cuts-validation.json)
 records the exact local phase and corpus checks.
+
+The follow-up [run 37649521123](https://github.com/twangodev/wisconsin/actions/runs/37649521123)
+completed at `52404e9` on one four-CPU EPYC 9V74 runner with about 16 GB RAM.
+Both measured builds restored the same captured seed: 22,086 files and
+666,146,182 bytes, with identical selection/content digests, matching software
+and verified fonts. Every edition had 1,655 parser and 1,656 card hits, rebuilt
+28 catalogs, knitted no new worksheets and logged no R fallback.
+
+| Controlled mode after cache cuts | Complete build wall time |
+| -------------------------------- | -----------------------: |
+| Native serial                    |                  162.12s |
+| Parallel                         |                  156.91s |
+
+Parallel was **5.21s (3.21%) faster within this job**. It included 16.49s setup,
+127.27s overlapping child span, 0.21s validation, 4.03s cache reconciliation,
+1.95s assembly and 6.92s cleanup. Public/full children took 59.94s/127.27s;
+native serial editions took 49.16s/112.83s. Required overhead outside the child
+span was 29.60s. The selected seed payload remains approximately 666 MB; this
+change avoids redundant copying and reconciliation rather than pruning R
+records or shrinking the transport archive.
+
+This small, single-point improvement needs repetition before changing CI's
+default, so production remains serial and parallel remains opt-in. The earlier
+214.05s parallel point used a different job/source/seed; it is not a controlled
+before/after wall-time comparison against 156.91s. Checkout took 37s and R
+provisioning 76s in this final job, outside the command timer. The complete
+678s job includes setup, priming, seed capture, both untimed resets and both
+measured builds. It is not a Cloudflare deployment duration. Sanitized remote
+evidence records all four completed runs, each with its own comparison pins.
 
 A separate temporary experiment tried prerender concurrency 1 then 4 with the
 same private compiler seed and fresh output under four-CPU workstation affinity.
@@ -350,6 +380,31 @@ whose inventory/content digests differed, so it is correctness evidence, not
 a matched timing control or an accepted speed comparison.
 [Rejected concurrency experiment](../benchmarks/prerender-concurrency-results.json)
 records the temporary source digest, controls, failure and recovery limits.
+
+The current local selected cache contains 475.89 MB of parsed notes, 145.46 MB
+of social cards, 19.89 MB of history and 9.92 MB of R records. An exact-current
+R manifest could save at most about 8.30 MB, only 1.27% of selected bytes; live
+preview equality alone cannot identify the current renderer/policy keys.
+Compression of all 1,655 parser entries preserved every byte and SHA-256 hash:
+gzip 1 reduced storage by 90.51%, but two fresh-process local read/parse samples
+averaged 5.590s versus 3.680s raw. Gzip 6 averaged 7.190s. The existing remote
+archive is already compressed, so these results establish no transport savings.
+Intermediate compression is not implemented; it needs a controlled complete CI
+comparison before adoption. [Storage experiment](../benchmarks/parser-storage-micro.json)
+records exact runtime, ordering and resource limits.
+
+A more relevant cache boundary remains: per-course catalogs use local paths,
+inodes and output stamps, and their materialized products are not transported.
+The controlled fresh CI build regenerated all 28 courses and synced 34,384
+full assets. A portable per-course product cache could address part of the
+37.83s full content pipeline, but must account for product validation, complete
+source/renderer/edition fingerprints and encrypted restore costs. Warm local
+homepage requests also spend 5.66–6.00s after Vite readiness without any content
+pipeline; a 7.27ms catalog parse probe does not explain that gap. Current logs
+cannot split its first-request SSR/module/CSS costs, and development emulator
+prewarming has no direct production CI effect.
+[Remaining opportunities](../benchmarks/remaining-performance-opportunities.json)
+records these source-grounded diagnostics without a speedup claim.
 Optimized Cloudflare deployment remains unmeasured.
 
 ## Historical production CI baseline

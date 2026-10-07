@@ -1,0 +1,124 @@
+{
+	"kind": "Local exact-selected parser cache intermediate-storage microexperiment",
+	"sourceEntries": 1655,
+	"rawBytes": 475885376,
+	"largestRawEntryBytes": 18233361,
+	"host": {
+		"node": "v25.9.0",
+		"bun": "1.4.0",
+		"platform": "linux",
+		"architecture": "x64",
+		"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+		"availableCpus": 48,
+		"memoryBytes": 134389583872
+	},
+	"compression": [
+		{
+			"format": "gzip1",
+			"storedBytes": 45175257,
+			"storageWallSeconds": 0.8300459809999999,
+			"gzipCallSeconds": 0.7143370900000001,
+			"verifiedEntries": 1655,
+			"verificationWallSeconds": 0.804514171,
+			"exactByteAndSha256Roundtrip": true,
+			"rawBytesReductionPercent": 90.5071138391107
+		},
+		{
+			"format": "gzip6",
+			"storedBytes": 34225394,
+			"storageWallSeconds": 1.873098218,
+			"gzipCallSeconds": 1.7697015180000017,
+			"verifiedEntries": 1655,
+			"verificationWallSeconds": 0.7558046570000001,
+			"exactByteAndSha256Roundtrip": true,
+			"rawBytesReductionPercent": 92.80805930880297
+		}
+	],
+	"reads": {
+		"runtime": "Node",
+		"freshProcessPerSample": true,
+		"retainAllParsedPages": true,
+		"processStartupExcluded": true,
+		"osPageCache": "Warm after compression and verification; no cache eviction",
+		"orders": [
+			["raw", "gzip1", "gzip6"],
+			["gzip6", "gzip1", "raw"]
+		],
+		"samples": [
+			{
+				"format": "raw",
+				"seconds": 3.7255447239999997,
+				"pages": 1655,
+				"decodedBytes": 475885376,
+				"maximumRssBytes": 1438515200
+			},
+			{
+				"format": "gzip1",
+				"seconds": 5.408913299000001,
+				"pages": 1655,
+				"decodedBytes": 475885376,
+				"maximumRssBytes": 1402699776
+			},
+			{
+				"format": "gzip6",
+				"seconds": 7.137074779,
+				"pages": 1655,
+				"decodedBytes": 475885376,
+				"maximumRssBytes": 1411096576
+			},
+			{
+				"format": "gzip6",
+				"seconds": 7.243050106,
+				"pages": 1655,
+				"decodedBytes": 475885376,
+				"maximumRssBytes": 1411018752
+			},
+			{
+				"format": "gzip1",
+				"seconds": 5.772059342,
+				"pages": 1655,
+				"decodedBytes": 475885376,
+				"maximumRssBytes": 1413169152
+			},
+			{
+				"format": "raw",
+				"seconds": 3.634835525,
+				"pages": 1655,
+				"decodedBytes": 475885376,
+				"maximumRssBytes": 1456893952
+			}
+		],
+		"summary": {
+			"raw": {
+				"samples": [3.7255447239999997, 3.634835525],
+				"minimumSeconds": 3.634835525,
+				"maximumSeconds": 3.7255447239999997,
+				"meanSeconds": 3.6801901245
+			},
+			"gzip1": {
+				"samples": [5.408913299000001, 5.772059342],
+				"minimumSeconds": 5.408913299000001,
+				"maximumSeconds": 5.772059342,
+				"meanSeconds": 5.5904863205
+			},
+			"gzip6": {
+				"samples": [7.137074779, 7.243050106],
+				"minimumSeconds": 7.137074779,
+				"maximumSeconds": 7.243050106,
+				"meanSeconds": 7.1900624425
+			}
+		}
+	},
+	"limitations": [
+		"Two fresh-process read samples per format on a powerful local host; limited variance evidence, no CI timing claim.",
+		"Compression has one sample per level, executed in fixed level1 then level6 order.",
+		"Storage wall time includes raw file reads, compression and temporary writes; accumulated gzip-call wall time is separately recorded.",
+		"Byte/SHA roundtrip verification is outside measured compression/storage timing.",
+		"Remote compiler archive is already compressed; intermediate byte reductions do not establish remote transport savings.",
+		"Source/schema unchanged; no builds or deployments executed.",
+		"Read samples cover cache-record I/O, optional gunzip and JSON.parse, retaining all parsed records; they exclude source Markdown hashing, link resolution and output emission.",
+		"The Node measurement runtime is v25.9.0; controlled CI previously used Node22/Bun1.4.2 and weaker hardware, so timings are not transferable."
+	],
+	"recommendation": "Do not ship without controlled CI copy/build comparisons. gzip1 is the better local tradeoff: about90.5% smaller storage, but roughly1.91s slower retained read+parse per edition; gzip6 saves another10.95MB but adds roughly1.60s read+parse over gzip1. Existing remote archives already gzip-compress parser entries.",
+	"sourceCommit": "52404e9f25f40505c646b7db73bfe336d0895eb1"
+}
