@@ -74,7 +74,7 @@ test('build jobs restore compatible caches from previous runs before preparing c
 test('only production and explicitly requested benchmarks save compiler caches', () => {
 	const deployment = workflow.jobs['build-and-deploy'];
 	expect(deployment.if).toBe(
-		"github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !inputs.performance"
+		"github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !inputs.performance && inputs.live_test != 'deploy' && inputs.live_test != 'rollback'"
 	);
 	for (const [name, job] of Object.entries(workflow.jobs)) {
 		if (name === 'build-and-deploy' || name === 'performance') continue;
@@ -99,7 +99,7 @@ test('only production and explicitly requested benchmarks save compiler caches',
 
 test('manual performance mode isolates benchmarks from production and normal checks', () => {
 	expect(workflow.jobs.performance.if).toBe(
-		"github.event_name == 'workflow_dispatch' && inputs.performance"
+		"github.event_name == 'workflow_dispatch' && inputs.performance && inputs.live_test != 'deploy' && inputs.live_test != 'rollback'"
 	);
 	for (const name of ['check', 'unit-tests', 'browser-tests'])
 		expect(workflow.jobs[name].if).toBe(
@@ -326,8 +326,18 @@ test('slow checks do not queue deployment and active deployments finish safely',
 	const groups = new Set<string>();
 	for (const [name, job] of Object.entries(workflow.jobs)) {
 		groups.add(job.concurrency.group);
-		expect(job.concurrency.group).toContain('${{ github.ref }}');
-		expect(job.concurrency['cancel-in-progress']).toBe(name !== 'build-and-deploy');
+		if (name === 'live-test') {
+			expect(job.concurrency.group).toBe(
+				workflow.jobs['build-and-deploy'].concurrency.group.replace(
+					'${{ github.ref }}',
+					'refs/heads/main'
+				)
+			);
+			expect(job.if).toContain("github.ref == 'refs/heads/perf/build-performance'");
+		} else expect(job.concurrency.group).toContain('${{ github.ref }}');
+		expect(job.concurrency['cancel-in-progress']).toBe(
+			!['build-and-deploy', 'live-test'].includes(name)
+		);
 	}
 	expect(groups.size).toBe(Object.keys(workflow.jobs).length);
 });

@@ -468,3 +468,22 @@ test('multipart package rejects duplicate module fields and corrupted framing', 
 		await rm(directory, { recursive: true, force: true });
 	}
 });
+
+test('deployment history permits additional pages while domain ownership requires a complete listing', async () => {
+	const client = new CloudflareDeploymentAPI('test-token', async () =>
+		Response.json({
+			success: true,
+			result: { deployments: [{ versions: [{ version_id: 'existing', percentage: 100 }] }] },
+			result_info: { total_pages: 2 }
+		})
+	);
+	const result = await client.request(
+		`/accounts/${accountId}/workers/scripts/wisconsin/deployments`
+	);
+	expect(result).toEqual({
+		deployments: [{ versions: [{ version_id: 'existing', percentage: 100 }] }]
+	});
+	await expect(
+		client.request(`/accounts/${accountId}/workers/domains?service=wisconsin`)
+	).rejects.toThrow('paginated');
+});

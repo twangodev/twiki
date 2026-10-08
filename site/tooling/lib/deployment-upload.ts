@@ -79,6 +79,7 @@ export class CloudflareDeploymentAPI implements DeploymentAPI {
 				deploymentError('API operation failed');
 			// Domain listings must be complete; fail instead of silently accepting a truncated collection.
 			if (
+				/\/workers\/domains(?:\?|$)/.test(endpoint) &&
 				record(envelope.result_info) &&
 				typeof envelope.result_info.total_pages === 'number' &&
 				envelope.result_info.total_pages > 1

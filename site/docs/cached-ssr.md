@@ -1,5 +1,21 @@
 # Cached SSR builds
 
+The performance branch also has an explicit manual production experiment:
+dispatch `Svelte` with `performance=true` and `live_test=deploy`. This is
+restricted to `perf/build-performance` and shares current main's deployment
+concurrency group. It records the active Worker version, compares public HTML
+responses on the same runner before and after deployment, and checks anonymous
+private-note and internal-asset denial. It does not migrate the database or save
+branch products into trusted production caches.
+
+Failed upload or live acceptance automatically rolls back to the recorded
+version and checks that version is active with working homepage HTML. An explicit
+`live_test=rollback` dispatch accepts that recorded `rollback_version` without a
+content build. The artifact contains only version IDs and public response timings.
+First-request times include connection overhead and do not establish isolated
+Worker cold-start latency. Acceptance rejects warm medians above the larger of
+500 ms or twice baseline, and first requests above three seconds.
+
 Production renders document routes through SvelteKit in the Cloudflare Worker.
 Markdown parsing, diagrams, worksheet execution and search indexing remain build
 tasks. Compiled content is stored in the Worker asset deployment, alongside the

@@ -10,6 +10,15 @@ on:
         description: Benchmark builds without deployment or other jobs
         type: boolean
         default: false
+      live_test:
+        description: Explicit production SSR experiment or rollback from the performance branch
+        type: choice
+        default: off
+        options: [off, deploy, rollback]
+      rollback_version:
+        description: Previously recorded Worker version for an explicit rollback
+        type: string
+        default: ""
       build_mode:
         description: Build mode for performance benchmarks only
         type: choice
@@ -134,7 +143,7 @@ jobs:
     concurrency:
       group: svelte-build-and-deploy-${{ github.ref }}
       cancel-in-progress: false
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !inputs.performance
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !inputs.performance && inputs.live_test != 'deploy' && inputs.live_test != 'rollback'
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -207,7 +216,7 @@ jobs:
           key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
 
   performance:
-    if: github.event_name == 'workflow_dispatch' && inputs.performance
+    if: github.event_name == 'workflow_dispatch' && inputs.performance && inputs.live_test != 'deploy' && inputs.live_test != 'rollback'
     concurrency:
       group: svelte-performance-${{ github.ref }}
       cancel-in-progress: true
@@ -266,3 +275,99 @@ jobs:
       # Retain current fingerprints for a later fresh-runner benchmark.
       - *encrypt-compiler-cache
       - *save-compiler-cache
+
+  live-test:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/perf/build-performance' && (inputs.live_test == 'deploy' || inputs.live_test == 'rollback')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency:
+      group: svelte-build-and-deploy-refs/heads/main
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://wisconsin.twango.dev
+    steps:
+      - name: Start deployment timer
+        working-directory: ${{ runner.temp }}
+        run: echo "DEPLOYMENT_STARTED_AT=$(date +%s%3N)" >> "$GITHUB_ENV"
+      - *configure-submodules
+      - *checkout-content
+      - *setup-bun
+      - *bun-cache
+      - *install-dependencies
+      - name: Explicit rollback
+        if: inputs.live_test == 'rollback'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          ROLLBACK_VERSION: ${{ inputs.rollback_version }}
+        run: |
+          [[ "$ROLLBACK_VERSION" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$ ]]
+          bunx wrangler rollback "$ROLLBACK_VERSION" --yes
+          bun tooling/live-test.ts verify-rollback
+      - name: Restore compiler seed
+        if: inputs.live_test == 'deploy'
+        uses: actions/cache/restore@v6
+        with:
+          path: site/build/generated/compiler-cache.gpg
+          key: compiler-encrypted-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: compiler-encrypted-v2-${{ runner.os }}-${{ runner.arch }}-
+      - name: Decrypt compiler seed
+        if: inputs.live_test == 'deploy'
+        env: *cache-encryption
+        run: bun tooling/cache.ts restore
+      - name: Install R worksheet renderer
+        if: inputs.live_test == 'deploy'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core r-cran-knitr r-cran-car
+      - name: Restore encrypted SSR products
+        if: inputs.live_test == 'deploy'
+        uses: ./.github/actions/product-cache
+        continue-on-error: true
+        with:
+          mode: restore
+        env: *cache-encryption
+      - name: Build complete SSR deployment
+        if: inputs.live_test == 'deploy'
+        run: bun run build:all
+      - name: Record exact rollback version
+        if: inputs.live_test == 'deploy'
+        id: previous
+        env: &live-cloudflare
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: bun tooling/live-test.ts capture
+      - name: Measure existing production
+        if: inputs.live_test == 'deploy'
+        run: bun tooling/live-test.ts baseline
+      - name: Deploy SSR experiment
+        if: inputs.live_test == 'deploy'
+        id: upload
+        env: *live-cloudflare
+        run: |
+          echo "attempted=true" >> "$GITHUB_OUTPUT"
+          bun run deploy:incremental
+      - name: Verify deployed version
+        if: inputs.live_test == 'deploy'
+        run: bun tooling/verify-deployment.ts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Measure SSR and check anonymous access
+        if: inputs.live_test == 'deploy'
+        run: bun tooling/live-test.ts measure
+      - name: Roll back a failed experiment
+        if: failure() && steps.upload.outputs.attempted == 'true' && steps.previous.outputs.version != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          ROLLBACK_VERSION: ${{ steps.previous.outputs.version }}
+        run: |
+          bunx wrangler rollback "$ROLLBACK_VERSION" --yes
+          bun tooling/live-test.ts verify-rollback
+      - name: Retain sanitized measurements and rollback version
+        if: always() && inputs.live_test == 'deploy'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ssr-live-acceptance
+          path: site/build/benchmarks/live/*.json
+          if-no-files-found: ignore
+          retention-days: 7
