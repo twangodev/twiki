@@ -14,6 +14,7 @@ type Step = {
 	uses?: string;
 	run?: string;
 	'continue-on-error'?: boolean;
+	'timeout-minutes'?: number;
 	env?: Record<string, string>;
 	with?: {
 		path?: string;
@@ -174,8 +175,14 @@ test('manual benchmarks retain production setup and publish only measurement met
 	expect(renderer.run).toContain('Acquire::Retries=2');
 	expect(renderer.run).toContain('Acquire::http::Timeout=30');
 	expect(renderer.run).toContain('--no-install-recommends r-base-core r-cran-knitr r-cran-car');
-	for (const name of ['check', 'browser-tests', 'build-and-deploy'])
+	for (const name of ['check', 'browser-tests'])
 		expect(workflow.jobs[name].steps.find((step) => step.name === renderer.name)).toEqual(renderer);
+	const productionRenderer = workflow.jobs['build-and-deploy'].steps.find(
+		(step) => step.name === renderer.name
+	)!;
+	expect(productionRenderer.run).toBe(renderer.run);
+	expect(productionRenderer['timeout-minutes']).toBe(renderer['timeout-minutes']);
+	expect(productionRenderer.if).toBe("steps.worksheets.outputs.requiresR != 'false'");
 	expect(steps[diagnostics].run).toContain('packageVersion("car")');
 	const summary = steps[warm + 1];
 	expect(summary.if).toBe('always()');
@@ -347,6 +354,28 @@ test('slow checks do not queue deployment and active deployments finish safely',
 		);
 	}
 	expect(groups.size).toBe(Object.keys(workflow.jobs).length);
+});
+
+test('deployment skips R only after verified restored worksheet coverage', () => {
+	for (const name of ['build-and-deploy', 'live-test']) {
+		const job = workflow.jobs[name];
+		expect(job.env?.WISCONSIN_R_REQUIRE_PROFILE).toBe('1');
+		const restore = job.steps.findIndex((step) => step.with?.mode === 'restore');
+		const preflight = job.steps.findIndex((step) => step.id === 'worksheets');
+		const renderer = job.steps.findIndex((step) => step.name === 'Install R worksheet renderer');
+		const enforce = job.steps.findIndex(
+			(step) => step.name === 'Enforce verified worksheet cache reuse'
+		);
+		const build = job.steps.findIndex((step) => step.run === 'bun run build:all');
+		expect(restore).toBeGreaterThan(-1);
+		expect(preflight).toBeGreaterThan(restore);
+		expect(renderer).toBeGreaterThan(preflight);
+		expect(enforce).toBeGreaterThan(renderer);
+		expect(build).toBeGreaterThan(enforce);
+		expect(job.steps[renderer].if).toContain("steps.worksheets.outputs.requiresR != 'false'");
+		expect(job.steps[enforce].if).toContain("steps.worksheets.outputs.requiresR == 'false'");
+		expect(job.steps[enforce].run).toContain('WISCONSIN_R_CACHE_ONLY=1');
+	}
 });
 
 test('complete cache experiments remain manual, isolated and nondeploying with measurable complete hits', () => {

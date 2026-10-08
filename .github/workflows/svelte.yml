@@ -85,7 +85,7 @@ jobs:
       - &install-r
         name: Install R worksheet renderer
         timeout-minutes: 6
-        run: |
+        run: &install-r-command |
           sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
           sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends r-base-core r-cran-knitr r-cran-car
       - &install-dependencies
@@ -153,6 +153,8 @@ jobs:
       cancel-in-progress: false
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !inputs.performance && inputs.live_test != 'deploy' && inputs.live_test != 'rollback' && (inputs.cache_benchmark == 'off' || !inputs.cache_benchmark)
     runs-on: ubuntu-latest
+    env:
+      WISCONSIN_R_REQUIRE_PROFILE: "1"
     environment:
       name: production
       url: https://wisconsin.twango.dev
@@ -175,7 +177,6 @@ jobs:
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - *restore-compiler-cache
       - *decrypt-compiler-cache
-      - *install-r
       - run: bun install --frozen-lockfile
       - name: Restore encrypted build products
         uses: ./.github/actions/product-cache
@@ -183,12 +184,31 @@ jobs:
         with:
           mode: restore
         env: *cache-encryption
+      - name: Check restored worksheet coverage
+        id: worksheets
+        run: bun tooling/r-cache.ts preflight --github-output
+      - name: Install R worksheet renderer
+        if: steps.worksheets.outputs.requiresR != 'false'
+        timeout-minutes: 6
+        run: *install-r-command
+      - name: Enforce verified worksheet cache reuse
+        if: steps.worksheets.outputs.requiresR == 'false'
+        run: echo "WISCONSIN_R_CACHE_ONLY=1" >> "$GITHUB_ENV"
       - &record-build-runtimes
         name: Record build runtimes
-        run: |
+        run: &runtime-diagnostic-command |
           node --input-type=module -e 'import { availableParallelism } from "node:os"; console.log(JSON.stringify({ node: process.version, availableCpus: availableParallelism(), platform: process.platform, architecture: process.arch }));'
-          bun -e 'console.log("Bun: " + Bun.version)'
-          Rscript --vanilla -e 'cat("R: ", R.version.string, "\nknitr: ", as.character(packageVersion("knitr")), "\ncar: ", as.character(packageVersion("car")), "\n", sep = "")'
+          bun -e '
+            import { readRRenderProfile, rFontIdentity } from "./tooling/lib/r-runtime.ts";
+            const profile = readRRenderProfile(process.cwd());
+            const fontIdentity = rFontIdentity();
+            console.log(JSON.stringify({ bun: Bun.version, rendererProfilePresent: !!profile, rendererRuntimeSha256: profile?.runtimeSha256, fontIdentityVerified: /^fontconfig-v1:[a-f0-9]{64}$/.test(fontIdentity), worksheetCacheOnly: process.env.WISCONSIN_R_CACHE_ONLY === "1" }));
+          '
+          if command -v Rscript >/dev/null 2>&1; then
+            Rscript --vanilla -e 'cat("R: ", R.version.string, "\nknitr: ", as.character(packageVersion("knitr")), "\ncar: ", as.character(packageVersion("car")), "\n", sep = "")'
+          else
+            echo "R: not installed; worksheet coverage was checked independently"
+          fi
       - run: bun run build:all
       - run: bunx wrangler d1 migrations apply wisconsin --remote
         env:
@@ -288,6 +308,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/perf/build-performance' && (inputs.live_test == 'deploy' || inputs.live_test == 'rollback') && (inputs.cache_benchmark == 'off' || !inputs.cache_benchmark)
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      WISCONSIN_R_REQUIRE_PROFILE: "1"
     concurrency:
       group: svelte-build-and-deploy-refs/heads/main
       cancel-in-progress: false
@@ -324,9 +346,6 @@ jobs:
         if: inputs.live_test == 'deploy'
         env: *cache-encryption
         run: bun tooling/cache.ts restore
-      - name: Install R worksheet renderer
-        if: inputs.live_test == 'deploy'
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core r-cran-knitr r-cran-car
       - name: Restore encrypted SSR products
         if: inputs.live_test == 'deploy'
         uses: ./.github/actions/product-cache
@@ -334,6 +353,20 @@ jobs:
         with:
           mode: restore
         env: *cache-encryption
+      - name: Check restored worksheet coverage
+        if: inputs.live_test == 'deploy'
+        id: worksheets
+        run: bun tooling/r-cache.ts preflight --github-output
+      - name: Install R worksheet renderer
+        if: inputs.live_test == 'deploy' && steps.worksheets.outputs.requiresR != 'false'
+        timeout-minutes: 6
+        run: *install-r-command
+      - name: Enforce verified worksheet cache reuse
+        if: inputs.live_test == 'deploy' && steps.worksheets.outputs.requiresR == 'false'
+        run: echo "WISCONSIN_R_CACHE_ONLY=1" >> "$GITHUB_ENV"
+      - name: Record build runtimes
+        if: inputs.live_test == 'deploy'
+        run: *runtime-diagnostic-command
       - name: Build complete SSR deployment
         if: inputs.live_test == 'deploy'
         run: bun run build:all
