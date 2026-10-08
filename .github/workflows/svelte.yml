@@ -13,13 +13,13 @@ on:
       cache_benchmark:
         description: Isolated complete-cache benchmark or capture the real CI R profile
         type: choice
-        default: off
-        options: [off, profile, seed, restore, edit]
+        default: 'off'
+        options: ['off', profile, seed, restore, edit]
       live_test:
         description: Explicit production SSR experiment or rollback from the performance branch
         type: choice
-        default: off
-        options: [off, deploy, rollback]
+        default: 'off'
+        options: ['off', deploy, rollback]
       rollback_version:
         description: Previously recorded Worker version for an explicit rollback
         type: string
