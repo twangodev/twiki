@@ -16,7 +16,7 @@ import { stripObsidianComments } from './comments';
  *  - The Quartz plugin-wrapper machinery (QuartzTransformerPlugin, externalResources,
  *    inline browser scripts) is dropped; this module exports the raw plugin fns.
  *  - `enableInHtmlEmbed` was false in quartz.config.ts -> branch not ported.
- *  - `enableCheckbox` was false (default) -> branch not ported.
+ *  - Markdown checkboxes are enabled for interactive practice in the rendered notes.
  *  - `disableBrokenWikilinks` was false (default) -> branch not ported.
  *  - The mermaid html-phase expand-button/container DOM is NOT emitted; the new
  *    site's Mermaid island consumes `<code class="mermaid" data-clipboard>` directly.
@@ -158,6 +158,17 @@ export interface OfmFileData {
 	/** block id -> hast element, collected by the block-reference html plugin */
 	blocks?: Record<string, Element>;
 	htmlAst?: HtmlRoot;
+}
+
+/** Let readers check Markdown tasks and answer choices in rendered notes. */
+export function ofmCheckboxes() {
+	return (tree: HtmlRoot) => {
+		visit(tree, 'element', (node: Element) => {
+			if (node.tagName === 'input' && node.properties.type === 'checkbox') {
+				delete node.properties.disabled;
+			}
+		});
+	};
 }
 
 // ---------------------------------------------------------------------------

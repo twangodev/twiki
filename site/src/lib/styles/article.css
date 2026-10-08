@@ -421,6 +421,7 @@
 
 .prose input[type='checkbox'] {
 	accent-color: var(--color-accent);
+	cursor: pointer;
 }
 .prose input[type='checkbox'][disabled] {
 	cursor: default;

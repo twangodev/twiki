@@ -52,6 +52,7 @@ import {
 	type OfmFileData,
 	ofmBlockReferences,
 	ofmCallouts,
+	ofmCheckboxes,
 	ofmMermaid,
 	ofmReplacements,
 	ofmTextTransform,
@@ -1017,6 +1018,8 @@ export async function compileContent() {
 					return { slug: s, title: p?.title ?? s };
 				});
 
+			// Apply after cached parses and transclusions have been resolved.
+			ofmCheckboxes()(page.tree);
 			const html = toHtml(page.tree, { allowDangerousHtml: true });
 			const meta = {
 				author: contentAuthor(page.frontmatter.author),
