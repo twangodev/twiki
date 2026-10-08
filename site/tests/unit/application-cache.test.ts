@@ -62,6 +62,7 @@ test('application identity ignores generated content and edition selection, but 
 	const identity = applicationCacheIdentity(site, { NODE_ENV: 'production' });
 	write(site, 'build/generated/content-manifest.json', '{"content":"changed"}');
 	write(site, 'src/lib/generated/nav.json', 'changed navigation');
+	write(site, 'tooling/r-render-profile.json', '{"runtime":"changed content renderer"}');
 	write(site, 'static/course/blob.bin', 'changed course asset');
 	expect(
 		applicationCacheIdentity(site, { NODE_ENV: 'production', VITE_PUBLIC_EDITION: 'true' }).identity

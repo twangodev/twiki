@@ -1,9 +1,46 @@
 # Build performance experiments
 
 Local build and startup performance improved, but **sub-30-second Cloudflare
-deployment remains unachieved and unverified**. Changes are isolated on
-`perf/build-performance`; no remote deployment was performed. Serial remains
-the production default. Parallel builds are available as an explicit mode.
+deployment remains unachieved**. Changes are isolated on
+`perf/build-performance`. The cached SSR branch was deployed and verified in
+[run 37842556630](https://github.com/twangodev/wisconsin/actions/runs/37842556630):
+293 seconds from runner start to verified deployment, including a 153-second
+build and roughly 34 seconds uploading changed assets. Earlier measurements
+below describe the static pipeline; parallel edition builds remain available
+as an explicit comparison mode.
+
+## Fresh-runner complete caches
+
+Complete products use independently verified application, content, search, and
+course-file groups. Global selection records restore first and identify exact
+course dependencies. Portable course-file records bind tracked source bytes,
+publication rules, course revision, edition, note selection, and compiler
+policy. Restored history is verified by SHA and size; unchanged raw downloads
+are recreated from matching checkout bytes rather than transported twice.
+R courses conservatively retain their ordinary file preparation.
+
+Worksheet preview reuse requires a real producer profile in
+`tooling/r-render-profile.json`, independently verified local fonts, matching
+source policy and course dependencies, and verified preview/blob bytes. Missing
+or stale inputs require R. A passing preflight enables strict cache-only reuse:
+any later worksheet miss fails the build. Ordinary local R builds use their
+actual runtime; benchmark producers must match the committed CI profile.
+
+The manual workflow separates encrypted benchmark products from production:
+
+```sh
+gh workflow run svelte.yml --ref perf/build-performance -f cache_benchmark=profile
+# Download the sanitized real-CI profile, review it, and commit the lock first.
+gh workflow run svelte.yml --ref perf/build-performance -f cache_benchmark=seed
+gh workflow run svelte.yml --ref perf/build-performance -f cache_benchmark=restore
+```
+
+Each dispatch uses a separate runner. Restore measurements require every
+requested product to restore successfully, with zero misses or rebuilds.
+These experiments cannot deploy or publish production product caches. Only
+sanitized timing JSON and the runtime profile are uploaded as artifacts.
+Fresh-runner results for this extension are pending; same-runner warm timings
+do not establish the deployment target.
 
 ## Matched edition-build comparison
 

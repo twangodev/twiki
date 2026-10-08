@@ -47,6 +47,11 @@ import {
 	saveSearchCache,
 	selectSearchCache
 } from '../../tooling/lib/search-cache.js';
+import {
+	readCourseCache,
+	saveCourseCache,
+	type CourseCacheRecord
+} from '../../tooling/lib/course-cache';
 
 const fixtures: string[] = [];
 function fixture() {
@@ -110,6 +115,55 @@ function copyArchives(source: string, target: string) {
 		path.join(target, 'build/generated/product-caches'),
 		{ recursive: true }
 	);
+}
+function portableCourse(site: string, cache: string, course = 'alpha') {
+	const repo = path.join(site, 'course-fixture');
+	const output = path.join(site, 'build/course-fixture');
+	const source = Buffer.from('raw source reconstructed from checkout, never archived');
+	const blob = `blobs/${contentHash(source)}.bin`;
+	const history = `history/${contentHash('history key')}.json`;
+	const diff = `history/${contentHash('history key')}-${'a'.repeat(40)}.diff`;
+	const files = [
+		{
+			path: 'dataset.csv',
+			size: source.length,
+			kind: 'text' as const,
+			download: `/_files/${blob}`,
+			history: `/_files/${history}`
+		}
+	];
+	const values = new Map([
+		[`index/${course}.json`, Buffer.from(JSON.stringify(files))],
+		[blob, source],
+		[history, Buffer.from('{"revisions":[]}')],
+		[diff, Buffer.from('verified history diff')]
+	]);
+	for (const [relative, bytes] of values) {
+		mkdirSync(path.dirname(path.join(output, relative)), { recursive: true });
+		writeFileSync(path.join(output, relative), bytes);
+		if (relative.startsWith('history/')) {
+			const cached = path.join(cache, 'file-history', course, path.basename(relative));
+			mkdirSync(path.dirname(cached), { recursive: true });
+			writeFileSync(cached, bytes);
+		}
+	}
+	mkdirSync(path.join(repo, 'content', course), { recursive: true });
+	writeFileSync(path.join(repo, 'content', course, 'dataset.csv'), source);
+	const metadata = `course-files/full/${course}.json`;
+	saveCourseCache(
+		path.join(cache, metadata),
+		contentHash('portable version'),
+		files,
+		new Set([...values.keys()].map((file) => path.join(output, file))),
+		{ repo, course, cache, output }
+	);
+	writeFileSync(path.join(cache, 'course-files-current-full.json'), JSON.stringify([metadata]));
+	writeFileSync(
+		path.join(cache, 'history-current.json'),
+		JSON.stringify([history, diff].map((file) => `file-history/${course}/${path.basename(file)}`))
+	);
+	const record = JSON.parse(readFileSync(path.join(cache, metadata), 'utf8')) as CourseCacheRecord;
+	return { metadata, record, source, files, values, repo, output };
 }
 afterEach(() => {
 	for (const directory of fixtures.splice(0)) rmSync(directory, { recursive: true, force: true });
@@ -227,8 +281,273 @@ test('product planning separates compact globals and exact immutable course grou
 			.every((group) => !group.restoreKeys.length)
 	).toBe(true);
 	const cold = await planProductCaches(fixture().site, { restore: true, kind: 'global' });
-	expect(cold.groups.map((group) => group.id)).toEqual(['global-full', 'global-public']);
+	expect(cold.groups.map((group) => group.id)).toEqual([
+		'files-global-full',
+		'files-global-public',
+		'global-full',
+		'global-public'
+	]);
 });
+
+test('cold one-shot restoration replans exact course products after authenticating global indexes', async () => {
+	const source = fixture();
+	const target = fixture();
+	const pages = content(source.cache);
+	const secret = randomBytes(32).toString('hex');
+	rmSync(path.join(target.site, 'build'), { recursive: true });
+	const cold = await planProductCaches(target.site, { restore: true });
+	expect(cold.groups.map((group) => group.id)).toEqual([
+		'application',
+		'files-global-full',
+		'files-global-public',
+		'global-full',
+		'global-public',
+		'search-full',
+		'search-public'
+	]);
+	expect(
+		cold.groups
+			.filter((group) => group.id !== 'application')
+			.every(
+				(group) => group.restoreKeys.length === 1 && group.restoreKeys[0].includes(cold.runtime)
+			)
+	).toBe(true);
+	expect(cold.groups.find((group) => group.id === 'application')!.restoreKeys).toEqual([]);
+	expect(existsSync(target.cache)).toBe(false);
+	expect(
+		(await transferProductCaches(source.site, 'save', secret)).results.every(
+			(result) => result.ready
+		)
+	).toBe(true);
+	copyArchives(source.site, target.site);
+	const restored = await transferProductCaches(target.site, 'restore', secret);
+	expect(restored.results.filter((result) => result.ready)).toHaveLength(3);
+	expect(
+		restored.results
+			.filter((result) => result.id.startsWith('course-'))
+			.every((result) => result.ready)
+	).toBe(true);
+	for (const page of Object.values(pages))
+		for (const file of [page.body!, page.document!])
+			expect(readFileSync(path.join(target.cache, file))).toEqual(
+				readFileSync(path.join(source.cache, file))
+			);
+}, 30_000);
+
+test('portable course metadata and exact history closure restore without archiving raw source assets', async () => {
+	const source = fixture();
+	const target = fixture();
+	const course = portableCourse(source.site, source.cache);
+	const secret = randomBytes(32).toString('hex');
+	const plan = await planProductCaches(source.site);
+	expect(plan.groups.map((group) => group.id)).toEqual([
+		`course-files-full-${contentHash('alpha').slice(0, 16)}`,
+		'files-global-full'
+	]);
+	expect(plan.groups[0].restoreKeys).toEqual([]);
+	expect(
+		(await transferProductCaches(source.site, 'save', secret)).results.every(
+			(result) => result.ready
+		)
+	).toBe(true);
+	rmSync(path.join(target.site, 'build'), { recursive: true });
+	copyArchives(source.site, target.site);
+	const restored = await transferProductCaches(target.site, 'restore', secret);
+	expect(restored.results.filter((result) => result.ready).map((result) => result.id)).toEqual([
+		'files-global-full',
+		`course-files-full-${contentHash('alpha').slice(0, 16)}`
+	]);
+	expect(readFileSync(path.join(target.cache, course.metadata))).toEqual(
+		readFileSync(path.join(source.cache, course.metadata))
+	);
+	for (const [relative, bytes] of course.values) {
+		if (relative.startsWith('history/'))
+			expect(
+				readFileSync(path.join(target.cache, 'file-history/alpha', path.basename(relative)))
+			).toEqual(bytes);
+		else expect(existsSync(path.join(target.cache, relative))).toBe(false);
+	}
+	const repo = path.join(target.site, 'fresh-checkout');
+	const output = path.join(target.site, 'fresh-output');
+	mkdirSync(path.join(repo, 'content/alpha'), { recursive: true });
+	mkdirSync(output);
+	writeFileSync(path.join(repo, 'content/alpha/dataset.csv'), course.source);
+	expect(
+		readCourseCache(path.join(target.cache, course.metadata), course.record.fingerprint, {
+			repo,
+			output,
+			cache: target.cache,
+			course: 'alpha'
+		})?.files
+	).toEqual(course.files);
+	for (const [relative, bytes] of course.values)
+		expect(readFileSync(path.join(output, relative))).toEqual(bytes);
+}, 30_000);
+
+test('portable metadata selection excludes R and old records and rejects incomplete or corrupted history before publication', async () => {
+	const source = fixture();
+	const target = fixture();
+	const course = portableCourse(source.site, source.cache);
+	const secret = randomBytes(32).toString('hex');
+	const plan = await planProductCaches(source.site);
+	const group = plan.groups.find((group) => group.id.startsWith('course-files-'))!;
+	await transferProductCaches(source.site, 'save', secret);
+	copyArchives(source.site, target.site);
+	await transferProductCaches(target.site, 'restore', secret, { group: 'files-global-full' });
+	const before = readFileSync(path.join(target.cache, course.metadata));
+	const bytes = readFileSync(path.join(source.cache, course.metadata));
+	const entry = { path: course.metadata, bytes: bytes.length, sha256: contentHash(bytes) };
+	crafted(
+		{
+			...group,
+			archive: path.join(target.site, 'build/generated/product-caches', `${group.id}.gpg`)
+		},
+		plan.runtime,
+		secret,
+		[entry],
+		bytes
+	);
+	expect(
+		(await transferProductCaches(target.site, 'restore', secret, { group: group.id })).results[0]
+			.reason
+	).toBe('invalid');
+	expect(readFileSync(path.join(target.cache, course.metadata))).toEqual(before);
+	expect(existsSync(path.join(target.cache, 'file-history'))).toBe(false);
+	const historyOutputs = course.record.outputs.filter((entry) => entry.origin.kind === 'history');
+	const historyPayloads = historyOutputs.map((output, index) =>
+		index === 0
+			? Buffer.from('authenticated but wrong history bytes')
+			: readFileSync(path.join(source.cache, (output.origin as { cachePath: string }).cachePath))
+	);
+	crafted(
+		{
+			...group,
+			archive: path.join(target.site, 'build/generated/product-caches', `${group.id}.gpg`)
+		},
+		plan.runtime,
+		secret,
+		[
+			entry,
+			...historyOutputs.map((output, index) => ({
+				path: (output.origin as { cachePath: string }).cachePath,
+				bytes: historyPayloads[index].length,
+				sha256: contentHash(historyPayloads[index])
+			}))
+		],
+		Buffer.concat([bytes, ...historyPayloads])
+	);
+	expect(
+		(await transferProductCaches(target.site, 'restore', secret, { group: group.id })).results[0]
+			.reason
+	).toBe('invalid');
+	expect(readFileSync(path.join(target.cache, course.metadata))).toEqual(before);
+	expect(existsSync(path.join(target.cache, 'file-history'))).toBe(false);
+	const selectedHistory = readFileSync(path.join(source.cache, 'history-current.json'));
+	writeFileSync(path.join(source.cache, 'history-current.json'), '[]');
+	expect(
+		(await transferProductCaches(source.site, 'save', secret, { group: group.id })).results[0]
+			.reason
+	).toBe('invalid');
+	writeFileSync(path.join(source.cache, 'history-current.json'), selectedHistory);
+	const history = course.record.outputs.find((entry) => entry.origin.kind === 'history')!;
+	writeFileSync(
+		path.join(source.cache, (history.origin as { cachePath: string }).cachePath),
+		'corrupted cache'
+	);
+	expect(
+		(await transferProductCaches(source.site, 'save', secret, { group: group.id })).results[0]
+			.reason
+	).toBe('invalid');
+	const excluded = {
+		...course.record,
+		files: [{ ...course.files[0], path: 'worksheet.Rmd', rmdPreview: '/_rmd/fixture.json' }]
+	};
+	excluded.payloadSha256 = contentHash(
+		JSON.stringify([
+			excluded.version,
+			excluded.course,
+			excluded.fingerprint,
+			excluded.files,
+			excluded.outputs
+		])
+	);
+	writeFileSync(path.join(source.cache, course.metadata), JSON.stringify(excluded));
+	expect((await planProductCaches(source.site)).groups).toEqual([]);
+	writeFileSync(
+		path.join(source.cache, course.metadata),
+		JSON.stringify({ version: 1, course: 'alpha' })
+	);
+	expect((await planProductCaches(source.site)).groups).toEqual([]);
+}, 30_000);
+
+test('benchmark keys and authenticated envelopes remain separate from production caches', async () => {
+	const source = fixture();
+	const target = fixture();
+	content(source.cache);
+	const secret = randomBytes(32).toString('hex');
+	const production = await planProductCaches(source.site, { group: 'global-full' });
+	const benchmark = await planProductCaches(source.site, {
+		group: 'global-full',
+		namespace: 'benchmark'
+	});
+	expect(benchmark.runtime).toBe(production.runtime);
+	expect(benchmark.groups[0].key).toContain('wisconsin-products-benchmark-v1-');
+	expect(production.groups[0].key).toContain('wisconsin-products-v1-');
+	expect(benchmark.groups[0].key).not.toBe(production.groups[0].key);
+	expect(benchmark.groups[0].archive).not.toBe(production.groups[0].archive);
+	expect(benchmark.groups[0].restoreKeys[0]).not.toBe(production.groups[0].restoreKeys[0]);
+	expect(
+		(
+			await transferProductCaches(source.site, 'save', secret, {
+				namespace: 'benchmark',
+				group: 'global-full'
+			})
+		).results[0].ready
+	).toBe(true);
+	copyArchives(source.site, target.site);
+	expect(
+		(await transferProductCaches(target.site, 'restore', secret, { group: 'global-full' }))
+			.results[0].reason
+	).toBe('miss');
+	const prodTarget = (await planProductCaches(target.site, { restore: true, group: 'global-full' }))
+		.groups[0];
+	const benchTarget = (
+		await planProductCaches(target.site, {
+			restore: true,
+			namespace: 'benchmark',
+			group: 'global-full'
+		})
+	).groups[0];
+	cpSync(benchTarget.archive, prodTarget.archive);
+	expect(
+		(await transferProductCaches(target.site, 'restore', secret, { group: 'global-full' }))
+			.results[0].reason
+	).toBe('invalid');
+	expect(existsSync(path.join(target.cache, 'content-current-full.json'))).toBe(false);
+	expect(
+		(
+			await transferProductCaches(target.site, 'restore', secret, {
+				namespace: 'benchmark',
+				group: 'global-full'
+			})
+		).results[0].ready
+	).toBe(true);
+	const prior = readFileSync(path.join(target.cache, 'content-current-full.json'));
+	expect(
+		(await transferProductCaches(source.site, 'save', secret, { group: 'global-full' })).results[0]
+			.ready
+	).toBe(true);
+	cpSync(production.groups[0].archive, benchTarget.archive);
+	expect(
+		(
+			await transferProductCaches(target.site, 'restore', secret, {
+				namespace: 'benchmark',
+				group: 'global-full'
+			})
+		).results[0].reason
+	).toBe('invalid');
+	expect(readFileSync(path.join(target.cache, 'content-current-full.json'))).toEqual(prior);
+}, 30_000);
 
 test('authenticated segments restore globals then exact course closure into a fresh relocated cache', async () => {
 	const source = fixture();
@@ -309,11 +628,13 @@ test('neutral prepared app and complete search products survive independent fres
 	const saved = await transferProductCaches(source.site, 'save', secret);
 	expect(saved.results.map((item) => item.id)).toEqual(['application', 'search-full']);
 	expect(saved.results.every((item) => item.ready)).toBe(true);
+	rmSync(path.join(target.site, 'build'), { recursive: true });
 	copyArchives(source.site, target.site);
-	expect(
-		(await transferProductCaches(target.site, 'restore', secret, { group: 'application' }))
-			.results[0].ready
-	).toBe(true);
+	const restored = await transferProductCaches(target.site, 'restore', secret);
+	expect(restored.results.filter((item) => item.ready).map((item) => item.id)).toEqual([
+		'application',
+		'search-full'
+	]);
 	expect(
 		loadApplicationCache(target.site, applicationCacheIdentity(target.site))?.manifest.identity
 	).toBe(identity.identity);
@@ -332,10 +653,6 @@ test('neutral prepared app and complete search products survive independent fres
 			identity.identity
 		).digest
 	).toBe(applicationAssets.digest);
-	expect(
-		(await transferProductCaches(target.site, 'restore', secret, { group: 'search-full' }))
-			.results[0].ready
-	).toBe(true);
 	const output = path.join(target.site, 'build/search-output');
 	expect(restoreSearchCache(path.join(target.cache, 'search/full', key), output, key, 'full')).toBe(
 		true

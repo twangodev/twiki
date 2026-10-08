@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { contentGit, declaredCourseDirectories } from './dev-git-state';
 
@@ -77,11 +77,14 @@ export function rFontIdentity(environment: NodeJS.ProcessEnv = process.env) {
 		].sort();
 	try {
 		const inventory = faces(run('fc-list', ['--format', format]));
+		if (!inventory.length) throw new Error('Font inventory is empty');
 		const matches = [];
 		for (const family of ['', 'sans', 'serif', 'monospace', 'symbol']) {
 			for (const style of ['', 'Bold', 'Italic', 'Bold Italic']) {
 				const pattern = family + (style ? `:style=${style}` : '');
-				matches.push([pattern, faces(run('fc-match', ['--format', format, pattern]))]);
+				const resolved = faces(run('fc-match', ['--format', format, pattern]));
+				if (!resolved.length) throw new Error('Default font cannot be resolved');
+				matches.push([pattern, resolved]);
 			}
 		}
 		const configuration = run('fc-conflist', [])
@@ -140,7 +143,7 @@ export function rRuntimeVersion(environment: NodeJS.ProcessEnv = process.env, re
 			[
 				'--vanilla',
 				'-e',
-				'cat(R.version.string); for (p in c("knitr", "evaluate", "highr", "xfun", "yaml")) cat(p, as.character(packageVersion(p))); packages <- utils::installed.packages(); packages <- packages[order(packages[, "Package"], packages[, "Version"], packages[, "Built"]), c("Package", "Version", "Built"), drop = FALSE]; cat("\\n", apply(packages, 1, paste, collapse = " "), sep = "\\n")'
+				'cat(R.version.string); for (p in c("knitr", "evaluate", "highr", "xfun", "yaml")) cat(p, as.character(packageVersion(p))); cat("\\n"); dput(R.version); dput(capabilities()); dput(extSoftVersion()); dput(grDevices::grSoftVersion()); dput(Sys.getlocale()); dput(Sys.timezone()); packages <- utils::installed.packages(); packages <- packages[order(packages[, "Package"], packages[, "Version"], packages[, "Built"]), c("Package", "Version", "Built"), drop = FALSE]; cat("\\n", apply(packages, 1, paste, collapse = " "), sep = "\\n")'
 			],
 			{ env: environment, encoding: 'utf8', timeout: 30_000, stdio: 'pipe' }
 		);
@@ -154,6 +157,85 @@ export function rRuntimeVersion(environment: NodeJS.ProcessEnv = process.env, re
 			{ cause: error }
 		);
 	}
+}
+
+export interface RRenderProfile {
+	schemaVersion: 1;
+	platform: string;
+	architecture: string;
+	runtime: string;
+	runtimeSha256: string;
+}
+
+/** Capture only dependency/device/version provenance from an actual renderer, never note data. */
+export function captureRRenderProfile(
+	environment: NodeJS.ProcessEnv = process.env
+): RRenderProfile {
+	return renderProfile(rRuntimeVersion(environment, true));
+}
+
+function renderProfile(runtime: string): RRenderProfile {
+	const separator = runtime.lastIndexOf('\nfontconfig-');
+	if (separator < 0) throw new Error('Missing renderer font provenance');
+	const versions = runtime.slice(0, separator);
+	const platform = process.platform;
+	const architecture = process.arch;
+	return {
+		schemaVersion: 1,
+		platform,
+		architecture,
+		runtime: versions,
+		runtimeSha256: createHash('sha256')
+			.update(JSON.stringify(['r-render-profile-v1', platform, architecture, versions]))
+			.digest('hex')
+	};
+}
+
+export function readRRenderProfile(site: string, environment: NodeJS.ProcessEnv = process.env) {
+	const file = path.resolve(
+		environment.WISCONSIN_R_RENDER_PROFILE_FILE ?? path.join(site, 'tooling/r-render-profile.json')
+	);
+	if (!existsSync(file)) return;
+	if (!lstatSync(file).isFile() || realpathSync(file) !== file)
+		throw new Error('R render profile must be an owned regular lock file');
+	const value: RRenderProfile = JSON.parse(readFileSync(file, 'utf8'));
+	if (
+		value.schemaVersion !== 1 ||
+		value.platform !== process.platform ||
+		value.architecture !== process.arch ||
+		typeof value.runtime !== 'string' ||
+		!value.runtime ||
+		!/^[a-f0-9]{64}$/.test(value.runtimeSha256) ||
+		renderProfile(`${value.runtime}\nfontconfig-v1:unused`).runtimeSha256 !== value.runtimeSha256
+	)
+		throw new Error('Invalid or incompatible R render profile lock');
+	return value;
+}
+
+/** A provisioned renderer must match the maintained lock, rather than silently updating policy. */
+export function verifyRRenderProfile(
+	site: string,
+	runtime: string,
+	environment: NodeJS.ProcessEnv = process.env
+) {
+	if (environment.WISCONSIN_R_CACHE_ONLY !== '1' && environment.WISCONSIN_R_REQUIRE_PROFILE !== '1')
+		return;
+	const expected = readRRenderProfile(site, environment);
+	if (!expected) throw new Error('A verified R render profile lock is required by this build');
+	if (expected && renderProfile(runtime).runtimeSha256 !== expected.runtimeSha256)
+		throw new Error(
+			'Installed R renderer does not match tooling/r-render-profile.json; provision the locked dependencies or explicitly update the verified lock'
+		);
+}
+
+/** Reconstruct an approved identity only from the maintained lock and independently observed fonts. */
+export function lockedRRuntime(site: string, environment: NodeJS.ProcessEnv = process.env) {
+	const profile = readRRenderProfile(site, environment);
+	if (!profile) throw new Error('R cache-only reuse requires a verified render profile lock');
+	const fonts = rFontIdentity(environment);
+	if (!/^fontconfig-v1:[a-f0-9]{64}$/.test(fonts))
+		throw new Error('R cache-only reuse requires independently verified fonts');
+	return `${profile.runtime}\n${fonts}`;
 }
 
 /** Probe conservatively for indexed worksheets in declared, initialized courses. */

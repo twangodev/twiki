@@ -2,7 +2,12 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { rFontIdentity, rRuntimeVersion } from '../../tooling/lib/r-runtime';
+import {
+	captureRRenderProfile,
+	lockedRRuntime,
+	rFontIdentity,
+	rRuntimeVersion
+} from '../../tooling/lib/r-runtime';
 
 const fixtures: string[] = [];
 function fixture() {
@@ -104,17 +109,25 @@ test('configuration contents and active configuration precedence affect the font
 	expect(rFontIdentity(environment)).not.toBe(changedConfiguration);
 });
 
-test('empty resolved fonts are distinct from usable fonts, without rewriting environment configuration', () => {
-	const { root, environment } = fixture();
-	const initialEnvironment = { ...environment };
-	const first = rRuntimeVersion(environment, true);
-	writeFileSync(path.join(root, 'inventory'), '');
-	writeFileSync(path.join(root, 'match'), '');
-	const empty = rRuntimeVersion(environment, true);
-	expect(empty).not.toBe(first);
-	expect(empty).toContain('fontconfig-v1:');
-	expect(environment).toEqual(initialEnvironment);
-});
+test.each(['inventory', 'match'])(
+	'empty font %s remains unverified and cannot authorize locked preview reuse',
+	(emptyInput) => {
+		const { root, environment } = fixture();
+		const initialEnvironment = { ...environment };
+		const first = rRuntimeVersion(environment, true);
+		mkdirSync(path.join(root, 'tooling'));
+		writeFileSync(
+			path.join(root, 'tooling/r-render-profile.json'),
+			JSON.stringify(captureRRenderProfile(environment))
+		);
+		writeFileSync(path.join(root, emptyInput), '');
+		const empty = rRuntimeVersion(environment, true);
+		expect(empty).not.toBe(first);
+		expect(empty).toContain('fontconfig-unverified-v1:');
+		expect(() => lockedRRuntime(root, environment)).toThrow('independently verified fonts');
+		expect(environment).toEqual(initialEnvironment);
+	}
+);
 
 test('unavailable font tools keep R rendering available with a stable process identity', () => {
 	const { bin, environment } = fixture();

@@ -4,6 +4,26 @@ inputs:
   mode:
     description: restore or save
     required: true
+  namespace:
+    description: Production caches, or isolated caches for trusted manual benchmarks
+    default: production
+outputs:
+  requested:
+    description: Product groups requested
+  hits:
+    description: Encrypted archive cache hits before product verification
+  misses:
+    description: Encrypted archive cache misses
+  restored:
+    description: Product groups verified and restored
+  rebuild_needed:
+    description: Requested groups unavailable for reuse
+  published:
+    description: Verified product archives published
+  skipped:
+    description: Save operations skipped or already cached
+  failed:
+    description: Optional cache operations that failed
 runs:
   using: node24
   main: index.mjs

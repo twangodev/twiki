@@ -84,15 +84,17 @@ export async function buildCourseFiles(
 			publicEdition ? 'public' : 'full',
 			`${course}.json`
 		);
+	const cacheRoot = path.join(siteDir, 'build/generated/cache');
+	const cacheContext = (course: string) => ({ repo, course, output, cache: cacheRoot });
 	if (!development) {
-		const version = `${await stageFingerprint('files')}\0${output}`;
+		const version = `${await stageFingerprint('files')}\0${publicEdition ? 'public' : 'full'}`;
 		for (const course of courses.keys()) {
 			const tracked = paths.filter((file) => file.startsWith(`content/${course}/`));
 			// Let the R renderer validate its installed runtime and worksheet dependencies.
 			if (tracked.some((file) => /\.rmd$/i.test(file))) continue;
 			const fingerprint = courseFingerprint(repo, course, tracked, version, noteKeys.get(course)!);
 			fingerprints.set(course, fingerprint);
-			const cached = readCourseCache(cacheFile(course), fingerprint);
+			const cached = readCourseCache(cacheFile(course), fingerprint, cacheContext(course));
 			if (!cached) continue;
 			courses.set(course, cached.files);
 			outputByCourse.set(course, cached.outputs);
@@ -241,9 +243,19 @@ export async function buildCourseFiles(
 				cacheFile(course),
 				fingerprint,
 				courses.get(course)!,
-				outputByCourse.get(course)!
+				outputByCourse.get(course)!,
+				cacheContext(course)
 			);
 	}
+	if (!development)
+		writeChanged(
+			path.join(cacheRoot, `course-files-current-${publicEdition ? 'public' : 'full'}.json`),
+			JSON.stringify(
+				[...fingerprints.keys()]
+					.map((course) => `course-files/${publicEdition ? 'public' : 'full'}/${course}.json`)
+					.sort()
+			)
+		);
 	previousBuilds.set(
 		key,
 		new Map(

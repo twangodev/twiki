@@ -15,7 +15,13 @@ type Step = {
 	run?: string;
 	'continue-on-error'?: boolean;
 	env?: Record<string, string>;
-	with?: { path?: string; key?: string; 'restore-keys'?: string };
+	with?: {
+		path?: string;
+		key?: string;
+		'restore-keys'?: string;
+		mode?: string;
+		namespace?: string;
+	};
 };
 const workflow = parse(readFileSync('../.github/workflows/svelte.yml', 'utf8')) as {
 	concurrency?: unknown;
@@ -74,10 +80,11 @@ test('build jobs restore compatible caches from previous runs before preparing c
 test('only production and explicitly requested benchmarks save compiler caches', () => {
 	const deployment = workflow.jobs['build-and-deploy'];
 	expect(deployment.if).toBe(
-		"github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !inputs.performance && inputs.live_test != 'deploy' && inputs.live_test != 'rollback'"
+		"github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !inputs.performance && inputs.live_test != 'deploy' && inputs.live_test != 'rollback' && (inputs.cache_benchmark == 'off' || !inputs.cache_benchmark)"
 	);
 	for (const [name, job] of Object.entries(workflow.jobs)) {
-		if (name === 'build-and-deploy' || name === 'performance') continue;
+		if (name === 'build-and-deploy' || name === 'performance' || name === 'cache-benchmark')
+			continue;
 		for (const step of job.steps.filter(
 			(step) => step.with?.path === 'site/build/generated/compiler-cache.gpg'
 		))
@@ -99,11 +106,11 @@ test('only production and explicitly requested benchmarks save compiler caches',
 
 test('manual performance mode isolates benchmarks from production and normal checks', () => {
 	expect(workflow.jobs.performance.if).toBe(
-		"github.event_name == 'workflow_dispatch' && inputs.performance && inputs.live_test != 'deploy' && inputs.live_test != 'rollback'"
+		"github.event_name == 'workflow_dispatch' && inputs.performance && inputs.live_test != 'deploy' && inputs.live_test != 'rollback' && (inputs.cache_benchmark == 'off' || !inputs.cache_benchmark)"
 	);
 	for (const name of ['check', 'unit-tests', 'browser-tests'])
 		expect(workflow.jobs[name].if).toBe(
-			"github.event_name != 'workflow_dispatch' || !inputs.performance"
+			"github.event_name != 'workflow_dispatch' || (!inputs.performance && (inputs.cache_benchmark == 'off' || !inputs.cache_benchmark))"
 		);
 	expect(workflow.jobs['build-and-deploy'].if).toContain('&& !inputs.performance');
 	const steps = workflow.jobs.performance.steps;
@@ -164,9 +171,9 @@ test('manual benchmarks retain production setup and publish only measurement met
 	);
 	expect(steps.find((step) => step.id === 'compiler-cache')?.uses).toBe('actions/cache/restore@v6');
 	const renderer = steps.find((step) => step.name === 'Install R worksheet renderer')!;
-	expect(renderer.run).toBe(
-		'sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core r-cran-knitr r-cran-car'
-	);
+	expect(renderer.run).toContain('Acquire::Retries=2');
+	expect(renderer.run).toContain('Acquire::http::Timeout=30');
+	expect(renderer.run).toContain('--no-install-recommends r-base-core r-cran-knitr r-cran-car');
 	for (const name of ['check', 'browser-tests', 'build-and-deploy'])
 		expect(workflow.jobs[name].steps.find((step) => step.name === renderer.name)).toEqual(renderer);
 	expect(steps[diagnostics].run).toContain('packageVersion("car")');
@@ -336,8 +343,28 @@ test('slow checks do not queue deployment and active deployments finish safely',
 			expect(job.if).toContain("github.ref == 'refs/heads/perf/build-performance'");
 		} else expect(job.concurrency.group).toContain('${{ github.ref }}');
 		expect(job.concurrency['cancel-in-progress']).toBe(
-			!['build-and-deploy', 'live-test'].includes(name)
+			!['build-and-deploy', 'live-test', 'cache-benchmark'].includes(name)
 		);
 	}
 	expect(groups.size).toBe(Object.keys(workflow.jobs).length);
+});
+
+test('complete cache experiments remain manual, isolated and nondeploying with measurable complete hits', () => {
+	const job = workflow.jobs['cache-benchmark'];
+	expect(job.if).toContain("github.event_name == 'workflow_dispatch'");
+	expect(job.if).toContain("github.ref == 'refs/heads/perf/build-performance'");
+	expect(job.if).toContain("inputs.live_test != 'deploy'");
+	expect(JSON.stringify(job)).not.toContain('CLOUDFLARE_API_TOKEN');
+	expect(job.steps.some((step) => /wrangler|deploy:incremental/.test(step.run ?? ''))).toBe(false);
+	const restore = job.steps.find((step) => step.name === 'Restore isolated complete products')!;
+	expect(restore.with).toEqual({ mode: 'restore', namespace: 'benchmark' });
+	const save = job.steps.find((step) => step.name === 'Save isolated complete products')!;
+	expect(save.if).toBe("inputs.cache_benchmark == 'seed'");
+	const hits = job.steps.find(
+		(step) => step.name === 'Require complete product hits on a fresh runner'
+	)!;
+	expect(hits.run).toContain('"$RESTORED_PRODUCTS" -eq "$REQUESTED_PRODUCTS"');
+	expect(hits.run).toContain('"$MISSING_PRODUCTS" -eq 0');
+	expect(hits.run).toContain('"$REBUILD_PRODUCTS" -eq 0');
+	expect(hits.run).toContain('"$FAILED_PRODUCTS" -eq 0');
 });

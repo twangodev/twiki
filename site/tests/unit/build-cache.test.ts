@@ -25,7 +25,7 @@ function init(repo: string) {
 	git(repo, 'config', 'user.email', 'test@example.com');
 }
 
-test('course cache survives processes and invalidates edits, missing outputs, HEAD, notes and policy', () => {
+test('course cache survives processes, repairs missing outputs and invalidates edits, HEAD, notes and policy', () => {
 	const root = mkdtempSync(path.join(tmpdir(), 'wisconsin-build-cache-'));
 	let site = path.join(root, 'site');
 	const course = path.join(root, 'content/test-course');
@@ -70,7 +70,7 @@ test('course cache survives processes and invalidates edits, missing outputs, HE
 		expect(edited.download).not.toBe(original.download);
 		const blob = path.join(full, edited.download!.replace('/_files/', ''));
 		rmSync(blob);
-		expect(run()).toContain('1 changed courses');
+		expect(run()).toContain('0 changed courses (1 reused)');
 		expect(readFileSync(blob, 'utf8')).toBe('private modified\n');
 		git(course, 'add', '.');
 		git(course, 'commit', '-m', 'Edit');
@@ -100,7 +100,7 @@ test('course cache survives processes and invalidates edits, missing outputs, HE
 		cpSync(path.join(oldSite, 'build/generated/cache'), path.join(site, 'build/generated/cache'), {
 			recursive: true
 		});
-		expect(run()).toContain('1 changed courses');
+		expect(run()).toContain('0 changed courses (1 reused)');
 		const relocated = path.join(site, 'build/generated/assets/_files');
 		const relocatedFiles: CourseFile[] = JSON.parse(
 			readFileSync(path.join(relocated, 'index/test-course.json'), 'utf8')
@@ -108,7 +108,9 @@ test('course cache survives processes and invalidates edits, missing outputs, HE
 		expect(relocatedFiles.length).toBeGreaterThan(0);
 		for (const file of relocatedFiles)
 			if (file.download)
-				expect(existsSync(path.join(relocated, file.download.replace('/_files/', '')))).toBe(true);
+				expect(readFileSync(path.join(relocated, file.download.replace('/_files/', '')))).toEqual(
+					readFileSync(path.join(course, file.path))
+				);
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}

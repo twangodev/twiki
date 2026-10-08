@@ -49,7 +49,8 @@ export function applicationVersion(site, environment = process.env) {
 		for (const entry of readdirSync(path.join(site, relative), { withFileTypes: true })) {
 			if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
 			const file = `${relative}/${entry.name}`;
-			if (file === 'src/lib/generated') continue;
+			// The pinned R renderer controls content artifacts, not the application bundle.
+			if (file === 'src/lib/generated' || file === 'tooling/r-render-profile.json') continue;
 			if (entry.isDirectory()) walk(file);
 			else if (entry.isFile()) files.add(file);
 		}

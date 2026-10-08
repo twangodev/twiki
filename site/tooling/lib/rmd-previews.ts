@@ -1,21 +1,19 @@
 import { stageFingerprint } from '../fingerprint';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import {
-	existsSync,
-	mkdirSync,
-	mkdtempSync,
-	readFileSync,
-	readdirSync,
-	rmSync,
-	copyFileSync
-} from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { parseRmd } from '../../src/lib/rmd';
 import type { CourseFile, RmdPreview } from '../../src/lib/files';
 import { writeChanged } from './output';
-import { rRuntimeVersion } from './r-runtime';
+import { lockedRRuntime, rRuntimeVersion, verifyRRenderProfile } from './r-runtime';
+import {
+	readRmdPreviewResult,
+	rmdCourseInputs,
+	rmdPreviewKey,
+	rmdPreviewRecord
+} from './rmd-preview-cache';
 
 const runner = path.join(import.meta.dirname, 'knit-rmd.R');
 const digest = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex');
@@ -33,39 +31,35 @@ export async function buildRmdPreviews(
 		(file) => !file.locked && file.download && /\.rmd$/i.test(file.path)
 	);
 	if (!worksheets.length) return;
+	const cacheOnly = process.env.WISCONSIN_R_CACHE_ONLY === '1';
 	let runtime: string;
 	try {
-		runtime = rRuntimeVersion();
+		runtime = cacheOnly ? lockedRRuntime(site) : rRuntimeVersion();
 	} catch (error) {
+		if (cacheOnly || process.env.WISCONSIN_R_REQUIRE_PROFILE === '1')
+			throw new Error(
+				'Verified R previews are unavailable; install the locked R renderer before building',
+				{ cause: error }
+			);
 		const message = error instanceof Error ? error.message : String(error);
 		console.warn(`rmd: ${message} Using Source and Interactive views.`);
 		for (const worksheet of worksheets) delete worksheet.rmdPreview;
 		return;
 	}
+	verifyRRenderProfile(site, runtime);
 	const available = files.filter((file) => !file.locked && file.download);
-	const inputs = JSON.stringify(available.map(({ path, download }) => [path, download]).sort());
+	const inputs = rmdCourseInputs(files);
 	const policy = await stageFingerprint('rmd');
-	const base = `${runtime}\n${policy}\n${course}\n${inputs}`;
-	const reusableFonts = !runtime.includes('\nfontconfig-unverified-v1:');
 	for (const worksheet of worksheets) {
-		const key = digest(`${base}\n${worksheet.path}`);
+		const context = { runtime, policy, course, inputs, worksheet: worksheet.path };
+		const key = rmdPreviewKey(context);
 		const cache = path.join(site, 'build/generated/cache/rmd', key);
 		const record = path.join(cache, 'result.json');
-		let result: { preview: string; blobs: string[] } | undefined;
-		if (reusableFonts) {
-			try {
-				const saved = JSON.parse(readFileSync(record, 'utf8'));
-				if (
-					typeof saved.preview === 'string' &&
-					Array.isArray(saved.blobs) &&
-					saved.blobs.includes(saved.preview) &&
-					saved.blobs.every((blob: string) => existsSync(path.join(cache, blob)))
-				)
-					result = saved;
-			} catch {
-				// Missing or damaged previews are safe to regenerate from the worksheet.
-			}
-		}
+		let result = readRmdPreviewResult(site, context);
+		if (!result && cacheOnly)
+			throw new Error(
+				`Verified R preview is missing or stale for ${course}/${worksheet.path}; install the locked R renderer before building`
+			);
 		if (!result) {
 			const scratch = mkdtempSync(path.join(tmpdir(), 'wisconsin-rmd-'));
 			try {
@@ -111,8 +105,11 @@ export async function buildRmdPreviews(
 						.map((block) => (block.kind === 'markdown' ? block.html : ''))
 						.join('\n')
 				};
-				result = { preview: save(Buffer.from(JSON.stringify(preview)), 'json'), blobs };
-				writeChanged(record, JSON.stringify(result));
+				result = {
+					preview: save(Buffer.from(JSON.stringify(preview)), 'json'),
+					blobs: [...new Set(blobs)]
+				};
+				writeChanged(record, JSON.stringify(rmdPreviewRecord(context, result)));
 				console.log(`rmd: rendered ${course}/${worksheet.path}`);
 			} catch (error) {
 				throw new Error(`Could not render ${course}/${worksheet.path}: ${String(error)}`, {

@@ -23,7 +23,12 @@ if (mode === 'plan' || mode === 'save-products' || mode === 'restore-products') 
 		const argument = process.argv[i];
 		if (argument === '--restore') options.restore = true;
 		else if (argument === '--group') options.group = process.argv[++i];
-		else if (argument === '--kind') {
+		else if (argument === '--namespace') {
+			const namespace = process.argv[++i];
+			if (!['production', 'benchmark'].includes(namespace))
+				throw new Error('Invalid product namespace');
+			options.namespace = namespace as import('./lib/product-cache').ProductNamespace;
+		} else if (argument === '--kind') {
 			const kind = process.argv[++i];
 			if (!['global', 'course', 'search', 'application'].includes(kind))
 				throw new Error('Invalid product kind');

@@ -26,6 +26,8 @@ import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { createGzip, createGunzip } from 'node:zlib';
 import { readContentIndex, type ContentEdition } from './content-cache';
+import { parseCourseCache, type CourseCacheRecord } from './course-cache';
+import { historyCachePath } from './cache-selection';
 import {
 	assetHashAlgorithmVersion,
 	captureAssetHashes,
@@ -42,15 +44,18 @@ const maximumEntry = 128 * 1024 * 1024;
 const maximumPayload = 512 * 1024 * 1024;
 const maximumFiles = 100_000;
 export type ProductKind = 'global' | 'course' | 'search' | 'application';
+export type ProductNamespace = 'production' | 'benchmark';
 export interface ProductGroup {
 	id: string;
 	key: string;
 	archive: string;
 	inputs: string;
 	restoreKeys: string[];
+	namespace?: ProductNamespace;
 }
 export interface ProductPlan {
 	schema: 1;
+	namespace: ProductNamespace;
 	runtime: string;
 	groups: ProductGroup[];
 }
@@ -71,11 +76,13 @@ interface Envelope {
 	group: string;
 	inputs: string;
 	files: Entry[];
+	namespace?: ProductNamespace;
 }
 export interface ProductOptions {
 	restore?: boolean;
 	kind?: ProductKind;
 	group?: string;
+	namespace?: ProductNamespace;
 }
 
 function safeRelative(file: unknown): file is string {
@@ -105,15 +112,27 @@ function sameFiles(actual: unknown, expected: string[]) {
 	);
 }
 function idKind(id: string): ProductKind | undefined {
-	if (/^global-(?:public|full)$/.test(id)) return 'global';
-	if (/^course-(?:public|full)-[a-f0-9]{16}$/.test(id)) return 'course';
+	if (/^(?:global|files-global)-(?:public|full)$/.test(id)) return 'global';
+	if (/^course-(?:files-)?(?:public|full)-[a-f0-9]{16}$/.test(id)) return 'course';
 	if (/^search-(?:public|full)$/.test(id)) return 'search';
 	if (id === 'application') return 'application';
 }
+const groupEdition = (id: string) => id.match(/(?:^|-)(public|full)(?:-|$)/)?.[1] as ContentEdition;
+const courseMetadataPath = /^course-files\/(public|full)\/([\w-]+)\.json$/;
 function ownedFile(id: string, file: string) {
 	if (!safeRelative(file)) return false;
 	const kind = idKind(id);
-	const edition = id.split('-')[1];
+	const edition = groupEdition(id);
+	if (id.startsWith('files-global-'))
+		return (
+			file === `course-files-current-${edition}.json` ||
+			(courseMetadataPath.test(file) && courseMetadataPath.exec(file)![1] === edition)
+		);
+	if (id.startsWith('course-files-'))
+		return (
+			(courseMetadataPath.test(file) && courseMetadataPath.exec(file)![1] === edition) ||
+			historyCachePath.test(file)
+		);
 	if (kind === 'global')
 		return [`content-current-${edition}.json`, `content-files-current-${edition}.json`].includes(
 			file
@@ -132,7 +151,67 @@ function ownedFile(id: string, file: string) {
 		);
 	return false;
 }
-const mutable = (file: string) => !file.includes('/');
+const mutable = (file: string) => !file.includes('/') || courseMetadataPath.test(file);
+
+function courseMetadata(cache: string, file: string, edition: ContentEdition) {
+	const match = courseMetadataPath.exec(file);
+	if (!match || match[1] !== edition) throw new Error('Invalid portable course metadata path');
+	const record = parseCourseCache(readJson(cache, file), match[2]);
+	if (!record || record.files.some((entry) => /\.rmd$/i.test(entry.path)))
+		throw new Error('Invalid portable course metadata');
+	return record;
+}
+function courseHistory(record: CourseCacheRecord) {
+	const history = new Map<string, { path: string; bytes: number; sha256: string }>();
+	for (const output of record.outputs) {
+		if (output.origin.kind !== 'history') continue;
+		const entry = { path: output.origin.cachePath, bytes: output.bytes, sha256: output.sha256 };
+		if (history.has(entry.path)) throw new Error('Duplicate course history dependency');
+		history.set(entry.path, entry);
+	}
+	return [...history.values()].sort((a, b) => a.path.localeCompare(b.path));
+}
+function fileSelection(cache: string, edition: ContentEdition) {
+	const selector = `course-files-current-${edition}.json`;
+	const files = readJson(cache, selector);
+	if (
+		!Array.isArray(files) ||
+		new Set(files).size !== files.length ||
+		!files.every(
+			(file) =>
+				typeof file === 'string' && ownedFile(`files-global-${edition}`, file) && file !== selector
+		)
+	)
+		throw new Error('Invalid portable course selection');
+	return {
+		selector,
+		records: files
+			.sort()
+			.map((file: string) => ({ file, record: courseMetadata(cache, file, edition) }))
+	};
+}
+function fileGlobalInputs(cache: string, files: string[]) {
+	return digest(
+		JSON.stringify(
+			[...files].sort().map((file) => [file, digest(readFileSync(regular(cache, file)))])
+		)
+	);
+}
+function fileCourseInputs(
+	cache: string,
+	file: string,
+	record: CourseCacheRecord,
+	edition: ContentEdition
+) {
+	return digest(
+		JSON.stringify([
+			edition,
+			record.course,
+			digest(readFileSync(regular(cache, file))),
+			courseHistory(record)
+		])
+	);
+}
 
 function directoryParents(directory: string, root: string) {
 	for (
@@ -164,6 +243,9 @@ export function productRuntimeIdentity(site: string) {
 }
 
 async function selections(site: string, options: ProductOptions = {}) {
+	const namespace = options.namespace ?? 'production';
+	if (!['production', 'benchmark'].includes(namespace))
+		throw new Error('Invalid product namespace');
 	const runtime = productRuntimeIdentity(site);
 	const cache = path.resolve(site, 'build/generated/cache');
 	if (existsSync(cache) && realpathSync(cache) !== cache) throw new Error('Nonregular cache root');
@@ -172,14 +254,20 @@ async function selections(site: string, options: ProductOptions = {}) {
 		const kind = idKind(id);
 		if (!kind || !sha.test(inputs) || !files.every((file) => ownedFile(id, file)))
 			throw new Error('Invalid product selection');
-		const prefix = `wisconsin-products-v1-${runtime}-${id}-`;
+		const prefix = `wisconsin-products-${namespace === 'production' ? '' : 'benchmark-'}v1-${runtime}-${id}-`;
 		groups.push({
 			id,
 			kind,
+			namespace,
 			inputs,
 			key: prefix + inputs,
 			restoreKeys: exact ? [] : [prefix],
-			archive: path.resolve(site, 'build/generated/product-caches', `${id}.gpg`),
+			archive: path.resolve(
+				site,
+				'build/generated/product-caches',
+				...(namespace === 'benchmark' ? ['benchmark'] : []),
+				`${id}.gpg`
+			),
 			files: [...new Set(files)].sort()
 		});
 	};
@@ -231,6 +319,21 @@ async function selections(site: string, options: ProductOptions = {}) {
 			}
 		} catch {
 			if (options.restore) add(`global-${edition}`, digest('missing-current-global'), []);
+		}
+		try {
+			const { selector, records } = fileSelection(cache, edition);
+			const files = [selector, ...records.map(({ file }) => file)];
+			add(`files-global-${edition}`, fileGlobalInputs(cache, files), files);
+			for (const { file, record } of records)
+				add(
+					`course-files-${edition}-${digest(record.course).slice(0, 16)}`,
+					fileCourseInputs(cache, file, record, edition),
+					[file, ...courseHistory(record).map((entry) => entry.path)],
+					true
+				);
+		} catch {
+			if (options.restore)
+				add(`files-global-${edition}`, digest('missing-current-course-files'), []);
 		}
 		try {
 			const name = `search-current-${edition}.json`;
@@ -305,6 +408,7 @@ async function selections(site: string, options: ProductOptions = {}) {
 	}
 	return {
 		runtime,
+		namespace,
 		groups: groups
 			.filter(
 				(group) =>
@@ -319,9 +423,10 @@ export async function planProductCaches(
 	site: string,
 	options: ProductOptions = {}
 ): Promise<ProductPlan> {
-	const { runtime, groups } = await selections(path.resolve(site), options);
+	const { runtime, namespace, groups } = await selections(path.resolve(site), options);
 	return {
 		schema: 1,
+		namespace,
 		runtime,
 		groups: groups.map(({ files: _files, kind: _kind, ...group }) => group)
 	};
@@ -366,6 +471,7 @@ function validateEnvelope(value: unknown, group: ProductGroup, runtime: string):
 		envelope.schema !== 1 ||
 		envelope.group !== group.id ||
 		envelope.runtime !== runtime ||
+		(envelope.namespace ?? 'production') !== (group.namespace ?? 'production') ||
 		!sha.test(envelope.inputs) ||
 		(!group.restoreKeys.length && envelope.inputs !== group.inputs) ||
 		!Array.isArray(envelope.files) ||
@@ -402,7 +508,36 @@ function validateEnvelope(value: unknown, group: ProductGroup, runtime: string):
 function validateClosure(cache: string, group: Selection, envelope: Envelope) {
 	const entries = new Map(envelope.files.map((entry) => [entry.path, entry]));
 	const names = [...entries.keys()];
-	const edition = group.id.split('-')[1] as ContentEdition;
+	const edition = groupEdition(group.id);
+	if (group.id.startsWith('files-global-')) {
+		const { selector, records } = fileSelection(cache, edition);
+		if (
+			!sameFiles(names, [selector, ...records.map(({ file }) => file)]) ||
+			fileGlobalInputs(cache, names) !== envelope.inputs
+		)
+			throw new Error('Incomplete portable course metadata closure');
+		return;
+	}
+	if (group.id.startsWith('course-files-')) {
+		const metadata = names.filter((file) => courseMetadataPath.test(file));
+		if (metadata.length !== 1) throw new Error('Incomplete portable course metadata');
+		const file = metadata[0];
+		const record = courseMetadata(cache, file, edition);
+		const history = courseHistory(record);
+		if (
+			group.id !== `course-files-${edition}-${digest(record.course).slice(0, 16)}` ||
+			!sameFiles(names, [file, ...history.map((entry) => entry.path)]) ||
+			!sameFiles(names, group.files) ||
+			fileCourseInputs(cache, file, record, edition) !== envelope.inputs
+		)
+			throw new Error('Incomplete course history product closure');
+		for (const expected of history) {
+			const actual = entries.get(expected.path)!;
+			if (actual.bytes !== expected.bytes || actual.sha256 !== expected.sha256)
+				throw new Error('Course history byte identity mismatch');
+		}
+		return;
+	}
 	if (group.kind === 'course') {
 		if (!sameFiles(names, group.files)) throw new Error('Incomplete course product closure');
 		return;
@@ -483,6 +618,18 @@ function validateClosure(cache: string, group: Selection, envelope: Envelope) {
 async function saveGroup(site: string, group: Selection, runtime: string, secret: string) {
 	if (!group.files.length) return false;
 	const cache = realpathSync(path.resolve(site, 'build/generated/cache'));
+	if (group.id.startsWith('course-files-')) {
+		const required = group.files.filter((file) => historyCachePath.test(file));
+		if (required.length) {
+			const current = readJson(cache, 'history-current.json');
+			if (
+				!Array.isArray(current) ||
+				!current.every((file) => typeof file === 'string' && historyCachePath.test(file)) ||
+				!required.every((file) => current.includes(file))
+			)
+				throw new Error('Course history is not selected by the current full build');
+		}
+	}
 	const entries = group.files.map((file) => {
 		const source = regular(cache, file);
 		if (statSync(source).size > maximumEntry) throw new Error('Oversized product file');
@@ -502,7 +649,14 @@ async function saveGroup(site: string, group: Selection, runtime: string, secret
 		};
 	});
 	const envelope = validateEnvelope(
-		{ schema: 1, runtime, group: group.id, inputs: group.inputs, files: entries },
+		{
+			schema: 1,
+			runtime,
+			group: group.id,
+			namespace: group.namespace,
+			inputs: group.inputs,
+			files: entries
+		},
 		group,
 		runtime
 	);
@@ -770,16 +924,17 @@ export async function transferProductCaches(
 	secret: string | undefined,
 	options: ProductOptions = {}
 ) {
-	const { runtime, groups } = await selections(path.resolve(site), {
+	const { runtime, namespace, groups } = await selections(path.resolve(site), {
 		...options,
 		restore: mode === 'restore'
 	});
 	const results: { id: string; ready: boolean; reason?: 'missing-secret' | 'miss' | 'invalid' }[] =
 		[];
-	for (const group of groups) {
+	const replanCourses = mode === 'restore' && !options.group && !options.kind;
+	const transfer = async (group: Selection) => {
 		if (!secret) {
 			results.push({ id: group.id, ready: false, reason: 'missing-secret' });
-			continue;
+			return;
 		}
 		try {
 			const ready =
@@ -790,6 +945,19 @@ export async function transferProductCaches(
 		} catch {
 			results.push({ id: group.id, ready: false, reason: 'invalid' });
 		}
+	};
+	for (const group of groups) {
+		if (!replanCourses || group.kind !== 'course') await transfer(group);
+	}
+	if (replanCourses) {
+		// A fresh runner learns exact immutable course keys from the authenticated
+		// global indexes. Recompute after their restore, including any changed index.
+		const current = await selections(path.resolve(site), {
+			...options,
+			restore: true,
+			kind: 'course'
+		});
+		for (const group of current.groups) await transfer(group);
 	}
 	if (results.some((result) => result.ready)) {
 		try {
@@ -798,5 +966,5 @@ export async function transferProductCaches(
 			/* Hash inventory is optional local acceleration. */
 		}
 	}
-	return { schema: 1 as const, runtime, results };
+	return { schema: 1 as const, namespace, runtime, results };
 }
