@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { rmSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import { publicationFixture } from './publication-fixture';
 
 const fixture = publicationFixture();
@@ -16,7 +16,10 @@ function buildAndTest(mode: string, specification: string) {
 	]) {
 		const result = spawnSync('bun', command, {
 			stdio: 'inherit',
-			env: { ...environment, PUBLICATION_TEST: mode }
+			env: {
+				...environment,
+				PUBLICATION_TEST: command[0] === 'run' && mode === 'updated' ? 'true' : mode
+			}
 		});
 		if (result.status !== 0) throw new Error(`${mode}: bun ${command.join(' ')} failed`);
 	}
@@ -35,6 +38,32 @@ try {
 	}
 	fixture.write('content/sp99-cs101/notes/public.md', fixture.publicNote);
 	buildAndTest('true', 'publication.spec.ts');
+	const previousDescriptor = JSON.parse(
+		readFileSync('build/.svelte-kit/cloudflare/_content/current.json', 'utf8')
+	);
+	// Keep the application unchanged while replacing the content snapshot.
+	fixture.write(
+		'content/sp99-cs101/notes/public.md',
+		fixture.publicNote
+			.replaceAll('Public derivations', 'Updated public derivations')
+			.replace('publicsearchcanary', 'snapshotupdatedcanary')
+	);
+	fixture.write(
+		'content/sp99-cs101/notes/second.md',
+		'# Updated second derivation\n\nNew snapshot explanation.\n\n[[public]]'
+	);
+	buildAndTest('updated', 'publication-updated.spec.ts');
+	const updatedDescriptor = JSON.parse(
+		readFileSync('build/.svelte-kit/cloudflare/_content/current.json', 'utf8')
+	);
+	if (previousDescriptor.applicationVersion !== updatedDescriptor.applicationVersion)
+		throw new Error('Content-only edit changed the application version');
+	if (
+		previousDescriptor.snapshots.public === updatedDescriptor.snapshots.public ||
+		previousDescriptor.snapshots.full === updatedDescriptor.snapshots.full
+	)
+		throw new Error('Content-only edit failed to replace both edition snapshots');
+	fixture.write('content/sp99-cs101/notes/public.md', fixture.publicNote);
 	fixture.write('content/sp99-cs101/publish.yaml', 'include: ["p01/*.java"]\n');
 	buildAndTest('files', 'publication-files.spec.ts');
 	fixture.write('content/sp99-cs101/publish.yaml', 'include: []\n');

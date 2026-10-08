@@ -22,6 +22,7 @@ jobs:
       run:
         working-directory: site
     env:
+      WISCONSIN_BENCHMARK_STATIC: "true"
       BENCHMARK_TIMEOUT_SECONDS: "1200"
       HAS_ENCRYPTED_CACHE_KEY: ${{ secrets.BUILD_CACHE_KEY != '' }}
     steps:

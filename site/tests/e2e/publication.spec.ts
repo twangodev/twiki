@@ -1,12 +1,44 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { gunzipSync } from 'node:zlib';
 import type { CourseFile } from '../../src/lib/files';
+import { runtimeSnapshot } from './runtime-snapshot';
 
 test.skip(process.env.PUBLICATION_TEST !== 'true', 'Uses the isolated publication fixture');
 const note = '/sp99-cs101/notes/public';
 const privateNote = '/sp99-cs101/notes/slides';
 const canaries = /(?:root|lecture|overview|history|answer|exam|draft)privatecanary/;
+
+test('runtime content assets are unreachable even with an authenticated session', async ({
+	browser,
+	baseURL,
+	request
+}) => {
+	const { descriptor } = runtimeSnapshot();
+	const context = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
+	try {
+		for (const client of [request, context.request]) {
+			for (const url of [
+				'/_content',
+				'/_content/current.json',
+				`/_content/full/${descriptor.snapshots.full}/pages/sp99-cs101/notes/slides.json`,
+				`/_content/public/${descriptor.snapshots.public}/manifest.json`,
+				'/%5fcontent/current.json',
+				'/%255fcontent/current.json',
+				'/_content%2fcurrent.json'
+			]) {
+				for (const method of ['GET', 'HEAD', 'POST']) {
+					const response = await client.fetch(url, { method, maxRedirects: 0 });
+					expect(response.status(), `${method} ${url}`).toBe(404);
+					expect(await response.text()).not.toMatch(canaries);
+				}
+			}
+		}
+	} finally {
+		await context.close();
+	}
+});
 
 test('the public graph includes locked notes, their tags and their connections', async ({
 	browser,
@@ -90,7 +122,8 @@ test('locked previews expose titles and headings without bodies, downloads or hi
 		await expect(page.getByRole('link', { name: 'Download', exact: true })).toHaveCount(0);
 		await expect(page.locator('.cm-content')).toHaveCount(0);
 		const full = await request.get('/sp99-cs101/files/p01/private/Answer.java/__data.json');
-		expect(full.status()).toBe(404); // File routes no longer serialize catalogs into page data.
+		expect(full.status()).toBe(200);
+		expect(await full.text()).not.toContain('/_files/blobs/'); // Layout data contains no file catalog.
 		const fullCatalog = await request.get('/_files/index/sp99-cs101.json');
 		expect(await fullCatalog.text()).toContain('/_files/blobs/');
 		const publicFiles: CourseFile[] = await (
@@ -105,16 +138,23 @@ test('locked previews expose titles and headings without bodies, downloads or hi
 	}
 });
 
-test('public output contains no private content, history, or navigation bundles', () => {
-	const root = 'build/.svelte-kit/cloudflare/_published';
-	for (const file of readdirSync(root, { recursive: true, withFileTypes: true })) {
-		if (!file.isFile()) continue;
-		const contents = readFileSync(path.join(file.parentPath, file.name)).toString();
-		expect(contents, path.join(file.parentPath, file.name)).not.toMatch(canaries);
+test('public assets and runtime snapshot contain no private bodies or history', () => {
+	const { descriptor } = runtimeSnapshot();
+	const roots = [
+		'build/.svelte-kit/cloudflare/_published',
+		`build/.svelte-kit/cloudflare/_content/public/${descriptor.snapshots.public}`
+	];
+	for (const root of roots) {
+		for (const file of readdirSync(root, { recursive: true, withFileTypes: true })) {
+			if (!file.isFile()) continue;
+			const bytes = readFileSync(path.join(file.parentPath, file.name));
+			const contents = (
+				bytes[0] === 0x1f && bytes[1] === 0x8b ? gunzipSync(bytes) : bytes
+			).toString();
+			expect(contents, path.join(file.parentPath, file.name)).not.toMatch(canaries);
+		}
 	}
-	const assets = JSON.parse(readFileSync('build/generated/public-assets.json', 'utf8'));
-	expect(assets['/navigation.js']).toBe('/_published/navigation.js');
-	expect(assets['/file-icons.js']).toBe('/_published/file-icons.js');
+	const { assets } = runtimeSnapshot().routing;
 	expect(Object.keys(assets).some((url) => url.startsWith('/_files/history/'))).toBe(false);
 	expect(Object.keys(assets).some((url) => url.includes('publish.yaml'))).toBe(false);
 });
@@ -133,11 +173,8 @@ test('anonymous HTML, hydration, navigation, graphs and search use only the publ
 		const page = await context.newPage();
 		const errors: string[] = [];
 		page.on('pageerror', (error) => errors.push(error.message));
-		const navigationResponse = page.waitForResponse(
-			(response) => new URL(response.url()).pathname === '/navigation.js'
-		);
 		await page.goto(note);
-		const navigation = await navigationResponse;
+		const navigation = await context.request.get(`${note}/__data.json`);
 		expect(navigation.status()).toBe(200);
 		expect(navigation.headers()['cache-control']).toBe('no-store');
 		expect(await navigation.text()).not.toMatch(canaries);
@@ -165,13 +202,30 @@ test('anonymous HTML, hydration, navigation, graphs and search use only the publ
 			const url = '/pagefind/pagefind.js';
 			const search = await import(url);
 			await search.init();
+			const fuzzy = await search.search('lectureprivatecanary');
+			const matches = await Promise.all(
+				fuzzy.results.map(
+					async (entry: {
+						data: () => Promise<{
+							content: string;
+							excerpt: string;
+							meta: Record<string, unknown>;
+						}>;
+					}) => {
+						const { content, excerpt, meta } = await entry.data();
+						return { content, excerpt, meta };
+					}
+				)
+			);
 			return {
 				public: (await search.search('publicsearchcanary')).results.length,
-				private: (await search.search('lectureprivatecanary')).results.length
+				private: (await search.search('\"lectureprivatecanary\"')).results.length,
+				matches
 			};
 		});
 		expect(results.public).toBeGreaterThan(0);
 		expect(results.private).toBe(0);
+		expect(JSON.stringify(results.matches)).not.toMatch(canaries);
 		await page.goto('/sp99-cs101');
 		await expect(page.getByRole('heading', { name: 'sp99-cs101' })).toBeVisible();
 		expect(await page.content()).not.toContain('overviewprivatecanary');
@@ -188,6 +242,7 @@ test('signed-in readers see publication status and the source rule, not their lo
 	const published = page.getByLabel('Page visibility: Public');
 	await expect(published).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Manage access' })).toBeVisible();
+	await expect(published).toBeEnabled();
 	await published.focus();
 	await expect(published).toBeFocused();
 	await expect(page.getByRole('tooltip')).toHaveText(
@@ -197,7 +252,9 @@ test('signed-in readers see publication status and the source rule, not their lo
 	await expect(page.getByRole('tooltip')).toHaveCount(0);
 	await page.goto(privateNote);
 	await expect(page.getByLabel('Page visibility: Private')).toBeVisible();
-	await page.getByLabel('Page visibility: Private').focus();
+	const privateBadge = page.getByLabel('Page visibility: Private');
+	await expect(privateBadge).toBeEnabled();
+	await privateBadge.focus();
 	await expect(page.getByRole('tooltip')).toHaveText('sp99-cs101/publish.yaml: Not included');
 	await page.goto('/');
 	await expect(page.getByLabel('Page visibility: Private')).toBeVisible();
@@ -263,6 +320,14 @@ test('warming full content cannot leak it anonymously, including page data and g
 	try {
 		const full: CourseFile[] = await (await request.get('/_files/index/sp99-cs101.json')).json();
 		const secret = full.find((file) => file.path === 'notes/slides.md')!;
+		// Repeated owner requests exercise the internal SSR HTML cache before the
+		// anonymous reader asks for the same URL in the public edition.
+		for (let attempt = 0; attempt < 3; attempt++) {
+			const warmed = await request.get(privateNote);
+			expect(warmed.status()).toBe(200);
+			expect(warmed.headers()['cache-control']).toBe('private, no-store');
+			expect(await warmed.text()).toContain('lectureprivatecanary');
+		}
 		for (const url of [
 			privateNote,
 			`${privateNote}/__data.json`,
@@ -270,11 +335,10 @@ test('warming full content cannot leak it anonymously, including page data and g
 			'/sp99-cs101/files/notes/slides.md',
 			'/sp99-cs101/files/notes/slides.md/__data.json'
 		]) {
-			const removedPageData = url.includes('/files/') && url.endsWith('/__data.json');
-			expect((await request.get(url)).status()).toBe(removedPageData ? 404 : 200);
+			expect((await request.get(url)).status()).toBe(200);
 			for (const method of ['GET', 'HEAD']) {
 				const response = await context.request.fetch(url, { method, maxRedirects: 0 });
-				expect(response.status()).toBe(removedPageData ? 404 : url === secret.download ? 401 : 200);
+				expect(response.status()).toBe(url === secret.download ? 401 : 200);
 				expect(await response.text()).not.toMatch(canaries);
 			}
 		}
@@ -284,16 +348,19 @@ test('warming full content cannot leak it anonymously, including page data and g
 			'/_published/sp99-cs101/notes/public/__data.json'
 		])
 			expect((await context.request.get(url)).status()).toBe(404);
-		const assets: Record<string, string> = JSON.parse(
-			readFileSync('build/generated/public-assets.json', 'utf8')
-		);
+		const { assets } = runtimeSnapshot().routing;
 		const chunks = readdirSync('build/.svelte-kit/cloudflare/_app/immutable', { recursive: true })
 			.filter((file) => typeof file === 'string' && file.endsWith('.js'))
 			.map((file) => `/_app/immutable/${file}`);
-		const privateChunks = chunks.filter((file) => !assets[file]);
-		expect(privateChunks.length).toBeGreaterThan(0);
-		for (const chunk of privateChunks)
-			expect((await context.request.get(chunk)).status()).toBe(401);
+		// One content-independent application serves both editions. Every client chunk
+		// must be public and must not contain private content or publication rules.
+		expect(chunks.length).toBeGreaterThan(0);
+		for (const chunk of chunks) {
+			expect(assets[chunk], chunk).toBeDefined();
+			const response = await context.request.get(chunk);
+			expect(response.status(), chunk).toBe(200);
+			expect(await response.text(), chunk).not.toMatch(canaries);
+		}
 		const data = await context.request.get(`${note}/__data.json`);
 		expect(data.status()).toBe(200);
 		expect(await data.text()).not.toMatch(canaries);

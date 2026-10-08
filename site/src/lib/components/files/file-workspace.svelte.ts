@@ -2,10 +2,12 @@ import { getContext, setContext } from 'svelte';
 import { goto } from '$app/navigation';
 import { fileRoute } from '$lib/files';
 import { moveTab, openFile, restoreTabs, sameFile, type FileTab } from '$lib/file-tabs';
-import { publicEdition } from '$lib/publication';
+import { page } from '$app/state';
 
 const context = Symbol('file-workspace');
-const storageKey = publicEdition ? 'wisconsin-public-file-tabs' : 'wisconsin-file-tabs';
+function storageKey() {
+	return page.data.edition === 'public' ? 'wisconsin-public-file-tabs' : 'wisconsin-file-tabs';
+}
 
 class FileWorkspace {
 	tabs = $state<FileTab[]>([]);
@@ -38,7 +40,7 @@ class FileWorkspace {
 
 	restore() {
 		try {
-			this.tabs = restoreTabs(sessionStorage.getItem(storageKey));
+			this.tabs = restoreTabs(sessionStorage.getItem(storageKey()));
 		} catch {
 			this.tabs = [];
 		}
@@ -48,7 +50,7 @@ class FileWorkspace {
 	private save() {
 		if (!this.ready) return;
 		try {
-			sessionStorage.setItem(storageKey, JSON.stringify(this.tabs));
+			sessionStorage.setItem(storageKey(), JSON.stringify(this.tabs));
 		} catch {}
 	}
 

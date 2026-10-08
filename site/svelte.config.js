@@ -26,8 +26,9 @@ const config = {
 		}
 	},
 	kit: {
+		paths: { relative: process.env.VITE_STATIC_EXPORT === 'true' },
 		outDir: 'build/.svelte-kit',
-		files: { assets: staticDirectory(process.cwd()) },
+		files: { assets: process.env.WISCONSIN_APP_STATIC_DIR ?? staticDirectory(process.cwd()) },
 		adapter: adapter(),
 		// Content is served separately. Rebuilding it should not change the
 		// application version, hydration IDs, and every prerendered HTML asset.

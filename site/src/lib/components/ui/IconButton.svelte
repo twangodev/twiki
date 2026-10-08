@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { HTMLButtonAttributes } from 'svelte/elements';
-	import type { Snippet } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import { cn } from '$lib/utils';
 
 	type Props = HTMLButtonAttributes & {
@@ -10,6 +10,10 @@
 	};
 
 	let { class: className, active = false, children, type = 'button', ...rest }: Props = $props();
+	let ready = $state(false);
+	onMount(() => {
+		ready = true;
+	});
 </script>
 
 <button
@@ -20,6 +24,7 @@
 		className
 	)}
 	{...rest}
+	disabled={!ready || rest.disabled}
 >
 	{@render children()}
 </button>

@@ -5,6 +5,7 @@ import { loginPage, returnPath } from './login';
 import { publicResponse } from './publication';
 import { frameOptions } from './framing';
 import { proxyAnalytics } from './analytics';
+import { isInternalContentPath } from './content-runtime';
 
 function privateResponse(response: Response, cookies: Headers, request: Request) {
 	const result = new Response(response.body, response);
@@ -39,6 +40,7 @@ async function routeRequest(
 ): Promise<Response | null> {
 	const url = new URL(request.url);
 	if (url.origin !== env.ORIGIN) return new Response('Misdirected request', { status: 421 });
+	if (isInternalContentPath(url.pathname)) return new Response('Not found', { status: 404 });
 	// Analytics also serves anonymous public readers, before session/database access.
 	if (url.pathname.startsWith('/api/analytics/')) {
 		if (env.DISABLE_ANALYTICS === 'true')
@@ -46,8 +48,7 @@ async function routeRequest(
 		return proxyAnalytics(request);
 	}
 	const reading = request.method === 'GET' || request.method === 'HEAD';
-	if (url.pathname === '/_published' || url.pathname.startsWith('/_published/'))
-		return new Response('Not found', { status: 404 });
+	if (reading && url.pathname === '/fonts/OverusedGrotesk-VF.woff2') return null;
 	if (
 		reading &&
 		servePublic &&
@@ -58,7 +59,6 @@ async function routeRequest(
 		if (published) return published;
 	}
 	const auth = createAuth(env);
-	if (reading && url.pathname === '/fonts/OverusedGrotesk-VF.woff2') return null;
 	if (url.pathname.startsWith('/api/auth/')) return handleAuthEndpoint(request, auth);
 	if (request.method === 'POST') {
 		if (url.pathname === '/login') return signIn(request, auth);

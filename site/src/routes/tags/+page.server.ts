@@ -1,6 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { tagIndex } from '$lib/server/content';
-
-export const load: PageServerLoad = () => {
-	return { tags: tagIndex() };
-};
+import { requestContent } from '$lib/server/runtime-content';
+export const load: PageServerLoad = async ({ platform }) => ({
+	tags: (await requestContent(platform).model()).tagIndex()
+});

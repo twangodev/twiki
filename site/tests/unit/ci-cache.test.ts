@@ -91,7 +91,7 @@ test('only production and explicitly requested benchmarks save compiler caches',
 		deployment.steps.findIndex((step) => step.run === 'bun run build:all')
 	);
 	expect(encrypted).toBeGreaterThan(
-		deployment.steps.findIndex((step) => step.run === 'bunx wrangler deploy')
+		deployment.steps.findIndex((step) => step.run === 'bun run deploy:incremental')
 	);
 	expect(deployment.steps[encrypted]['continue-on-error']).toBe(true);
 	expect(save['continue-on-error']).toBe(true);
@@ -114,8 +114,8 @@ test('manual performance mode isolates benchmarks from production and normal che
 test('manual build mode selection cannot alter production deployment', () => {
 	const input = workflow.on.workflow_dispatch.inputs.build_mode;
 	expect(input.type).toBe('choice');
-	expect(input.default).toBe('serial');
-	expect(input.options).toEqual(['serial', 'parallel', 'isolated-serial']);
+	expect(input.default).toBe('ssr');
+	expect(input.options).toEqual(['ssr', 'serial', 'parallel', 'isolated-serial']);
 	expect(workflow.env?.WISCONSIN_BUILD_MODE).toBeUndefined();
 	for (const [name, job] of Object.entries(workflow.jobs)) {
 		if (name === 'performance') continue;
@@ -124,7 +124,9 @@ test('manual build mode selection cannot alter production deployment', () => {
 		for (const step of job.steps) expect(step.env?.WISCONSIN_BUILD_MODE).toBeUndefined();
 	}
 	const performance = workflow.jobs.performance;
-	expect(performance.env?.WISCONSIN_BUILD_MODE).toBe("${{ inputs.build_mode || 'serial' }}");
+	expect(performance.env?.WISCONSIN_BUILD_MODE).toBe(
+		"${{ inputs.build_mode == 'ssr' && 'serial' || inputs.build_mode || 'serial' }}"
+	);
 	const diagnostics = performance.steps.findIndex(
 		(step) => step.name === 'Record benchmark build mode'
 	);

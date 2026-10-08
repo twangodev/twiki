@@ -1,9 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { siGithub } from 'simple-icons';
-import { readFileSync } from 'node:fs';
+import { runtimeSnapshot } from './runtime-snapshot';
 import type { CourseFile } from '../../src/lib/files';
 
-const publicAssets = JSON.parse(readFileSync('build/generated/public-assets.json', 'utf8'));
+const { routing: publicRouting } = runtimeSnapshot();
+const publicAssets = publicRouting.assets;
+const publicRoutes = new Set<string>(publicRouting.routes);
+const isPublic = (route: string) =>
+	publicAssets[route] ||
+	publicRoutes.has(
+		route.endsWith('/__data.json') ? route.slice(0, -'/__data.json'.length) || '/' : route
+	);
 const privatePage = '/sp26-cs544/lectures/lecture-01';
 
 for (const mode of ['light', 'dark'] as const) {
@@ -93,7 +100,7 @@ test('anonymous visitors cannot fetch private content, even after the owner warm
 			'/index.xml',
 			'/sitemap.xml',
 			asset
-		].filter((path) => !publicAssets[path])) {
+		].filter((path) => !isPublic(path))) {
 			expect((await request.get(path)).status(), `Owner GET ${path}`).toBe(200);
 			for (const method of ['GET', 'HEAD']) {
 				const response = await anonymous.request.fetch(path, { method });

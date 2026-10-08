@@ -27,6 +27,7 @@
 	onMount(() => workspace.restore());
 
 	let mobileNavOpen = $state(false);
+	let navigationReady = $state(false);
 	type RailPageData = { kind?: string };
 	const railPageData = $derived(page.data as RailPageData);
 	const showContentRail = $derived(railPageData.kind === 'page');
@@ -34,6 +35,7 @@
 
 	afterNavigate(() => {
 		mobileNavOpen = false;
+		navigationReady = true;
 	});
 </script>
 
@@ -52,6 +54,7 @@
 			class="size-8 rounded-md border border-border bg-transparent text-text"
 			aria-label="Toggle navigation"
 			aria-expanded={mobileNavOpen}
+			disabled={!navigationReady}
 			onclick={() => (mobileNavOpen = !mobileNavOpen)}
 		>
 			<Menu class="size-5" />

@@ -16,8 +16,10 @@
 
 	// Resolved after mount so SSR output is deterministic (no hydration mismatch).
 	let isMac = $state(false);
+	let ready = $state(false);
 	onMount(() => {
 		isMac = /Mac|iP(hone|ad|od)/.test(navigator.platform);
+		ready = true;
 	});
 </script>
 
@@ -38,6 +40,7 @@
 			className
 		)}
 		onclick={openSearch}
+		disabled={!ready}
 	>
 		<Search class="size-4" />
 		<span>Search</span>

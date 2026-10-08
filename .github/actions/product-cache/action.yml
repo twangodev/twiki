@@ -1,0 +1,9 @@
+name: Encrypted build products
+description: Restore or save independently verified application, course and search products
+inputs:
+  mode:
+    description: restore or save
+    required: true
+runs:
+  using: node24
+  main: index.mjs

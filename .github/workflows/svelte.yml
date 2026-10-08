@@ -13,14 +13,16 @@ on:
       build_mode:
         description: Build mode for performance benchmarks only
         type: choice
-        default: serial
+        default: ssr
         options:
+          - ssr
           - serial
           - parallel
           - isolated-serial
 
 permissions:
   contents: read
+  actions: read
 
 env:
   FORCE_COLOR: "3"
@@ -138,6 +140,9 @@ jobs:
       name: production
       url: https://wisconsin.twango.dev
     steps:
+      - name: Start deployment timer
+        working-directory: ${{ runner.temp }}
+        run: echo "DEPLOYMENT_STARTED_AT=$(date +%s%3N)" >> "$GITHUB_ENV"
       - run: git config --global submodule.fetchJobs 8
         working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v7
@@ -155,6 +160,12 @@ jobs:
       - *decrypt-compiler-cache
       - *install-r
       - run: bun install --frozen-lockfile
+      - name: Restore encrypted build products
+        uses: ./.github/actions/product-cache
+        continue-on-error: true
+        with:
+          mode: restore
+        env: *cache-encryption
       - &record-build-runtimes
         name: Record build runtimes
         run: |
@@ -166,10 +177,20 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-      - run: bunx wrangler deploy
+      - run: bun run deploy:incremental
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify live content version
+        run: bun tooling/verify-deployment.ts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Save encrypted build products
+        uses: ./.github/actions/product-cache
+        continue-on-error: true
+        with:
+          mode: save
+        env: *cache-encryption
       # Persist the optional cache after the site is live, outside the deployment path.
       - &encrypt-compiler-cache
         name: Encrypt compiler cache
@@ -194,7 +215,8 @@ jobs:
     timeout-minutes: 45
     env:
       BENCHMARK_TIMEOUT_SECONDS: "1200"
-      WISCONSIN_BUILD_MODE: ${{ inputs.build_mode || 'serial' }}
+      WISCONSIN_BUILD_MODE: ${{ inputs.build_mode == 'ssr' && 'serial' || inputs.build_mode || 'serial' }}
+      WISCONSIN_BENCHMARK_STATIC: ${{ inputs.build_mode != 'ssr' && 'true' || 'false' }}
     steps:
       - *configure-submodules
       - *checkout-content
@@ -204,6 +226,13 @@ jobs:
       - *decrypt-compiler-cache
       - *install-r
       - *install-dependencies
+      - name: Restore encrypted SSR build products
+        if: inputs.build_mode == 'ssr'
+        uses: ./.github/actions/product-cache
+        continue-on-error: true
+        with:
+          mode: restore
+        env: *cache-encryption
       - *record-build-runtimes
       - name: Record benchmark build mode
         run: |

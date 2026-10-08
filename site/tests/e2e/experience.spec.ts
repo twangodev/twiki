@@ -28,8 +28,8 @@ test('graph survives navigation, fullscreen, and theme changes without browser e
 	const errors: string[] = [];
 	page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
 
-	const prerendered = await page.request.get('/sp26-cs544/README');
-	expect(await prerendered.text()).toContain('data-graph-outer');
+	const rendered = await page.request.get('/sp26-cs544/README');
+	expect(await rendered.text()).toContain('data-graph-outer');
 
 	await page.goto('/sp26-cs544/README');
 	const graph = page.getByRole('region', { name: 'Graph view' });
@@ -232,6 +232,6 @@ test('Cloudflare asset headers and canonical URLs are configured', async ({ requ
 	expect(filterResponse.headers()['cache-control']).toBe('private, no-store');
 
 	const trailing = await request.get('/sp26-cs544/README/', { maxRedirects: 0 });
-	expect(trailing.status()).toBe(307);
+	expect(trailing.status()).toBe(308);
 	expect(trailing.headers().location).toBe('/sp26-cs544/README');
 });

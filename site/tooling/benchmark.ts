@@ -45,7 +45,7 @@ async function freePort() {
 const port = mode === 'dev' ? await freePort() : undefined;
 const args =
 	mode === 'build'
-		? ['run', 'build:all']
+		? ['run', process.env.WISCONSIN_BENCHMARK_STATIC === 'true' ? 'build:static' : 'build:all']
 		: ['run', 'dev', '--host', '127.0.0.1', '--port', String(port), '--strictPort'];
 const command = process.versions.bun ? process.execPath : 'bun';
 const child = spawn(command, args, {

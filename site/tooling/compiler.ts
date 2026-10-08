@@ -66,16 +66,41 @@ import { publicationResolver, courseLicenseResolver } from './lib/publishing';
 import { protectPublicLinks } from './lib/public-links';
 import { stageFingerprint } from './fingerprint';
 import { compiledAssetsDirectory } from './lib/edition-paths.js';
+import {
+	contentHash,
+	readContentBody,
+	readContentIndex,
+	readContentObject,
+	transclusionClosure,
+	writeContentIndex,
+	writeContentObject,
+	type ContentBody,
+	type ContentCacheIndex,
+	type ContentCachePage,
+	type ContentSummary
+} from './lib/content-cache';
 
-export async function compileContent() {
+export async function compileContent(
+	options: {
+		siteDir?: string;
+		repoRoot?: string;
+		publicEdition?: boolean;
+		incremental?: boolean;
+	} = {}
+) {
 	const PIPELINE_VERSION = await stageFingerprint('parser');
-	const SITE_DIR = path.resolve(import.meta.dirname, '..');
-	const REPO_ROOT = process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(SITE_DIR, '..');
-	const publicEdition = process.env.VITE_PUBLIC_EDITION === 'true';
+	const SITE_DIR = options.siteDir ?? path.resolve(import.meta.dirname, '..');
+	const REPO_ROOT =
+		options.repoRoot ?? process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(SITE_DIR, '..');
+	const publicEdition = options.publicEdition ?? process.env.VITE_PUBLIC_EDITION === 'true';
+	const edition = publicEdition ? 'public' : 'full';
 	const CONTENT_DIR = path.join(REPO_ROOT, 'content');
 	const OUT_DIR = path.join(SITE_DIR, 'build/generated');
 	const CACHE_DIR = path.join(OUT_DIR, 'cache');
-	const ASSETS_DIR = compiledAssetsDirectory(SITE_DIR);
+	const ASSETS_DIR =
+		options.publicEdition === undefined
+			? compiledAssetsDirectory(SITE_DIR)
+			: path.join(OUT_DIR, publicEdition ? 'public-assets' : 'assets');
 
 	const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']);
 	const ASSET_EXTS = new Set([...IMAGE_EXTS, '.pdf', '.html']);
@@ -371,8 +396,10 @@ export async function compileContent() {
 
 	let parseHits = 0;
 	const parseCacheFiles = new Set<string>();
-	async function parsePage(file: SourceFile): Promise<PageParse> {
-		const raw = fs.readFileSync(file.abs, 'utf8');
+	async function parsePage(
+		file: SourceFile,
+		raw = fs.readFileSync(file.abs, 'utf8')
+	): Promise<PageParse> {
 		const cacheKey = sha256(`${PIPELINE_VERSION}|${file.rel}|${raw}`);
 		const cacheFile = path.join(CACHE_DIR, 'stage1', cacheKey.slice(0, 2), cacheKey + '.json');
 		parseCacheFiles.add(path.relative(CACHE_DIR, cacheFile).split(path.sep).join('/'));
@@ -517,6 +544,42 @@ export async function compileContent() {
 		writeChanged(cacheFile, JSON.stringify(page));
 		return page;
 	}
+
+	function summary(page: PageParse): ContentSummary {
+		const { tree: _tree, blocks: _blocks, markdown: _markdown, ...metadata } = page;
+		return metadata;
+	}
+
+	function directTranscludes(tree: HtmlRoot) {
+		const references: ContentCachePage['transcludes'] = [];
+		visitElements(tree, (node) => {
+			if (node.tagName !== 'blockquote') return;
+			const classes = node.properties.className;
+			if (!Array.isArray(classes) || !classes.includes('transclude')) return;
+			const anchor = node.children[0] as Element | undefined;
+			const target = anchor?.properties?.['data-slug'];
+			if (typeof target === 'string')
+				references.push({
+					target,
+					...(typeof node.properties.dataBlock === 'string'
+						? { selector: node.properties.dataBlock }
+						: {})
+				});
+		});
+		return references;
+	}
+
+	function hasTranscludes(tree: HtmlRoot) {
+		let found = false;
+		visitElements(tree, (node) => {
+			const classes = node.properties.className;
+			if (node.tagName === 'blockquote' && Array.isArray(classes) && classes.includes('transclude'))
+				found = true;
+		});
+		return found;
+	}
+
+	let completedIndex: ContentCacheIndex | undefined;
 
 	// ---------------------------------------------------------------------------
 	// stage 2 — resolve (global)
@@ -866,10 +929,59 @@ export async function compileContent() {
 
 		// stage 1
 		const t1 = performance.now();
+		const previousIndex =
+			options.incremental === false
+				? undefined
+				: readContentIndex(CACHE_DIR, edition, PIPELINE_VERSION);
+		const currentRecords: Record<string, ContentCachePage> = {};
+		const loaded = new Set<string>();
+		const changedSlugs = new Set<string>();
+		const sourceByRel = new Map(pagesSrc.map((file) => [file.rel, file]));
+		let compactHits = 0;
 		const parses: PageParse[] = [];
 		for (const f of pagesSrc) {
 			try {
-				parses.push(await parsePage(f));
+				const raw = fs.readFileSync(f.abs, 'utf8');
+				const parseKey = sha256(`${PIPELINE_VERSION}|${f.rel}|${raw}`);
+				parseCacheFiles.add(`stage1/${parseKey.slice(0, 2)}/${parseKey}.json`);
+				const saved = previousIndex?.pages[f.rel];
+				if (saved?.parseKey === parseKey && saved.summary.slug === f.slug) {
+					parses.push({
+						...saved.summary,
+						markdown: '',
+						blocks: {},
+						tree: { type: 'root', children: [] }
+					});
+					currentRecords[f.rel] = { ...saved };
+					warnings.push(...saved.parseWarnings);
+					for (const [language, count] of Object.entries(saved.unknownLanguages ?? {}))
+						unknownLangs.set(language, (unknownLangs.get(language) ?? 0) + count);
+					parseHits++;
+					compactHits++;
+				} else {
+					const warningStart = warnings.length;
+					const previousLanguages = new Map(unknownLangs);
+					const page = await parsePage(f, raw);
+					parses.push(page);
+					loaded.add(f.rel);
+					changedSlugs.add(f.slug);
+					currentRecords[f.rel] = {
+						parseKey,
+						summary: summary(page),
+						outgoing: [],
+						transcludes: [],
+						parseWarnings: warnings.slice(warningStart),
+						unknownLanguages: Object.fromEntries(
+							[...unknownLangs].flatMap(([language, count]) =>
+								count > (previousLanguages.get(language) ?? 0)
+									? [[language, count - (previousLanguages.get(language) ?? 0)]]
+									: []
+							)
+						),
+						linkWarnings: [],
+						transclusionWarnings: []
+					};
+				}
 			} catch (e) {
 				console.error(`PARSE FAILED: ${f.rel}`);
 				throw e;
@@ -878,6 +990,20 @@ export async function compileContent() {
 		console.log(
 			`parse: ${parses.length} pages in ${Math.round(performance.now() - t1)}ms (${parseHits} cached, ${parses.length - parseHits} parsed)`
 		);
+		console.log(`content cache: ${compactHits} compact metadata hits, ${loaded.size} ASTs loaded`);
+		for (const [relative, saved] of Object.entries(previousIndex?.pages ?? {}))
+			if (!sourceByRel.has(relative)) changedSlugs.add(saved.summary.slug);
+		const hydrate = async (page: PageParse) => {
+			if (loaded.has(page.rel)) return;
+			// Existing diagnostics are replayed from the compact record, not duplicated during hydration.
+			const start = warnings.length;
+			const previousLanguages = new Map(unknownLangs);
+			Object.assign(page, await parsePage(sourceByRel.get(page.rel)!));
+			warnings.length = start;
+			unknownLangs.clear();
+			for (const [language, count] of previousLanguages) unknownLangs.set(language, count);
+			loaded.add(page.rel);
+		};
 
 		const drafts = parses.filter((p) => p.draft);
 		const catalog = parses.filter((p) => !p.draft);
@@ -929,12 +1055,67 @@ export async function compileContent() {
 			...catalog.map((page) => page.slug as string),
 			...[...fileRoutes.values()].map((route) => decodeURIComponent(route.slice(1)))
 		]);
+		const assetPaths = htmlAssetPaths(assetsSrc);
+		// Ordering of shortest-link candidates is semantic; do not reduce allSlugs to a set.
+		const context = contentHash(
+			JSON.stringify([
+				'content-resolution-v1',
+				edition,
+				allSlugs,
+				[...emittedSlugs],
+				[...catalogSlugs],
+				[...droppedSlugs],
+				[...fileRoutes],
+				[...assetPaths],
+				catalog.map((page) => [page.rel, publicationFor(page.rel)]),
+				Intl.Collator().resolvedOptions().locale
+			])
+		);
+		const sameContext = previousIndex?.context === context;
+		const bodies = new Map<string, ContentBody>();
+		const renderDirty = new Set(changedSlugs);
+		for (const page of pages) {
+			const saved = currentRecords[page.rel];
+			const body =
+				sameContext && !changedSlugs.has(page.slug) && saved.body
+					? readContentBody(CACHE_DIR, saved.body, edition)
+					: undefined;
+			if (body) bodies.set(page.rel, body);
+			else renderDirty.add(page.slug);
+		}
+		const affected = transclusionClosure(Object.values(previousIndex?.pages ?? {}), renderDirty);
+		for (const slug of affected) renderDirty.add(slug);
+		const changedTransclusion = catalog.some(
+			(page) =>
+				changedSlugs.has(page.slug) &&
+				(currentRecords[page.rel].transcludes.length > 0 ||
+					(loaded.has(page.rel) && hasTranscludes(page.tree)))
+		);
+		const fullResolve =
+			!sameContext ||
+			changedTransclusion ||
+			(affected.size > changedSlugs.size &&
+				Object.values(previousIndex?.pages ?? {}).some(
+					(page) => page.transcludes.length > 0 && renderDirty.has(page.summary.slug)
+				));
+		if (!sameContext) for (const page of pages) renderDirty.add(page.slug);
+		if (fullResolve) for (const page of catalog) await hydrate(page);
+		else
+			for (const page of catalog)
+				if (changedSlugs.has(page.slug) || renderDirty.has(page.slug)) await hydrate(page);
 		const outgoingBySlug = new Map<string, SimpleSlug[]>();
 		for (const page of catalog) {
-			const outgoing = crawlLinks(page, transformOptions, catalogSlugs, droppedSlugs, fileRoutes);
-			if (publicEdition && publicationFor(page.rel).public)
-				protectPublicLinks(page.tree, page.slug, emittedSlugs, catalogSlugs);
-			outgoingBySlug.set(page.slug, outgoing);
+			const record = currentRecords[page.rel];
+			if (fullResolve || loaded.has(page.rel)) {
+				const start = warnings.length;
+				const outgoing = crawlLinks(page, transformOptions, catalogSlugs, droppedSlugs, fileRoutes);
+				if (publicEdition && publicationFor(page.rel).public)
+					protectPublicLinks(page.tree, page.slug, emittedSlugs, catalogSlugs);
+				record.outgoing = outgoing;
+				record.transcludes = directTranscludes(page.tree);
+				record.linkWarnings = warnings.slice(start);
+			} else warnings.push(...record.linkWarnings);
+			outgoingBySlug.set(page.slug, record.outgoing as SimpleSlug[]);
 		}
 
 		// tag pages exist for every tag (incl. hierarchical prefixes) — add them to
@@ -944,7 +1125,12 @@ export async function compileContent() {
 		// transclusions (after link resolution, mirrors quartz render order)
 		const pagesBySlug = new Map<string, PageParse>(pages.map((p) => [p.slug as string, p]));
 		for (const page of pages) {
-			inlineTranscludes(page.tree, page.slug, pagesBySlug, 1, page.rel);
+			const record = currentRecords[page.rel];
+			if (fullResolve || loaded.has(page.rel)) {
+				const start = warnings.length;
+				inlineTranscludes(page.tree, page.slug, pagesBySlug, 1, page.rel);
+				record.transclusionWarnings = warnings.slice(start);
+			} else warnings.push(...record.transclusionWarnings);
 		}
 
 		// backlinks (simple-slug space, like quartz)
@@ -957,10 +1143,12 @@ export async function compileContent() {
 			}
 		}
 
-		const assetPaths = htmlAssetPaths(assetsSrc);
 		for (const page of pages) {
-			rewriteContentUrls(page.tree, page.slug, assetPaths);
+			if (fullResolve || loaded.has(page.rel)) rewriteContentUrls(page.tree, page.slug, assetPaths);
 		}
+		console.log(
+			`content cache: ${fullResolve ? 'full resolution fallback' : 'incremental resolution'}, ${renderDirty.size} dirty bodies, ${loaded.size} ASTs loaded`
+		);
 		console.log(`resolve: links+transcludes+backlinks in ${Math.round(performance.now() - t2)}ms`);
 
 		// stage 3
@@ -1018,9 +1206,15 @@ export async function compileContent() {
 					return { slug: s, title: p?.title ?? s };
 				});
 
-			// Apply after cached parses and transclusions have been resolved.
-			ofmCheckboxes()(page.tree);
-			const html = toHtml(page.tree, { allowDangerousHtml: true });
+			const record = currentRecords[page.rel];
+			let body = bodies.get(page.rel);
+			if (renderDirty.has(page.slug)) {
+				// Apply after cached parses and transclusions have been resolved.
+				ofmCheckboxes()(page.tree);
+				body = { html: toHtml(page.tree, { allowDangerousHtml: true }), markdown: page.markdown };
+				record.body = writeContentObject(CACHE_DIR, edition, 'bodies', JSON.stringify(body));
+			}
+			if (!body || !record.body) throw new Error(`Missing resolved content body: ${page.rel}`);
 			const meta = {
 				author: contentAuthor(page.frontmatter.author),
 				license: licenseFor(page.rel),
@@ -1047,16 +1241,25 @@ export async function compileContent() {
 			const outPath = path.join(OUT_DIR, 'pages', page.slug + '.json');
 			wantedPages.add(outPath);
 			fs.mkdirSync(path.dirname(outPath), { recursive: true });
-			writeChanged(
-				outPath,
-				JSON.stringify({
-					...meta,
-					toc: page.toc,
-					backlinks: pageBacklinks,
-					html,
-					markdown: page.markdown
-				})
-			);
+			const documentKey = contentHash(JSON.stringify([meta, page.toc, pageBacklinks, record.body]));
+			let document =
+				record.documentKey === documentKey && record.document
+					? readContentObject(CACHE_DIR, record.document, edition)
+					: undefined;
+			if (!document) {
+				document = Buffer.from(
+					JSON.stringify({
+						...meta,
+						toc: page.toc,
+						backlinks: pageBacklinks,
+						html: body.html,
+						markdown: body.markdown
+					})
+				);
+				record.document = writeContentObject(CACHE_DIR, edition, 'docs', document);
+				record.documentKey = documentKey;
+			}
+			writeChanged(outPath, document);
 			checkSize(outPath);
 		}
 
@@ -1081,17 +1284,21 @@ export async function compileContent() {
 			const outPath = path.join(OUT_DIR, 'pages', page.slug + '.json');
 			wantedPages.add(outPath);
 			fs.mkdirSync(path.dirname(outPath), { recursive: true });
-			writeChanged(outPath, JSON.stringify({ ...meta, toc: page.toc, html: '' }));
+			const record = currentRecords[page.rel];
+			const documentKey = contentHash(JSON.stringify([meta, page.toc, 'locked']));
+			let document =
+				record.documentKey === documentKey && record.document
+					? readContentObject(CACHE_DIR, record.document, edition)
+					: undefined;
+			if (!document) {
+				document = Buffer.from(JSON.stringify({ ...meta, toc: page.toc, html: '' }));
+				record.document = writeContentObject(CACHE_DIR, edition, 'docs', document);
+				record.documentKey = documentKey;
+			}
+			writeChanged(outPath, document);
 			const parts = page.slug.split('/');
 			for (let i = 1; i < parts.length; i++) folderSet.add(parts.slice(0, i).join('/'));
 		}
-
-		pruneOutputs(path.join(OUT_DIR, 'pages'), wantedPages);
-		pruneOutputs(
-			ASSETS_DIR,
-			wantedAssets,
-			(file) => !publicEdition && file === path.join(ASSETS_DIR, '_files')
-		);
 
 		// manifest
 		const tree = buildTree(catalog);
@@ -1173,6 +1380,13 @@ export async function compileContent() {
 			console.error('SIZE FAILURES:\n' + sizeViolations.join('\n'));
 			throw new Error('Content exceeds the deployment asset limit');
 		}
+		pruneOutputs(path.join(OUT_DIR, 'pages'), wantedPages);
+		pruneOutputs(
+			ASSETS_DIR,
+			wantedAssets,
+			(file) => !publicEdition && file === path.join(ASSETS_DIR, '_files')
+		);
+		completedIndex = { schema: 1, renderer: PIPELINE_VERSION, context, pages: currentRecords };
 		console.log(`done in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
 	}
 
@@ -1182,6 +1396,7 @@ export async function compileContent() {
 			path.join(CACHE_DIR, 'stage1-current.json'),
 			JSON.stringify([...parseCacheFiles].sort())
 		);
+		if (completedIndex) writeContentIndex(CACHE_DIR, edition, completedIndex);
 	} finally {
 		highlighter?.dispose();
 	}

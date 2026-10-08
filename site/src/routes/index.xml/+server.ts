@@ -1,10 +1,7 @@
 import type { RequestHandler } from './$types';
-import { rssXml } from '$lib/server/content';
-
-export const prerender = true;
-
-/** RSS feed — same URL and shape as the live Quartz site (limit 10). */
-export const GET: RequestHandler = () =>
-	new Response(rssXml(), {
+import { requestContent } from '$lib/server/runtime-content';
+export const prerender = import.meta.env.VITE_STATIC_EXPORT === 'true';
+export const GET: RequestHandler = async ({ platform }) =>
+	new Response((await requestContent(platform).model()).rssXml(), {
 		headers: { 'Content-Type': 'application/rss+xml; charset=utf-8' }
 	});

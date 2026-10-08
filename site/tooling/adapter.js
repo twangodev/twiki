@@ -21,29 +21,31 @@ export default function () {
 			const started = performance.now();
 			await adapter.adapt(builder);
 			console.log(`adapter: cloudflare in ${((performance.now() - started) / 1000).toFixed(2)}s`);
-			await indexSearch(builder.getBuildDirectory('cloudflare'));
-			const shell = path.join(builder.getBuildDirectory('cloudflare'), '_file-browser.html');
-			const fallbackStarted = performance.now();
-			await builder.generateFallback(shell);
-			console.log(
-				`adapter: file browser shell in ${((performance.now() - fallbackStarted) / 1000).toFixed(2)}s`
-			);
-			writeFileSync(
-				shell,
-				readFileSync(shell, 'utf8').replace(
-					'</body>',
-					'<noscript><p>Enable JavaScript to use the file browser.</p></noscript></body>'
-				)
-			);
-			if (process.env.VITE_PUBLIC_EDITION === 'true') {
+			if (process.env.VITE_STATIC_EXPORT === 'true') {
+				await indexSearch(builder.getBuildDirectory('cloudflare'));
+				const shell = path.join(builder.getBuildDirectory('cloudflare'), '_file-browser.html');
+				const fallbackStarted = performance.now();
+				await builder.generateFallback(shell);
+				console.log(
+					`adapter: file browser shell in ${((performance.now() - fallbackStarted) / 1000).toFixed(2)}s`
+				);
 				writeFileSync(
-					'build/generated/public-routes.json',
-					JSON.stringify(
-						Object.fromEntries(
-							[...builder.prerendered.pages].map(([route, page]) => [route, page.file])
-						)
+					shell,
+					readFileSync(shell, 'utf8').replace(
+						'</body>',
+						'<noscript><p>Enable JavaScript to use the file browser.</p></noscript></body>'
 					)
 				);
+				if (process.env.VITE_PUBLIC_EDITION === 'true') {
+					writeFileSync(
+						'build/generated/public-routes.json',
+						JSON.stringify(
+							Object.fromEntries(
+								[...builder.prerendered.pages].map(([route, page]) => [route, page.file])
+							)
+						)
+					);
+				}
 			}
 			const directory = builder.getBuildDirectory('');
 			renameSync(`${directory}/worker.js`, `${directory}/svelte-worker.js`);
