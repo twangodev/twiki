@@ -384,6 +384,33 @@ test('portable course metadata and exact history closure restore without archivi
 		expect(readFileSync(path.join(output, relative))).toEqual(bytes);
 }, 30_000);
 
+test('targeted course planning validates its own complete closure without parsing unrelated metadata', async () => {
+	const source = fixture();
+	content(source.cache);
+	const alpha = portableCourse(source.site, source.cache, 'alpha');
+	const beta = portableCourse(source.site, source.cache, 'beta');
+	writeFileSync(
+		path.join(source.cache, 'course-files-current-full.json'),
+		JSON.stringify([alpha.metadata, beta.metadata])
+	);
+	const all = await planProductCaches(source.site);
+	const fileId = `course-files-full-${contentHash('alpha').slice(0, 16)}`;
+	const bodyId = `course-full-${contentHash('alpha').slice(0, 16)}`;
+	const expectedFiles = all.groups.find((group) => group.id === fileId)!;
+	const expectedBodies = all.groups.find((group) => group.id === bodyId)!;
+	writeFileSync(path.join(source.cache, beta.metadata), 'unrelated corrupt metadata');
+	expect((await planProductCaches(source.site, { group: fileId })).groups).toEqual([expectedFiles]);
+	expect((await planProductCaches(source.site, { group: bodyId })).groups).toEqual([
+		expectedBodies
+	]);
+	expect((await planProductCaches(source.site, { group: 'files-global-full' })).groups).toEqual([]);
+	writeFileSync(path.join(source.cache, alpha.metadata), 'requested corrupt metadata');
+	expect((await planProductCaches(source.site, { group: fileId })).groups).toEqual([]);
+	expect((await planProductCaches(source.site, { group: bodyId, kind: 'search' })).groups).toEqual(
+		[]
+	);
+});
+
 test('portable metadata selection excludes R and old records and rejects incomplete or corrupted history before publication', async () => {
 	const source = fixture();
 	const target = fixture();
@@ -602,6 +629,8 @@ test('neutral prepared app and complete search products survive independent fres
 		'worker.js': 'neutral wrapper',
 		'svelte-worker.js': 'neutral server',
 		'prepared-worker/worker.json': '{"modules":[]}',
+		'cloudflare/_app/immutable/manifest.json': '{"client":"nested manifest is payload"}',
+		'server/.vite/manifest.json': '{"server":"nested manifest is payload"}',
 		'cloudflare/_app/client.js': 'neutral client'
 	})) {
 		const output = path.join(source.site, 'build/.svelte-kit', file);
@@ -623,6 +652,7 @@ test('neutral prepared app and complete search products survive independent fres
 	mkdirSync(search);
 	writeFileSync(path.join(search, 'pagefind.js'), 'search client');
 	writeFileSync(path.join(search, 'pagefind-entry.json'), '{}');
+	writeFileSync(path.join(search, 'manifest.json'), '{"nested":"search payload"}');
 	const key = contentHash('exact search input');
 	selectSearchCache(source.cache, 'full', saveSearchCache(source.cache, search, key, 'full'));
 	const saved = await transferProductCaches(source.site, 'save', secret);
@@ -658,6 +688,9 @@ test('neutral prepared app and complete search products survive independent fres
 		true
 	);
 	expect(readFileSync(path.join(output, 'pagefind.js'), 'utf8')).toBe('search client');
+	expect(readFileSync(path.join(output, 'manifest.json'), 'utf8')).toBe(
+		'{"nested":"search payload"}'
+	);
 }, 30_000);
 
 test('wrong keys, tampering and incompatible runtime fail cold without overwriting prior cache metadata', async () => {

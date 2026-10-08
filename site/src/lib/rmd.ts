@@ -72,7 +72,7 @@ export async function parseRmd(source: string, course: string, path: string, fil
 					return file.download;
 				const destination = file
 					? file.note
-						? `/${file.note}`
+						? `/${file.note.replace(/^[/\\\u0000-\u0020\u007f]+/, '')}`
 						: fileRoute(course, file.path)
 					: `/${course}/${(qualified ? local : (relative ?? local)).replace(/\.md$/i, '')}`;
 				return destination + (heading ? `#${slug(heading)}` : '');

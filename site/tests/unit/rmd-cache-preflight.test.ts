@@ -20,6 +20,7 @@ import {
 	rRuntimeVersion,
 	verifyRRenderProfile
 } from '../../tooling/lib/r-runtime';
+import { rmdCourseInputs } from '../../tooling/lib/rmd-preview-cache';
 
 const hash = (bytes: string) => createHash('sha256').update(bytes).digest('hex');
 const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
@@ -81,7 +82,7 @@ function fixture() {
 	git(repo, 'commit', '-qm', 'Fixture');
 	git(repo, 'config', 'submodule.test-course.active', 'true');
 	const files: CourseFile[] = [];
-	for (const relative of ['worksheet.Rmd', 'data.csv', 'private.md']) {
+	for (const relative of ['data.csv', 'private.md', 'worksheet.Rmd']) {
 		const bytes = readFileSync(path.join(course, relative), 'utf8');
 		const blob = `${hash(bytes)}.bin`;
 		write(`site/build/generated/assets/_files/blobs/${blob}`, bytes);
@@ -89,6 +90,7 @@ function fixture() {
 			path: relative,
 			size: bytes.length,
 			kind: 'text',
+			note: relative === 'private.md' ? '/test-course/private' : undefined,
 			download: `/_files/blobs/${blob}`
 		});
 	}
@@ -171,7 +173,9 @@ test('restored previews pass exact public/full preflight and build without any R
 				path.join(restored, 'output'),
 				(file) => retained.push(file)
 			);
-			expect(files[0].rmdPreview).toMatch(/^\/_files\/blobs\/[a-f0-9]{64}\.json$/);
+			expect(files.find((file) => file.path === 'worksheet.Rmd')!.rmdPreview).toMatch(
+				/^\/_files\/blobs\/[a-f0-9]{64}\.json$/
+			);
 			expect(retained.length).toBeGreaterThan(0);
 		});
 		fixtureData.write('content/test-course/data.csv', 'x\n2\n');
@@ -198,9 +202,9 @@ test('corruption, dependency membership changes, unverified fonts and missing lo
 		const directory = path.join(
 			cacheRoot,
 			readdirSync(cacheRoot).find((key) =>
-				JSON.parse(readFileSync(path.join(cacheRoot, key, 'result.json'), 'utf8')).inputs.includes(
-					'private.md'
-				)
+				JSON.parse(
+					JSON.parse(readFileSync(path.join(cacheRoot, key, 'result.json'), 'utf8')).inputs
+				).available.some(([name]: [string, string]) => name === 'private.md')
 			)!
 		);
 		const record = JSON.parse(readFileSync(path.join(directory, 'result.json'), 'utf8'));
@@ -255,7 +259,7 @@ test('CI requires its pinned renderer while normal local R can use a different a
 		expect(() => verifyRRenderProfile(site, runtime, environment)).not.toThrow();
 		await withEnvironment(environment, async () => {
 			await buildRmdPreviews(site, 'test-course', files, output, () => {});
-			expect(files[0].rmdPreview).toBeDefined();
+			expect(files.find((file) => file.path === 'worksheet.Rmd')!.rmdPreview).toBeDefined();
 		});
 		expect((await preflightRmdPreviews(site, repo, environment)).requiresR).toBe(true);
 	} finally {
@@ -300,6 +304,119 @@ test('profile capture and GitHub preflight CLI emit only verified dependency ide
 				WISCONSIN_R_REQUIRE_PROFILE: '1'
 			})
 		).toThrow('incompatible');
+	} finally {
+		rmSync(repo, { recursive: true, force: true });
+	}
+});
+
+test('locked catalog additions invalidate rendered wikilinks while authorized source embeds remain reusable', async () => {
+	const {
+		repo,
+		site,
+		course,
+		output,
+		environment,
+		executable,
+		files,
+		publicFiles,
+		lock,
+		write,
+		git
+	} = fixture();
+	try {
+		writeFileSync(
+			executable,
+			`#!/bin/sh\nif [ "$2" = "-e" ]; then printf "R fixture; knitr 1; native png 1\\n"; else printf '%s\\n' ${quote('# Worksheet\n\n[[private]]\n\n![[picture.png]]')} > "$4"; fi\n`,
+			{ mode: 0o755 }
+		);
+		const image = 'fixture image bytes',
+			imageBlob = `${hash(image)}.png`;
+		write('content/test-course/picture.png', image);
+		write(`site/build/generated/assets/_files/blobs/${imageBlob}`, image);
+		write(
+			'content/test-course/publish.yaml',
+			'include:\n  - worksheet.Rmd\n  - data.csv\n  - picture.png\n'
+		);
+		git(course, 'add', 'picture.png', 'publish.yaml');
+		files.push({
+			path: 'picture.png',
+			size: image.length,
+			kind: 'image',
+			download: `/_files/blobs/${imageBlob}`
+		});
+		files.sort((a, b) => Buffer.compare(Buffer.from(a.path), Buffer.from(b.path)));
+		lock();
+		let published = publicFiles();
+		const preview = () =>
+			JSON.parse(
+				readFileSync(
+					path.join(
+						output,
+						'blobs',
+						path.basename(published.find((file) => file.path === 'worksheet.Rmd')!.rmdPreview!)
+					),
+					'utf8'
+				)
+			);
+		await withEnvironment(environment, async () => {
+			await buildRmdPreviews(site, 'test-course', files, output, () => {});
+			await buildRmdPreviews(site, 'test-course', published, output, () => {});
+		});
+		expect((await preflightRmdPreviews(site, repo, environment)).requiresR).toBe(false);
+		expect(preview().html).toContain(`src="/_files/blobs/${imageBlob}"`);
+		expect(preview().html).toContain('href="/test-course/private"');
+		await withEnvironment({ ...environment, WISCONSIN_R_CACHE_ONLY: '1' }, async () => {
+			await buildRmdPreviews(site, 'test-course', published, output, () => {});
+		});
+		const before = JSON.parse(rmdCourseInputs(published));
+		write(
+			'content/test-course/extra/private.md',
+			'private body must not reach the rendered preview'
+		);
+		git(course, 'add', 'extra/private.md');
+		published.push({
+			path: 'extra/private.md',
+			size: 48,
+			kind: 'binary',
+			locked: true,
+			note: '/test-course/extra/private'
+		});
+		published.sort((a, b) => Buffer.compare(Buffer.from(a.path), Buffer.from(b.path)));
+		expect(JSON.parse(rmdCourseInputs(published)).available).toEqual(before.available);
+		expect(rmdCourseInputs(published)).not.toBe(JSON.stringify(before));
+		expect((await preflightRmdPreviews(site, repo, environment)).requiresR).toBe(true);
+		await withEnvironment({ ...environment, WISCONSIN_R_CACHE_ONLY: '1' }, async () => {
+			await expect(
+				buildRmdPreviews(site, 'test-course', published, output, () => {})
+			).rejects.toThrow('missing or stale');
+		});
+		await withEnvironment(environment, async () => {
+			await buildRmdPreviews(site, 'test-course', published, output, () => {});
+		});
+		expect(preview().html).toContain('href="/test-course/private"');
+		expect(preview().html).not.toContain('private body must not reach');
+		git(course, 'rm', '--cached', 'extra/private.md');
+		write('content/test-course/private.md', '---\ndraft: true\n---\n# Private dependency');
+		published = published
+			.filter((file) => file.path !== 'extra/private.md')
+			.map((file) => (file.path === 'private.md' ? { ...file, note: undefined } : file));
+		expect(await preflightRmdPreviews(site, repo, environment)).toMatchObject({
+			requiresR: true,
+			verified: 0
+		});
+		await withEnvironment({ ...environment, WISCONSIN_R_CACHE_ONLY: '1' }, async () => {
+			await expect(
+				buildRmdPreviews(site, 'test-course', published, output, () => {})
+			).rejects.toThrow('missing or stale');
+		});
+		await withEnvironment(environment, async () => {
+			await buildRmdPreviews(site, 'test-course', published, output, () => {});
+		});
+		expect(preview().html).toContain('href="/test-course/files/private.md"');
+		expect(await preflightRmdPreviews(site, repo, environment)).toMatchObject({
+			requiresR: true,
+			verified: 1
+		});
 	} finally {
 		rmSync(repo, { recursive: true, force: true });
 	}

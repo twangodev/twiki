@@ -171,7 +171,11 @@ function courseHistory(record: CourseCacheRecord) {
 	}
 	return [...history.values()].sort((a, b) => a.path.localeCompare(b.path));
 }
-function fileSelection(cache: string, edition: ContentEdition) {
+function fileSelection(
+	cache: string,
+	edition: ContentEdition,
+	selected: (course: string) => boolean = () => true
+) {
 	const selector = `course-files-current-${edition}.json`;
 	const files = readJson(cache, selector);
 	if (
@@ -186,6 +190,7 @@ function fileSelection(cache: string, edition: ContentEdition) {
 	return {
 		selector,
 		records: files
+			.filter((file: string) => selected(courseMetadataPath.exec(file)![2]))
 			.sort()
 			.map((file: string) => ({ file, record: courseMetadata(cache, file, edition) }))
 	};
@@ -250,7 +255,13 @@ async function selections(site: string, options: ProductOptions = {}) {
 	const cache = path.resolve(site, 'build/generated/cache');
 	if (existsSync(cache) && realpathSync(cache) !== cache) throw new Error('Nonregular cache root');
 	const groups: Selection[] = [];
+	const wanted = (id: string) =>
+		(!options.group || options.group === id) && (!options.kind || options.kind === idKind(id));
+	const wantedCourses = (prefix: string) =>
+		(!options.kind || options.kind === 'course') &&
+		(!options.group || (options.group.startsWith(prefix) && idKind(options.group) === 'course'));
 	const add = (id: string, inputs: string, files: string[], exact = false) => {
+		if (!wanted(id)) return;
 		const kind = idKind(id);
 		if (!kind || !sha.test(inputs) || !files.every((file) => ownedFile(id, file)))
 			throw new Error('Invalid product selection');
@@ -272,139 +283,159 @@ async function selections(site: string, options: ProductOptions = {}) {
 		});
 	};
 	for (const edition of ['public', 'full'] as ContentEdition[]) {
-		try {
-			const indexName = `content-current-${edition}.json`;
-			const listName = `content-files-current-${edition}.json`;
-			const candidate = readJson(cache, indexName);
-			if (!sha.test(candidate.renderer)) throw new Error('Invalid content renderer');
-			const index = readContentIndex(cache, edition, candidate.renderer);
-			if (!index) throw new Error('Invalid content index');
-			const references = [
-				...new Set([
-					indexName,
-					...Object.values(index.pages).flatMap((page) =>
-						[page.body, page.document].filter((file): file is string => !!file)
-					)
-				])
-			];
-			if (!sameFiles(readJson(cache, listName), references))
-				throw new Error('Incomplete content selection');
-			add(
-				`global-${edition}`,
-				digest(
-					Buffer.concat([
-						readFileSync(regular(cache, indexName)),
-						readFileSync(regular(cache, listName))
+		if (wanted(`global-${edition}`) || wantedCourses(`course-${edition}-`)) {
+			try {
+				const indexName = `content-current-${edition}.json`;
+				const listName = `content-files-current-${edition}.json`;
+				const candidate = readJson(cache, indexName);
+				if (!sha.test(candidate.renderer)) throw new Error('Invalid content renderer');
+				const index = readContentIndex(cache, edition, candidate.renderer);
+				if (!index) throw new Error('Invalid content index');
+				const references = [
+					...new Set([
+						indexName,
+						...Object.values(index.pages).flatMap((page) =>
+							[page.body, page.document].filter((file): file is string => !!file)
+						)
 					])
-				),
-				[indexName, listName]
-			);
-			const courses = new Map<string, Set<string>>();
-			for (const page of Object.values(index.pages)) {
-				const course = page.summary.rel.includes('/') ? page.summary.rel.split('/')[0] : '_root';
-				const files = courses.get(course) ?? new Set<string>();
-				if (page.body) files.add(page.body);
-				if (page.document) files.add(page.document);
-				courses.set(course, files);
+				];
+				if (!sameFiles(readJson(cache, listName), references))
+					throw new Error('Incomplete content selection');
+				if (wanted(`global-${edition}`))
+					add(
+						`global-${edition}`,
+						digest(
+							Buffer.concat([
+								readFileSync(regular(cache, indexName)),
+								readFileSync(regular(cache, listName))
+							])
+						),
+						[indexName, listName]
+					);
+				if (wantedCourses(`course-${edition}-`)) {
+					const courses = new Map<string, Set<string>>();
+					for (const page of Object.values(index.pages)) {
+						const course = page.summary.rel.includes('/')
+							? page.summary.rel.split('/')[0]
+							: '_root';
+						const files = courses.get(course) ?? new Set<string>();
+						if (page.body) files.add(page.body);
+						if (page.document) files.add(page.document);
+						courses.set(course, files);
+					}
+					for (const [course, files] of courses) {
+						if (!files.size) continue;
+						const id = `course-${edition}-${digest(course).slice(0, 16)}`;
+						if (!wanted(id)) continue;
+						const entries = [...files].sort();
+						add(id, digest(JSON.stringify([edition, course, entries])), entries, true);
+					}
+				}
+			} catch {
+				if (options.restore) add(`global-${edition}`, digest('missing-current-global'), []);
 			}
-			for (const [course, files] of courses) {
-				if (!files.size) continue;
-				const entries = [...files].sort();
-				add(
-					`course-${edition}-${digest(course).slice(0, 16)}`,
-					digest(JSON.stringify([edition, course, entries])),
-					entries,
-					true
+		}
+		if (wanted(`files-global-${edition}`) || wantedCourses(`course-files-${edition}-`)) {
+			try {
+				const { selector, records } = fileSelection(
+					cache,
+					edition,
+					(course) =>
+						wanted(`files-global-${edition}`) ||
+						wanted(`course-files-${edition}-${digest(course).slice(0, 16)}`)
 				);
+				const files = [selector, ...records.map(({ file }) => file)];
+				if (wanted(`files-global-${edition}`))
+					add(`files-global-${edition}`, fileGlobalInputs(cache, files), files);
+				for (const { file, record } of records)
+					if (wanted(`course-files-${edition}-${digest(record.course).slice(0, 16)}`))
+						add(
+							`course-files-${edition}-${digest(record.course).slice(0, 16)}`,
+							fileCourseInputs(cache, file, record, edition),
+							[file, ...courseHistory(record).map((entry) => entry.path)],
+							true
+						);
+			} catch {
+				if (options.restore)
+					add(`files-global-${edition}`, digest('missing-current-course-files'), []);
 			}
+		}
+		if (wanted(`search-${edition}`)) {
+			try {
+				const name = `search-current-${edition}.json`;
+				const files = readJson(cache, name);
+				if (
+					!Array.isArray(files) ||
+					!files.length ||
+					!files.every((file) => ownedFile(`search-${edition}`, file) && file !== name)
+				)
+					throw new Error('Invalid search selection');
+				const manifests = files.filter((file: string) =>
+					new RegExp(`^search/${edition}/[a-f0-9]{64}/manifest\\.json$`).test(file)
+				);
+				if (manifests.length !== 1) throw new Error('Incomplete search selection');
+				const manifest = readJson(cache, manifests[0]);
+				if (
+					manifest.version !== 1 ||
+					manifest.edition !== edition ||
+					!sha.test(manifest.key) ||
+					!Array.isArray(manifest.files)
+				)
+					throw new Error('Invalid search manifest');
+				const base = `search/${edition}/${manifest.key}`;
+				const expected = [
+					`${base}/manifest.json`,
+					...manifest.files.map((entry: Entry) => `${base}/files/${entry.path}`)
+				];
+				if (!sameFiles(files, expected)) throw new Error('Incomplete search selection');
+				add(`search-${edition}`, manifest.key, [name, ...files]);
+			} catch {
+				if (options.restore) add(`search-${edition}`, digest('missing-current-search'), []);
+			}
+		}
+	}
+	if (wanted('application')) {
+		let applicationIdentity: string | undefined;
+		try {
+			const { applicationCacheIdentity } = await import('./application-cache');
+			applicationIdentity = applicationCacheIdentity(site).identity;
 		} catch {
-			if (options.restore) add(`global-${edition}`, digest('missing-current-global'), []);
+			/* Older sites or incomplete dependencies cannot select an exact app artifact. */
 		}
 		try {
-			const { selector, records } = fileSelection(cache, edition);
-			const files = [selector, ...records.map(({ file }) => file)];
-			add(`files-global-${edition}`, fileGlobalInputs(cache, files), files);
-			for (const { file, record } of records)
-				add(
-					`course-files-${edition}-${digest(record.course).slice(0, 16)}`,
-					fileCourseInputs(cache, file, record, edition),
-					[file, ...courseHistory(record).map((entry) => entry.path)],
-					true
-				);
-		} catch {
-			if (options.restore)
-				add(`files-global-${edition}`, digest('missing-current-course-files'), []);
-		}
-		try {
-			const name = `search-current-${edition}.json`;
-			const files = readJson(cache, name);
+			const pointer = readJson(cache, 'application-current.json');
+			if (pointer.schema !== 1 || !sha.test(pointer.identity) || !Array.isArray(pointer.files))
+				throw new Error('Invalid application pointer');
+			const manifestName = `application/${pointer.identity}/manifest.json`;
+			const manifest = readJson(cache, manifestName);
 			if (
-				!Array.isArray(files) ||
-				!files.length ||
-				!files.every((file) => ownedFile(`search-${edition}`, file) && file !== name)
-			)
-				throw new Error('Invalid search selection');
-			const manifests = files.filter((file: string) => file.endsWith('/manifest.json'));
-			if (manifests.length !== 1) throw new Error('Incomplete search selection');
-			const manifest = readJson(cache, manifests[0]);
-			if (
-				manifest.version !== 1 ||
-				manifest.edition !== edition ||
-				!sha.test(manifest.key) ||
+				manifest.schema !== 1 ||
+				manifest.identity !== pointer.identity ||
 				!Array.isArray(manifest.files)
 			)
-				throw new Error('Invalid search manifest');
-			const base = `search/${edition}/${manifest.key}`;
+				throw new Error('Invalid application manifest');
 			const expected = [
-				`${base}/manifest.json`,
-				...manifest.files.map((entry: Entry) => `${base}/files/${entry.path}`)
+				manifestName,
+				...manifest.files.map((entry: Entry) => `application/${pointer.identity}/kit/${entry.path}`)
 			];
-			if (!sameFiles(files, expected)) throw new Error('Incomplete search selection');
-			add(`search-${edition}`, manifest.key, [name, ...files]);
-		} catch {
-			if (options.restore) add(`search-${edition}`, digest('missing-current-search'), []);
-		}
-	}
-	let applicationIdentity: string | undefined;
-	try {
-		const { applicationCacheIdentity } = await import('./application-cache');
-		applicationIdentity = applicationCacheIdentity(site).identity;
-	} catch {
-		/* Older sites or incomplete dependencies cannot select an exact app artifact. */
-	}
-	try {
-		const pointer = readJson(cache, 'application-current.json');
-		if (pointer.schema !== 1 || !sha.test(pointer.identity) || !Array.isArray(pointer.files))
-			throw new Error('Invalid application pointer');
-		const manifestName = `application/${pointer.identity}/manifest.json`;
-		const manifest = readJson(cache, manifestName);
-		if (
-			manifest.schema !== 1 ||
-			manifest.identity !== pointer.identity ||
-			!Array.isArray(manifest.files)
-		)
-			throw new Error('Invalid application manifest');
-		const expected = [
-			manifestName,
-			...manifest.files.map((entry: Entry) => `application/${pointer.identity}/kit/${entry.path}`)
-		];
-		if (!sameFiles(pointer.files, expected)) throw new Error('Incomplete application selection');
-		if (!options.restore && applicationIdentity && pointer.identity !== applicationIdentity)
-			throw new Error('Stale application artifact');
-		add(
-			'application',
-			options.restore ? (applicationIdentity ?? pointer.identity) : pointer.identity,
-			['application-current.json', ...pointer.files],
-			true
-		);
-	} catch {
-		if (options.restore)
+			if (!sameFiles(pointer.files, expected)) throw new Error('Incomplete application selection');
+			if (!options.restore && applicationIdentity && pointer.identity !== applicationIdentity)
+				throw new Error('Stale application artifact');
 			add(
 				'application',
-				applicationIdentity ?? digest('missing-current-application'),
-				[],
-				!!applicationIdentity
+				options.restore ? (applicationIdentity ?? pointer.identity) : pointer.identity,
+				['application-current.json', ...pointer.files],
+				true
 			);
+		} catch {
+			if (options.restore)
+				add(
+					'application',
+					applicationIdentity ?? digest('missing-current-application'),
+					[],
+					!!applicationIdentity
+				);
+		}
 	}
 	return {
 		runtime,
@@ -577,9 +608,14 @@ function validateClosure(cache: string, group: Selection, envelope: Envelope) {
 	const selected = group.kind === 'application' ? pointer.files : pointer;
 	if (!Array.isArray(selected) || !sameFiles(names, [pointerName, ...selected]))
 		throw new Error('Incomplete product pointer closure');
-	const manifests = selected.filter((file: string) => file.endsWith('/manifest.json'));
-	if (manifests.length !== 1) throw new Error('Incomplete product manifest');
-	const manifest = readJson(cache, manifests[0]);
+	// Prepared Vite output and Pagefind payloads can themselves contain files
+	// named manifest.json. Only the producer's exact root manifest owns closure.
+	const manifestName =
+		group.kind === 'application'
+			? `application/${envelope.inputs}/manifest.json`
+			: `search/${edition}/${envelope.inputs}/manifest.json`;
+	if (!selected.includes(manifestName)) throw new Error('Incomplete product manifest');
+	const manifest = readJson(cache, manifestName);
 	let base: string;
 	if (group.kind === 'application') {
 		if (
@@ -598,7 +634,7 @@ function validateClosure(cache: string, group: Selection, envelope: Envelope) {
 	if (
 		!Array.isArray(manifest.files) ||
 		!sameFiles(selected, [
-			manifests[0],
+			manifestName,
 			...manifest.files.map((entry: Entry) => `${base}/${entry.path}`)
 		])
 	)

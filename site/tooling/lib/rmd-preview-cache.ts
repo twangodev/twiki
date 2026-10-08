@@ -14,12 +14,21 @@ export type RmdPreviewInputs = {
 export type RmdPreviewResult = { preview: string; blobs: string[] };
 
 export function rmdCourseInputs(files: CourseFile[]) {
-	return JSON.stringify(
-		files
+	return JSON.stringify({
+		available: files
 			.filter((file) => !file.locked && file.download)
 			.map(({ path, download }) => [path, download])
-			.sort()
-	);
+			.sort(),
+		// parseRmd also resolves links and embeds against locked or oversized entries.
+		// Preserve catalog order, which determines the first exact matching candidate.
+		catalog: files.map((file) => [
+			file.path,
+			file.kind === 'image',
+			Boolean(file.locked),
+			file.note ?? null,
+			file.download ?? null
+		])
+	});
 }
 
 export function rmdPreviewKey(inputs: RmdPreviewInputs) {
@@ -69,8 +78,13 @@ export function readRmdPreviewResult(
 		if (!saved.preview.endsWith('.json')) return;
 		const preview: RmdPreview = JSON.parse(read(saved.preview).toString());
 		if (typeof preview.title !== 'string' || typeof preview.html !== 'string') return;
+		const downloads = new Set<string>();
+		for (const [, download] of JSON.parse(inputs.inputs).available) {
+			if (typeof download === 'string' && /^\/_files\/blobs\/[a-f0-9]{64}\.[a-z]+$/.test(download))
+				downloads.add(path.basename(download));
+		}
 		for (const match of preview.html.matchAll(/\/_files\/blobs\/([a-f0-9]{64}\.[a-z]+)/g)) {
-			if (!saved.blobs.includes(match[1])) return;
+			if (!saved.blobs.includes(match[1]) && !downloads.has(match[1])) return;
 		}
 		return { preview: saved.preview, blobs: saved.blobs };
 	} catch {

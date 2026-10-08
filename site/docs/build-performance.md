@@ -27,18 +27,30 @@ any later worksheet miss fails the build. Ordinary local R builds use their
 actual runtime; benchmark producers must match the committed CI profile.
 
 The manual workflow separates encrypted benchmark products from production:
+Benchmark transport downloads one bundle of independently authenticated group
+archives, then validates globals before selecting application, search, and
+course products. A bundle hit alone never counts as complete product reuse.
+The original per-group transport remains available as the production default
+until the bundled transport is measured on fresh runners.
 
 ```sh
 gh workflow run svelte.yml --ref perf/build-performance -f cache_benchmark=profile
 # Download the sanitized real-CI profile, review it, and commit the lock first.
 gh workflow run svelte.yml --ref perf/build-performance -f cache_benchmark=seed
 gh workflow run svelte.yml --ref perf/build-performance -f cache_benchmark=restore
+gh workflow run svelte.yml --ref perf/build-performance -f cache_benchmark=edit
 ```
 
-Each dispatch uses a separate runner. Restore measurements require every
+Each dispatch uses a separate runner. Restore and edit measurements require every
 requested product to restore successfully, with zero misses or rebuilds.
+The edit mode then appends a fixture paragraph to one public note in the
+disposable checkout, without committing, publishing products, or deploying it.
 These experiments cannot deploy or publish production product caches. Only
 sanitized timing JSON and the runtime profile are uploaded as artifacts.
+Deployment and benchmark jobs pin Ubuntu 24.04 and Bun 1.4.2. The two small
+font packages installed by the producer's R dependencies are provisioned at
+their verified versions before worksheet preflight, so runners without R see
+the same font inventory. R rendering still checks the actual committed profile.
 Fresh-runner results for this extension are pending; same-runner warm timings
 do not establish the deployment target.
 

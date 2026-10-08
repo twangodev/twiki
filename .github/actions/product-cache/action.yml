@@ -7,6 +7,9 @@ inputs:
   namespace:
     description: Production caches, or isolated caches for trusted manual benchmarks
     default: production
+  transport:
+    description: Individual group caches, or one bundle of independently encrypted groups
+    default: groups
 outputs:
   requested:
     description: Product groups requested

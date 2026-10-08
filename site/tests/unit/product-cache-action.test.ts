@@ -9,7 +9,8 @@ import {
 	openSync,
 	readFileSync,
 	rmSync,
-	writeFileSync
+	writeFileSync,
+	symlinkSync
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -30,6 +31,13 @@ interface FixtureOptions {
 	planKey?: string;
 	emptyPlan?: boolean;
 	planArchive?: string;
+	saveResult?: number;
+	sdkError?: boolean;
+	transport?: string;
+	sha?: string;
+	bundleFault?: 'missing' | 'extra' | 'symlink' | 'namespace' | 'traversal' | 'unselected';
+	twoGroups?: boolean;
+	destinationSymlink?: boolean;
 }
 function saveFixture(transfer: unknown, options: FixtureOptions = {}) {
 	const root = mkdtempSync(path.join(tmpdir(), 'wisconsin-product-action-'));
@@ -58,14 +66,30 @@ function saveFixture(transfer: unknown, options: FixtureOptions = {}) {
 		writeFileSync(
 			path.join(sdk, 'lib/cache.js'),
 			`
-import {appendFileSync} from 'node:fs';
+import {appendFileSync,mkdirSync,readFileSync,readdirSync,writeFileSync,symlinkSync} from 'node:fs';
+import path from 'node:path';
 export const isFeatureAvailable=()=>true;
 export async function saveCache(files,key) {
- appendFileSync(process.env.FIXTURE_SDK_CALLS,JSON.stringify({method:'saveCache',files,key})+'\\n');
- return 123;
+ const bundle=process.env.INPUT_TRANSPORT==='bundle'?{entries:readdirSync(files[0]).sort(),manifest:JSON.parse(readFileSync(path.join(files[0],'bundle.json'),'utf8'))}:undefined;
+ appendFileSync(process.env.FIXTURE_SDK_CALLS,JSON.stringify({method:'saveCache',files,key,bundle})+'\\n');
+ if(process.env.FIXTURE_SDK_ERROR==='true')throw new Error('synthetic-private-detail');
+ return Number(process.env.FIXTURE_SAVE_RESULT);
 }
 export async function restoreCache(files,key,restoreKeys) {
  appendFileSync(process.env.FIXTURE_SDK_CALLS,JSON.stringify({method:'restoreCache',files,key,restoreKeys})+'\\n');
+ if(process.env.INPUT_TRANSPORT==='bundle'&&process.env.FIXTURE_CACHE_HIT==='true') {
+  await new Promise(resolve=>setTimeout(resolve,15));
+  const fault=process.env.FIXTURE_BUNDLE_FAULT;
+  const dir=files[0];mkdirSync(dir,{recursive:true});
+  const namespace=fault==='namespace'?'benchmark':process.env.INPUT_NAMESPACE;
+  const groups=fault==='traversal'?['../search-public']:fault==='unselected'?['search-public','course-full-'+ 'c'.repeat(16)]:process.env.FIXTURE_TWO_GROUPS==='true'?['search-public','search-full']:['search-public'];
+  writeFileSync(path.join(dir,'bundle.json'),JSON.stringify({schema:1,namespace,runtime:'a'.repeat(64),groups}));
+  if(fault==='symlink')symlinkSync(process.env.FIXTURE_TRANSPORT_CALLS,path.join(dir,'search-public.gpg'));
+  else if(fault!=='missing')writeFileSync(path.join(dir,'search-public.gpg'),'synthetic encrypted archive');
+  if(process.env.FIXTURE_TWO_GROUPS==='true')writeFileSync(path.join(dir,'search-full.gpg'),'second encrypted archive');
+  if(fault==='extra')writeFileSync(path.join(dir,'unexpected.gpg'),'extra');
+  if(fault==='unselected')writeFileSync(path.join(dir,'course-full-'+ 'c'.repeat(16)+'.gpg'),'unselected');
+ }
  return process.env.FIXTURE_CACHE_HIT==='true'?key:undefined;
 }
 `
@@ -85,6 +109,24 @@ export async function restoreCache(files,key,restoreKeys) {
 		const archive = path.join(site, group.archive);
 		mkdirSync(path.dirname(archive), { recursive: true });
 		writeFileSync(archive, 'stale archive from a previous save');
+		const unsafeDestination = path.join(root, 'unsafe-destination');
+		if (options.destinationSymlink) {
+			rmSync(archive);
+			symlinkSync(unsafeDestination, archive);
+		}
+		const groups = options.twoGroups
+			? [
+					group,
+					{
+						...group,
+						id: 'search-full',
+						key: prefix + 'fixture-full-key',
+						archive: group.archive.replace('search-public.gpg', 'search-full.gpg')
+					}
+				]
+			: [group];
+		for (const entry of groups.slice(1))
+			writeFileSync(path.join(site, entry.archive), 'second encrypted fixture archive');
 		// Deliberately leave a stale ready result too. The action must consume the
 		// fresh per-group transfer result written by this invocation.
 		writeFileSync(
@@ -93,7 +135,14 @@ export async function restoreCache(files,key,restoreKeys) {
 		);
 		writeFileSync(
 			path.join(site, 'fixture.json'),
-			JSON.stringify({ group, transfer, namespace, emptyPlan: options.emptyPlan ?? false })
+			JSON.stringify({
+				group,
+				groups,
+				twoGroups: options.twoGroups ?? false,
+				transfer,
+				namespace,
+				emptyPlan: options.emptyPlan ?? false
+			})
 		);
 		writeFileSync(
 			binary,
@@ -108,11 +157,12 @@ if(flag<0||!args[flag+1])throw new Error('Transport result path is required');
 if(args[args.indexOf('--namespace')+1]!==fixture.namespace)throw new Error('Namespace not forwarded');
 if(args[1]==='plan') {
  const kind=args.indexOf('--kind');
- const groups=!fixture.emptyPlan&&(kind<0||args[kind+1]==='search')?[fixture.group]:[];
- writeFileSync(args[flag+1],JSON.stringify({schema:1,namespace:fixture.namespace,groups}));
+ const groups=!fixture.emptyPlan&&(kind<0||args[kind+1]==='search')?fixture.groups:[];
+ writeFileSync(args[flag+1],JSON.stringify({schema:1,namespace:fixture.namespace,runtime:'a'.repeat(64),groups}));
 } else if(args[1]==='save-products'||args[1]==='restore-products') {
- if(args[args.indexOf('--group')+1]!==fixture.group.id)throw new Error('Unexpected group');
- const result=fixture.transfer;
+ const id=args[args.indexOf('--group')+1];
+ if(!fixture.groups.some(g=>g.id===id))throw new Error('Unexpected group');
+ const result=fixture.twoGroups?{...fixture.transfer,results:fixture.transfer.results.map(r=>({...r,id}))}:fixture.transfer;
  if(result!=='leave-stale')writeFileSync(args[flag+1],typeof result==='string'?result:JSON.stringify({namespace:fixture.namespace,...result}));
 } else throw new Error('Unexpected transport operation');
 `,
@@ -137,11 +187,17 @@ if(args[1]==='plan') {
 				PATH: `${path.dirname(binary)}${path.delimiter}${process.env.PATH ?? ''}`,
 				INPUT_MODE: options.mode ?? 'save',
 				INPUT_NAMESPACE: namespace,
+				INPUT_TRANSPORT: options.transport ?? 'groups',
+				GITHUB_SHA: options.sha ?? '1'.repeat(40),
 				BUILD_CACHE_KEY: 'synthetic-fixture-key',
 				GITHUB_REF: options.ref ?? 'refs/heads/main',
 				GITHUB_EVENT_NAME: options.event ?? 'workflow_dispatch',
 				GITHUB_OUTPUT: outputFile,
 				FIXTURE_CACHE_HIT: String(options.cacheHit ?? true),
+				FIXTURE_SAVE_RESULT: String(options.saveResult ?? 123),
+				FIXTURE_SDK_ERROR: String(options.sdkError ?? false),
+				FIXTURE_BUNDLE_FAULT: options.bundleFault ?? '',
+				FIXTURE_TWO_GROUPS: String(options.twoGroups ?? false),
 				FIXTURE_SDK_CALLS: sdkCalls,
 				FIXTURE_TRANSPORT_CALLS: transportCalls
 			}
@@ -174,9 +230,16 @@ if(args[1]==='plan') {
 				.filter((line) => line.startsWith('Encrypted product cache results: '))
 				.map((line) => JSON.parse(line.slice('Encrypted product cache results: '.length)))
 				.at(-1),
+			diagnostics: stdout
+				.split('\n')
+				.filter((line) => line.startsWith('Encrypted product cache group: '))
+				.map((line) => JSON.parse(line.slice('Encrypted product cache group: '.length))),
 			sdkCalls: calls(sdkCalls),
 			transportCalls: calls(transportCalls),
-			archiveRetained: readFileSync(archive, 'utf8') === 'stale archive from a previous save',
+			archiveRetained:
+				existsSync(archive) &&
+				readFileSync(archive, 'utf8') === 'stale archive from a previous save',
+			unsafeDestinationCreated: existsSync(unsafeDestination),
 			group
 		};
 	} finally {
@@ -367,5 +430,254 @@ describe('product cache action verified restore accounting', () => {
 		expect(result.counts).toMatchObject({ requested: 0, published: 0, skipped: 0, failed: 0 });
 		expect(result.stdout).toContain('"groups":0');
 		expect(result.sdkCalls).toEqual([]);
+	});
+});
+
+describe('product cache action safe per-group diagnostics', () => {
+	test('a rejected save distinguishes readiness from SDK cache reuse', () => {
+		const rejected = saveFixture({
+			schema: 1,
+			results: [{ id: 'search-public', ready: false, reason: 'invalid' }]
+		});
+		expect(rejected.diagnostics).toEqual([
+			{
+				mode: 'save',
+				namespace: 'production',
+				group: 'search-public',
+				ready: false,
+				reason: 'invalid'
+			}
+		]);
+		expect(rejected.sdkCalls).toEqual([]);
+		expect(rejected.counts.skipped).toBe(1);
+		const existing = saveFixture(readyTransfer, { saveResult: -1 });
+		expect(existing.diagnostics).toEqual([
+			{
+				mode: 'save',
+				namespace: 'production',
+				group: 'search-public',
+				ready: true,
+				reason: 'cache-not-created'
+			}
+		]);
+		expect(existing.sdkCalls).toHaveLength(1);
+		expect(existing.counts).toMatchObject({ published: 0, skipped: 1, failed: 0 });
+	});
+	test('an archive miss and invalid restored product have distinct reasons', () => {
+		const miss = saveFixture(readyTransfer, { mode: 'restore', cacheHit: false });
+		expect(miss.diagnostics[0]).toMatchObject({
+			group: 'search-public',
+			ready: false,
+			reason: 'archive-miss'
+		});
+		const invalid = saveFixture(
+			{ schema: 1, results: [{ id: 'search-public', ready: false, reason: 'invalid' }] },
+			{ mode: 'restore' }
+		);
+		expect(invalid.diagnostics[0]).toMatchObject({
+			group: 'search-public',
+			ready: false,
+			reason: 'invalid'
+		});
+		expect(invalid.counts).toMatchObject({ hits: 1, restored: 0, rebuild_needed: 1 });
+	});
+	test('unknown reasons and extra result fields cannot expose private detail', () => {
+		const result = saveFixture({
+			schema: 1,
+			results: [
+				{
+					id: 'search-public',
+					ready: false,
+					reason: 'synthetic-private-detail',
+					path: '/synthetic-private-path',
+					body: 'synthetic-private-body'
+				}
+			]
+		});
+		expect(result.diagnostics[0].reason).toBe('not-ready');
+		expect(result.stdout).not.toContain('synthetic-private');
+		expect(result.stderr).not.toContain('synthetic-private');
+		expect(Object.keys(result.diagnostics[0]).sort()).toEqual([
+			'group',
+			'mode',
+			'namespace',
+			'ready',
+			'reason'
+		]);
+	});
+	test('SDK errors only report an operation code, preserving failure counts', () => {
+		const result = saveFixture(readyTransfer, { sdkError: true });
+		expect(result.diagnostics[0]).toMatchObject({
+			group: 'search-public',
+			ready: false,
+			reason: 'operation-error'
+		});
+		expect(result.stdout).not.toContain('synthetic-private-detail');
+		expect(result.stderr).not.toContain('synthetic-private-detail');
+		expect(result.counts).toMatchObject({ requested: 1, published: 0, skipped: 0, failed: 1 });
+	});
+});
+
+describe('product cache action bundled transport', () => {
+	test('multiple ready encrypted groups use one SDK save, preserving group counts', () => {
+		const result = saveFixture(readyTransfer, { transport: 'bundle', twoGroups: true });
+		expect(result.sdkCalls).toHaveLength(1);
+		expect(result.sdkCalls[0].method).toBe('saveCache');
+		expect(result.sdkCalls[0].files).toHaveLength(1);
+		expect(result.sdkCalls[0].files[0]).toEndWith('/product-caches/bundles/production');
+		expect(result.sdkCalls[0].bundle.entries).toEqual([
+			'bundle.json',
+			'search-full.gpg',
+			'search-public.gpg'
+		]);
+		expect(result.sdkCalls[0].bundle.manifest).toEqual({
+			schema: 1,
+			namespace: 'production',
+			runtime: 'a'.repeat(64),
+			groups: ['search-full', 'search-public']
+		});
+		expect(result.counts).toMatchObject({
+			transport: 'bundle',
+			requested: 2,
+			published: 2,
+			skipped: 0,
+			failed: 0
+		});
+	});
+	test('one SDK restore still invokes independent product verification', () => {
+		const result = saveFixture(readyTransfer, { mode: 'restore', transport: 'bundle' });
+		expect(result.sdkCalls).toHaveLength(1);
+		expect(
+			result.transportCalls.filter((call: string[]) => call[1] === 'restore-products')
+		).toHaveLength(1);
+		expect(result.counts).toMatchObject({
+			requested: 1,
+			hits: 1,
+			restored: 1,
+			misses: 0,
+			failed: 0
+		});
+	});
+	test('concurrent groups await the same asynchronous bundle download', () => {
+		const result = saveFixture(readyTransfer, {
+			mode: 'restore',
+			transport: 'bundle',
+			twoGroups: true
+		});
+		expect(result.sdkCalls).toHaveLength(1);
+		expect(
+			result.transportCalls.filter((call: string[]) => call[1] === 'restore-products')
+		).toHaveLength(2);
+		expect(result.counts).toMatchObject({
+			requested: 2,
+			hits: 2,
+			restored: 2,
+			misses: 0,
+			failed: 0
+		});
+	});
+	test('a changed commit has only a same-runtime same-namespace fallback', () => {
+		const sha = '2'.repeat(40);
+		const result = saveFixture(readyTransfer, {
+			mode: 'restore',
+			transport: 'bundle',
+			namespace: 'benchmark',
+			ref: 'refs/heads/perf/build-performance',
+			sha
+		});
+		expect(result.sdkCalls[0].key).toBe(
+			`wisconsin-products-benchmark-v1-bundle-${'a'.repeat(64)}-${sha}`
+		);
+		expect(result.sdkCalls[0].restoreKeys).toEqual([
+			`wisconsin-products-benchmark-v1-bundle-${'a'.repeat(64)}-`
+		]);
+		expect(result.counts.restored).toBe(1);
+	});
+	test('an inner archive absent from a hit bundle is a group miss', () => {
+		const result = saveFixture(readyTransfer, {
+			mode: 'restore',
+			transport: 'bundle',
+			bundleFault: 'missing'
+		});
+		expect(result.sdkCalls).toHaveLength(1);
+		expect(result.counts).toMatchObject({
+			requested: 1,
+			hits: 0,
+			misses: 1,
+			restored: 0,
+			rebuild_needed: 1,
+			failed: 0
+		});
+		expect(result.transportCalls.some((call: string[]) => call[1] === 'restore-products')).toBe(
+			false
+		);
+	});
+	test('an inner product rejected by authenticated verification cannot count as restored', () => {
+		const result = saveFixture(
+			{ schema: 1, results: [{ id: 'search-public', ready: false, reason: 'invalid' }] },
+			{ mode: 'restore', transport: 'bundle' }
+		);
+		expect(result.counts).toMatchObject({
+			requested: 1,
+			hits: 1,
+			restored: 0,
+			rebuild_needed: 1,
+			failed: 0
+		});
+		expect(result.diagnostics[0].reason).toBe('invalid');
+	});
+	test.each(['extra', 'symlink', 'namespace', 'traversal'] as const)(
+		'rejects unsafe bundle %s before any inner restore',
+		(bundleFault) => {
+			const result = saveFixture(readyTransfer, {
+				mode: 'restore',
+				transport: 'bundle',
+				bundleFault
+			});
+			expect(result.counts).toMatchObject({ restored: 0, misses: 1, rebuild_needed: 1, failed: 1 });
+			expect(result.transportCalls.some((call: string[]) => call[1] === 'restore-products')).toBe(
+				false
+			);
+			expect(result.stdout).toContain('bundle restore rejected');
+		}
+	);
+	test('unselected group payloads make the bundle incomplete even when selected groups verify', () => {
+		const result = saveFixture(readyTransfer, {
+			mode: 'restore',
+			transport: 'bundle',
+			bundleFault: 'unselected'
+		});
+		expect(result.counts).toMatchObject({ restored: 1, failed: 1 });
+		expect(result.stdout).toContain('unselected groups');
+	});
+	test('rejected groups are omitted from the outgoing bundle', () => {
+		const result = saveFixture(
+			{ schema: 1, results: [{ id: 'search-public', ready: false }] },
+			{ transport: 'bundle' }
+		);
+		expect(result.sdkCalls).toEqual([]);
+		expect(result.counts).toMatchObject({ requested: 1, published: 0, skipped: 1 });
+	});
+	test('an invalid source commit is rejected before SDK or transport', () => {
+		const result = saveFixture(readyTransfer, {
+			transport: 'bundle',
+			sha: '../../private',
+			allowFailure: true
+		});
+		expect(result.status).not.toBe(0);
+		expect(result.sdkCalls).toEqual([]);
+		expect(result.transportCalls).toEqual([]);
+	});
+	test('a dangling archive destination symlink cannot redirect the bundle copy', () => {
+		const result = saveFixture(readyTransfer, {
+			mode: 'restore',
+			transport: 'bundle',
+			destinationSymlink: true
+		});
+		expect(result.unsafeDestinationCreated).toBe(false);
+		expect(result.counts).toMatchObject({ restored: 0, failed: 1, rebuild_needed: 1 });
+		expect(result.transportCalls.some((call: string[]) => call[1] === 'restore-products')).toBe(
+			false
+		);
 	});
 });

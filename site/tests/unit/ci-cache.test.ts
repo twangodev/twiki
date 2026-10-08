@@ -22,6 +22,7 @@ type Step = {
 		'restore-keys'?: string;
 		mode?: string;
 		namespace?: string;
+		transport?: string;
 	};
 };
 const workflow = parse(readFileSync('../.github/workflows/svelte.yml', 'utf8')) as {
@@ -362,6 +363,7 @@ test('deployment skips R only after verified restored worksheet coverage', () =>
 		expect(job.env?.WISCONSIN_R_REQUIRE_PROFILE).toBe('1');
 		const restore = job.steps.findIndex((step) => step.with?.mode === 'restore');
 		const preflight = job.steps.findIndex((step) => step.id === 'worksheets');
+		const fonts = job.steps.findIndex((step) => step.name === 'Provision pinned worksheet fonts');
 		const renderer = job.steps.findIndex((step) => step.name === 'Install R worksheet renderer');
 		const enforce = job.steps.findIndex(
 			(step) => step.name === 'Enforce verified worksheet cache reuse'
@@ -369,6 +371,12 @@ test('deployment skips R only after verified restored worksheet coverage', () =>
 		const build = job.steps.findIndex((step) => step.run === 'bun run build:all');
 		expect(restore).toBeGreaterThan(-1);
 		expect(preflight).toBeGreaterThan(restore);
+		expect(preflight).toBeGreaterThan(fonts);
+		expect(fonts).toBeGreaterThan(-1);
+		expect(job.steps[fonts].run).toContain('fonts-mathjax=2.7.9+dfsg-1');
+		expect(job.steps[fonts].run).toContain(
+			'fonts-glyphicons-halflings=1.009~3.4.1+dfsg-3+deb12u1build0.24.04.1'
+		);
 		expect(renderer).toBeGreaterThan(preflight);
 		expect(enforce).toBeGreaterThan(renderer);
 		expect(build).toBeGreaterThan(enforce);
@@ -386,7 +394,7 @@ test('complete cache experiments remain manual, isolated and nondeploying with m
 	expect(JSON.stringify(job)).not.toContain('CLOUDFLARE_API_TOKEN');
 	expect(job.steps.some((step) => /wrangler|deploy:incremental/.test(step.run ?? ''))).toBe(false);
 	const restore = job.steps.find((step) => step.name === 'Restore isolated complete products')!;
-	expect(restore.with).toEqual({ mode: 'restore', namespace: 'benchmark' });
+	expect(restore.with).toEqual({ mode: 'restore', namespace: 'benchmark', transport: 'bundle' });
 	const save = job.steps.find((step) => step.name === 'Save isolated complete products')!;
 	expect(save.if).toBe("inputs.cache_benchmark == 'seed'");
 	const hits = job.steps.find(
@@ -396,4 +404,11 @@ test('complete cache experiments remain manual, isolated and nondeploying with m
 	expect(hits.run).toContain('"$MISSING_PRODUCTS" -eq 0');
 	expect(hits.run).toContain('"$REBUILD_PRODUCTS" -eq 0');
 	expect(hits.run).toContain('"$FAILED_PRODUCTS" -eq 0');
+	expect(hits.if).toContain("inputs.cache_benchmark == 'edit'");
+	const edit = job.steps.find(
+		(step) => step.name === 'Edit one public note in the disposable checkout'
+	)!;
+	expect(edit.if).toBe("inputs.cache_benchmark == 'edit'");
+	expect(edit.run).toContain('appendFileSync');
+	expect(edit.run).not.toMatch(/git (commit|push)|wrangler/);
 });
