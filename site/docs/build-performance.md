@@ -30,8 +30,10 @@ The manual workflow separates encrypted benchmark products from production:
 Benchmark transport downloads one bundle of independently authenticated group
 archives, then validates globals before selecting application, search, and
 course products. A bundle hit alone never counts as complete product reuse.
-The original per-group transport remains available as the production default
-until the bundled transport is measured on fresh runners.
+The original per-group transport remains available. Deployment jobs select
+bundled transport; the explicitly authorized performance-branch experiment
+consumes its isolated benchmark namespace, while main restores and publishes
+only production products.
 
 ```sh
 gh workflow run svelte.yml --ref perf/build-performance -f cache_benchmark=profile

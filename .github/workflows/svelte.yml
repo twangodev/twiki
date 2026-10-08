@@ -92,6 +92,14 @@ jobs:
           sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends r-base-core r-cran-knitr r-cran-car
       - &install-dependencies
         run: bun install --frozen-lockfile
+      - &restore-ci-products
+        name: Restore verified main build products
+        uses: ./.github/actions/product-cache
+        continue-on-error: true
+        with:
+          mode: restore
+          transport: bundle
+        env: *cache-encryption
       - run: bunx playwright install --with-deps chromium
       - name: Install Lychee 0.24.2
         run: |
@@ -145,6 +153,7 @@ jobs:
       - *decrypt-compiler-cache
       - *install-r
       - run: bun install --frozen-lockfile
+      - *restore-ci-products
       - run: bunx playwright install --with-deps chromium
       - run: bun test ./tests/browser-diagrams.test.ts ./tests/browser-analytics.test.ts
       - run: bun test tests/rmd-build.test.ts
@@ -197,6 +206,7 @@ jobs:
         continue-on-error: true
         with:
           mode: restore
+          transport: bundle
         env: *cache-encryption
       - name: Check restored worksheet coverage
         id: worksheets
@@ -241,6 +251,7 @@ jobs:
         continue-on-error: true
         with:
           mode: save
+          transport: bundle
         env: *cache-encryption
       # Persist the optional cache after the site is live, outside the deployment path.
       - &encrypt-compiler-cache
@@ -370,6 +381,8 @@ jobs:
         continue-on-error: true
         with:
           mode: restore
+          namespace: benchmark
+          transport: bundle
         env: *cache-encryption
       - name: Check restored worksheet coverage
         if: inputs.live_test == 'deploy'
