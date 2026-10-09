@@ -5,6 +5,7 @@
 	import { dev } from '$app/environment';
 	import { onNavigate, invalidateAll } from '$app/navigation';
 	import { ModeWatcher } from 'mode-watcher';
+	import { site } from '$lib/config';
 	import DocShell from '$lib/components/doc/DocShell.svelte';
 	import type { LayoutData } from './$types';
 
@@ -60,7 +61,7 @@
 	<link
 		rel="alternate"
 		type="application/rss+xml"
-		title="wisconsin — recent notes"
+		title={`${site.title} — recent notes`}
 		href="/index.xml"
 	/>
 </svelte:head>

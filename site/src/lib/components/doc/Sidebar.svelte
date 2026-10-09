@@ -12,7 +12,7 @@
 	const publicEdition = $derived(page.data.edition === 'public');
 	import type { NavNode } from '$lib/types';
 	import { isNotebookRoute } from '$lib/notebook-nav';
-	import { site } from '$lib/config';
+	import { authEnabled, site } from '$lib/config';
 	import { ThemeToggle } from '$lib/components/ui';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import NavTree from './NavTree.svelte';
@@ -237,7 +237,7 @@
 	</nav>
 	<div class="flex shrink-0 items-center justify-between border-t border-border pt-3">
 		<a
-			href="https://github.com/twangodev/wisconsin"
+			href="https://github.com/twangodev/twiki"
 			target="_blank"
 			rel="noopener noreferrer"
 			aria-label="Source on GitHub"
@@ -249,22 +249,24 @@
 			</svg>
 		</a>
 		<ThemeToggle /><ReaderModeToggle />
-		<AccessLink />
-		{#if publicEdition}
-			<a
-				href={`/login?next=${encodeURIComponent(page.url.pathname)}`}
-				data-sveltekit-reload
-				aria-label="Sign in"
-				title="Sign in"
-				class="inline-flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface hover:text-text"
-				><LogIn size={16} /></a
-			>
-		{:else}
-			<form method="post" action="/logout" onsubmit={() => workspace.clear()}>
-				<IconButton type="submit" aria-label="Sign out" title="Sign out"
-					><LogOut size={16} /></IconButton
+		{#if authEnabled}
+			<AccessLink />
+			{#if publicEdition}
+				<a
+					href={`/login?next=${encodeURIComponent(page.url.pathname)}`}
+					data-sveltekit-reload
+					aria-label="Sign in"
+					title="Sign in"
+					class="inline-flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface hover:text-text"
+					><LogIn size={16} /></a
 				>
-			</form>
+			{:else}
+				<form method="post" action="/logout" onsubmit={() => workspace.clear()}>
+					<IconButton type="submit" aria-label="Sign out" title="Sign out"
+						><LogOut size={16} /></IconButton
+					>
+				</form>
+			{/if}
 		{/if}
 	</div>
 </div>

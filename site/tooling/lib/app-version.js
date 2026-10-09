@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-const directories = ['src', 'tooling', 'worker', 'assets'];
+const directories = ['src', 'tooling', 'worker', 'assets', 'database'];
 const configFiles = [
 	'package.json',
 	'bun.lock',

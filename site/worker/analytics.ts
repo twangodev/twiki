@@ -1,11 +1,38 @@
-const endpoints = new Map([
-	['/api/analytics/site/tracking-config/4', { method: 'GET', upstream: '/site/tracking-config/4' }],
-	['/api/analytics/track', { method: 'POST', upstream: '/track' }],
-	['/api/analytics/identify', { method: 'POST', upstream: '/identify' }]
-]);
-
-/** Public analytics relay; never forwards site authentication to Rybbit. */
-export async function proxyAnalytics(request: Request, fetcher: typeof fetch = fetch) {
+export interface AnalyticsOptions {
+	siteId: string;
+	endpoint: string;
+}
+/** Opt-in analytics relay; never forwards vault authentication upstream. */
+export async function proxyAnalytics(
+	request: Request,
+	fetcher: typeof fetch = fetch,
+	options?: AnalyticsOptions
+) {
+	if (!options) return new Response('Not found', { status: 404 });
+	if (!/^[0-9]+$/.test(options.siteId))
+		return new Response('Invalid analytics configuration', { status: 503 });
+	let upstream: URL;
+	try {
+		upstream = new URL(options.endpoint);
+		if (
+			upstream.protocol !== 'https:' ||
+			upstream.username ||
+			upstream.password ||
+			upstream.search ||
+			upstream.hash
+		)
+			throw Error();
+	} catch {
+		return new Response('Invalid analytics configuration', { status: 503 });
+	}
+	const endpoints = new Map([
+		[
+			'/api/analytics/site/tracking-config/' + options.siteId,
+			{ method: 'GET', upstream: '/site/tracking-config/' + options.siteId }
+		],
+		['/api/analytics/track', { method: 'POST', upstream: '/track' }],
+		['/api/analytics/identify', { method: 'POST', upstream: '/identify' }]
+	]);
 	const url = new URL(request.url);
 	const endpoint = endpoints.get(url.pathname);
 	if (!endpoint) return new Response('Not found', { status: 404 });
@@ -20,7 +47,8 @@ export async function proxyAnalytics(request: Request, fetcher: typeof fetch = f
 		try {
 			body = await request.text();
 			const payload = JSON.parse(body);
-			if (String(payload?.site_id) !== '4') return new Response('Invalid site', { status: 400 });
+			if (String(payload?.site_id) !== options.siteId)
+				return new Response('Invalid site', { status: 400 });
 		} catch {
 			return new Response('Invalid JSON', { status: 400 });
 		}
@@ -43,7 +71,7 @@ export async function proxyAnalytics(request: Request, fetcher: typeof fetch = f
 	if (ip) headers.set('X-Forwarded-For', ip);
 
 	try {
-		const response = await fetcher(`https://rybbit.twango.dev/api${endpoint.upstream}`, {
+		const response = await fetcher(upstream.href.replace(/\/$/, '') + endpoint.upstream, {
 			method: endpoint.method,
 			headers,
 			body,

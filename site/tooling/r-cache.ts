@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { appendFileSync, lstatSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { captureRRenderProfile } from './lib/r-runtime';
+import { resolveProject } from './lib/project-config';
 
 const command = process.argv[2];
 const site = path.resolve(import.meta.dirname, '..');
@@ -28,10 +29,7 @@ if (
 	(!options.length || (options.length === 1 && options[0] === '--github-output'))
 ) {
 	const { preflightRmdPreviews } = await import('./lib/rmd-preflight');
-	const result = await preflightRmdPreviews(
-		site,
-		process.env.WISCONSIN_CONTENT_REPO ?? path.dirname(site)
-	);
+	const result = await preflightRmdPreviews(site, resolveProject(site).root);
 	if (options.length) {
 		if (!process.env.GITHUB_OUTPUT)
 			throw new Error('GITHUB_OUTPUT is required with --github-output');

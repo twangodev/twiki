@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { site } from '../../src/lib/config';
 import { breadcrumbs, contentAuthor, noteSchema, serializeSchema } from '../../src/lib/metadata';
 import type { ManifestPage } from '../../src/lib/types';
 
@@ -21,15 +22,16 @@ const page: ManifestPage = {
 	relativePath: 'course/lecture.md'
 };
 
-test('public notes have dates, breadcrumbs and curation without invented authorship', () => {
+test('generic public notes have dates and breadcrumbs without invented authors or editors', () => {
 	const schemas = noteSchema('/course/lecture', page);
 	expect(schemas[1]).toMatchObject({
 		'@type': 'Article',
-		dateModified: page.dates.modified,
-		editor: { name: 'James Ding' }
+		dateModified: page.dates.modified
 	});
 	expect(schemas[1]).not.toHaveProperty('datePublished');
 	expect(schemas[1]).not.toHaveProperty('author');
+	expect(schemas[1]).not.toHaveProperty('editor');
+	expect(schemas[0]).not.toHaveProperty('publisher');
 	expect(schemas[2]).toMatchObject({
 		'@type': 'BreadcrumbList',
 		itemListElement: [
@@ -42,10 +44,20 @@ test('public notes have dates, breadcrumbs and curation without invented authors
 });
 
 test('course overviews have authors and licensed material retains source attribution', () => {
-	expect(noteSchema('/course/README', { ...page, slug: 'course/README' })[1]).toMatchObject({
-		'@type': 'CollectionPage',
-		author: { name: 'James Ding' }
-	});
+	const previous = { ...site.author };
+	try {
+		Object.assign(site.author, { name: 'Configured Curator', url: 'https://example.com/curator' });
+		expect(noteSchema('/course/README', { ...page, slug: 'course/README' })[1]).toMatchObject({
+			'@type': 'CollectionPage',
+			author: { name: 'Configured Curator' },
+			editor: { name: 'Configured Curator' }
+		});
+		expect(noteSchema('/course/README', { ...page, slug: 'course/README' })[0]).toMatchObject({
+			publisher: { name: 'Configured Curator' }
+		});
+	} finally {
+		Object.assign(site.author, previous);
+	}
 	const license = {
 		name: 'CC BY',
 		url: 'https://example.com/license',

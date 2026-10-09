@@ -23,7 +23,7 @@ export interface DeploymentConfig {
 		not_found_handling: '404-page';
 		run_worker_first: true;
 	};
-	workers_dev: false;
+	workers_dev: boolean;
 	preview_urls: false;
 	routes: { pattern: string; custom_domain: true }[];
 	account_id?: string;
@@ -146,9 +146,13 @@ export function validateDeploymentConfig(value: unknown): DeploymentConfig {
 		value.assets.not_found_handling !== '404-page'
 	)
 		deploymentError('unsupported asset routing');
-	if (value.workers_dev !== false || value.preview_urls !== false)
+	if (
+		typeof value.workers_dev !== 'boolean' ||
+		value.preview_urls !== false ||
+		(value.workers_dev && value.vars.TWIKI_AUTH_MODE !== 'none')
+	)
 		deploymentError('public development endpoints must be disabled');
-	if (!Array.isArray(value.routes) || !value.routes.length)
+	if (!Array.isArray(value.routes) || (!value.routes.length && !value.workers_dev))
 		deploymentError('missing custom domains');
 	for (const route of value.routes) {
 		if (!record(route)) deploymentError('invalid custom domain');

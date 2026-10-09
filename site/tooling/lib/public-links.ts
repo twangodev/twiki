@@ -1,3 +1,4 @@
+import { site } from '../../src/lib/config';
 import { visitElements } from './visit-elements';
 import type { Root, Element } from 'hast';
 
@@ -5,11 +6,12 @@ export function protectPublicLinks(
 	tree: Root,
 	page: string,
 	allowed: Set<string>,
-	catalog = allowed
+	catalog = allowed,
+	origin = site.url
 ) {
 	const permitted = (value: string, targets = allowed) => {
-		const url = new URL(value, `https://wisconsin.twango.dev/${page}`);
-		if (url.origin !== 'https://wisconsin.twango.dev') return true;
+		const url = new URL(value, new URL('/' + page, origin));
+		if (url.origin !== new URL(origin).origin) return true;
 		const target = decodeURIComponent(url.pathname).replace(/^\/|\/$/g, '');
 		return (
 			targets.has(target) ||

@@ -7,7 +7,6 @@ import fs from 'node:fs';
 import { writeChanged, copyChanged, pruneOutputs } from './lib/output';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { execFileSync } from 'node:child_process';
 
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
@@ -60,12 +59,13 @@ import {
 	ofmYouTubeEmbed
 } from './lib/ofm';
 import { applyAutoTags } from './lib/autotag';
-import { buildGitDateMap, parseGitmodules, resolveDates } from './lib/lastmod';
+import { buildGitDateMap, resolveDates } from './lib/lastmod';
 import { contentAuthor } from '../src/lib/metadata';
 import { publicationResolver, courseLicenseResolver } from './lib/publishing';
 import { protectPublicLinks } from './lib/public-links';
 import { stageFingerprint } from './fingerprint';
 import { compiledAssetsDirectory } from './lib/edition-paths.js';
+import { resolveProject, discoverSourceFiles, declaredContentCourses } from './lib/project-config';
 import {
 	contentHash,
 	readContentBody,
@@ -88,13 +88,17 @@ export async function compileContent(
 		incremental?: boolean;
 	} = {}
 ) {
-	const PIPELINE_VERSION = await stageFingerprint('parser');
 	const SITE_DIR = options.siteDir ?? path.resolve(import.meta.dirname, '..');
-	const REPO_ROOT =
-		options.repoRoot ?? process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(SITE_DIR, '..');
+	const project = resolveProject(SITE_DIR, options.repoRoot);
+	const REPO_ROOT = project.root;
+	const PIPELINE_VERSION = crypto
+		.createHash('sha256')
+		.update(await stageFingerprint('parser'))
+		.update(project.discovery)
+		.digest('hex');
 	const publicEdition = options.publicEdition ?? process.env.VITE_PUBLIC_EDITION === 'true';
 	const edition = publicEdition ? 'public' : 'full';
-	const CONTENT_DIR = path.join(REPO_ROOT, 'content');
+	const CONTENT_DIR = project.contentDir;
 	const OUT_DIR = path.join(SITE_DIR, 'build/generated');
 	const CACHE_DIR = path.join(OUT_DIR, 'cache');
 	const ASSETS_DIR =
@@ -128,14 +132,6 @@ export async function compileContent(
 		inResolution: boolean;
 	}
 
-	function gitLsFiles(repoDir: string, pathspec?: string[]): string[] {
-		const out = execFileSync('git', ['-C', repoDir, 'ls-files', ...(pathspec ?? [])], {
-			encoding: 'utf8',
-			maxBuffer: 1 << 28
-		});
-		return out.split('\n').filter((l) => l.length > 0);
-	}
-
 	/**
 	 * Quartz's resolution discovery was globby("**\/*.*", { gitignore: true }) —
 	 * i.e. visible files whose basename contains a dot and with no dot-leading
@@ -154,22 +150,8 @@ export async function compileContent(
 	}
 
 	function discover(): { files: SourceFile[]; submoduleNames: string[] } {
-		const submodules = parseGitmodules(path.join(REPO_ROOT, '.gitmodules')).filter((s) =>
-			s.path.startsWith('content/')
-		);
-		const submodulePaths = new Set(submodules.map((s) => s.path));
-		const rels: string[] = [];
-
-		for (const sub of submodules) {
-			const name = sub.path.slice('content/'.length);
-			for (const f of gitLsFiles(sub.fullPath, ['--recurse-submodules'])) {
-				rels.push(`${name}/${f}`);
-			}
-		}
-		for (const f of gitLsFiles(REPO_ROOT, ['--', 'content'])) {
-			if (submodulePaths.has(f)) continue; // gitlink entries
-			rels.push(f.slice('content/'.length));
-		}
+		const courses = declaredContentCourses(project);
+		const rels = discoverSourceFiles(project);
 
 		const files: SourceFile[] = [];
 		for (const rel of rels) {
@@ -195,7 +177,7 @@ export async function compileContent(
 			});
 		}
 		files.sort((a, b) => a.rel.localeCompare(b.rel));
-		return { files, submoduleNames: submodules.map((s) => s.path.slice('content/'.length)) };
+		return { files, submoduleNames: courses.map((course) => course.name) };
 	}
 
 	// ---------------------------------------------------------------------------
@@ -434,7 +416,7 @@ export async function compileContent(
 		const fmTags = coerceToArray(coalesceAliases(data, ['tags', 'tag']));
 		let tags: string[] = fmTags ? [...new Set(fmTags.map((tag) => slugTag(tag)))] : [];
 		// AutoTag (fork ran it right after FrontMatter, before OFM appends inline tags)
-		tags = applyAutoTags(tags, file.rel);
+		if (project.discovery === 'git') tags = applyAutoTags(tags, file.rel);
 
 		const aliases = coerceToArray(coalesceAliases(data, ['aliases', 'alias']));
 		if (aliases && aliases.length > 0) {
@@ -859,7 +841,7 @@ export async function compileContent(
 	}
 
 	function buildTree(pages: PageParse[]): NavNode {
-		const root: NavNode = { name: '', slug: '', title: 'wisconsin', children: [], pages: [] };
+		const root: NavNode = { name: '', slug: '', title: 'Notes', children: [], pages: [] };
 		const dirOf = (slug: string) => slug.split('/').slice(0, -1).join('/');
 		const folderNode = (dir: string): NavNode => {
 			if (dir === '') return root;
@@ -904,8 +886,8 @@ export async function compileContent(
 
 		// stage 0
 		const { files: discovered, submoduleNames } = discover();
-		const publicationFor = publicationResolver(REPO_ROOT);
-		const licenseFor = courseLicenseResolver(REPO_ROOT);
+		const publicationFor = publicationResolver(REPO_ROOT, project);
+		const licenseFor = courseLicenseResolver(REPO_ROOT, project);
 		const files = publicEdition
 			? discovered.filter((file) => publicationFor(file.rel).public)
 			: discovered;
@@ -922,7 +904,7 @@ export async function compileContent(
 
 		// git dates (one batched walk per submodule, HEAD-keyed cache)
 		const tDates = performance.now();
-		const gitDates = buildGitDateMap(REPO_ROOT, CACHE_DIR);
+		const gitDates = buildGitDateMap(REPO_ROOT, CACHE_DIR, project);
 		console.log(
 			`git dates: ${Object.keys(gitDates.modified).length} paths in ${Math.round(performance.now() - tDates)}ms`
 		);
@@ -1060,6 +1042,7 @@ export async function compileContent(
 		const context = contentHash(
 			JSON.stringify([
 				'content-resolution-v1',
+				[project.discovery, project.publication],
 				edition,
 				allSlugs,
 				[...emittedSlugs],

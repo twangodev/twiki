@@ -13,6 +13,7 @@ import rehypeRaw from 'rehype-raw';
 import wikiLink from '@flowershow/remark-wiki-link';
 import { toHtml } from 'hast-util-to-html';
 import { visit } from 'unist-util-visit';
+import { resolveProject } from './lib/project-config';
 import { markdownFiles } from './lib/markdown-files';
 import { stripObsidianComments } from './lib/comments';
 import {
@@ -85,7 +86,7 @@ export function targetRenderer(content: string, files: string[]) {
 }
 
 if (import.meta.main) {
-	const content = fileURLToPath(new URL('../../content', import.meta.url));
+	const content = resolveProject().contentDir;
 	const inputs = process.argv.slice(2);
 	const files = markdownFiles([content], /./);
 	const sources = inputs.length

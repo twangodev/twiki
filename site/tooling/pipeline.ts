@@ -4,6 +4,7 @@ import { stageFingerprint } from './fingerprint';
 import { trackOutputs, writeChanged } from './lib/output';
 import { contentInputFingerprint, contentOutputFingerprint } from './lib/dev-state';
 import { rRendererIdentity } from './lib/r-runtime';
+import { resolveProject, projectIdentity, writeProjectSiteConfig } from './lib/project-config';
 
 const state = globalThis as typeof globalThis & {
 	wisconsinContentBuilds?: Map<string, Promise<Set<string>>>;
@@ -16,10 +17,12 @@ export async function prepareContent(
 ) {
 	const builds = (state.wisconsinContentBuilds ??= new Map());
 	const site = process.cwd();
-	const repo = process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(site, '..');
+	const project = resolveProject(site);
+	const repo = project.root;
+	writeProjectSiteConfig(site, project);
 	const key = JSON.stringify([
 		process.cwd(),
-		process.env.WISCONSIN_CONTENT_REPO,
+		projectIdentity(project),
 		process.env.VITE_PUBLIC_EDITION,
 		await stageFingerprint('pipeline'),
 		development,

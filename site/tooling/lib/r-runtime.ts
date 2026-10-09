@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { contentGit, declaredCourseDirectories } from './dev-git-state';
+import { resolveProject, declaredContentCourses, discoverSourceFiles } from './project-config';
 
 const runtimeEnvironment = [
 	'PATH',
@@ -240,34 +240,12 @@ export function lockedRRuntime(site: string, environment: NodeJS.ProcessEnv = pr
 
 /** Probe conservatively for indexed worksheets in declared, initialized courses. */
 export function rRendererIdentity(repo: string, environment: NodeJS.ProcessEnv = process.env) {
-	const courses = declaredCourseDirectories(repo);
-	const indexed = contentGit('-C', repo, 'ls-files', '-z', '--recurse-submodules', '--', 'content')
-		.toString()
-		.split('\0');
-	let hasWorksheet = indexed.some((file) => {
-		if (!/\.rmd$/i.test(file)) return false;
-		const source = path.resolve(repo, file);
-		return courses.some((course) => source.startsWith(course + path.sep)) && existsSync(source);
-	});
-	// Compiler discovery also includes initialized declared courses before their gitlink is staged.
-	// The root query covers ordinary registered courses, avoiding a Git process for each one.
-	if (!hasWorksheet) {
-		for (const course of courses) {
-			const relative = path.relative(path.resolve(repo), course).split(path.sep).join('/') + '/';
-			if (
-				!existsSync(path.join(course, '.git')) ||
-				indexed.some((file) => file.startsWith(relative))
-			)
-				continue;
-			const files = contentGit('-C', course, 'ls-files', '-z', '--recurse-submodules')
-				.toString()
-				.split('\0');
-			if (files.some((file) => /\.rmd$/i.test(file) && existsSync(path.resolve(course, file)))) {
-				hasWorksheet = true;
-				break;
-			}
-		}
-	}
+	const project = resolveProject(process.cwd(), repo, environment);
+	const courses = declaredContentCourses(project);
+	if (!courses.length) return 'unused';
+	const hasWorksheet = discoverSourceFiles(project).some(
+		(file) => /\.rmd$/i.test(file) && courses.some((course) => file.startsWith(course.name + '/'))
+	);
 	if (!hasWorksheet) return 'unused';
 	let version: string | null;
 	try {

@@ -1,14 +1,9 @@
-export const site = {
-	name: 'wisconsin',
-	url: 'https://wisconsin.twango.dev',
-	title: 'wisconsin',
-	description: 'Course notes, projects, and reference material from UW–Madison.',
-	author: {
-		name: 'James Ding',
-		url: 'https://twango.dev',
-		github: 'https://github.com/twangodev',
-		email: 'james@twango.dev'
-	},
-	locale: 'en_US',
-	language: 'en'
-} as const;
+import metadata from './site-config.json';
+import authentication from './auth-config.json';
+
+/** Consumer branding is copied into the staged engine before any build or dev process. */
+export const site = metadata;
+
+/** Only configured server authentication exposes account controls. Static exports have no session API. */
+export const authEnabled =
+	authentication.enabled === true && import.meta.env.VITE_STATIC_EXPORT !== 'true';

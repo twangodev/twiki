@@ -11,7 +11,12 @@ import {
 import path from 'node:path';
 import { writeChanged, pruneOutputs } from './output';
 import type { CourseFile } from '../../src/lib/files';
-import { parseGitmodules } from './lastmod';
+import {
+	resolveProject,
+	declaredContentCourses,
+	discoverSourceFiles,
+	projectIdentity
+} from './project-config';
 import { slugifyFilePath, type FilePath } from './slug';
 import { buildFileIcons } from './file-icons';
 import { buildHistories, type HistoryJob } from './history-pool';
@@ -45,20 +50,19 @@ export async function buildCourseFiles(
 	changedInputs?: Set<string>,
 	development = false
 ) {
-	const repo = process.env.WISCONSIN_CONTENT_REPO ?? path.dirname(siteDir);
+	const project = resolveProject(siteDir);
+	const repo = project.root;
 	const publicEdition = process.env.VITE_PUBLIC_EDITION === 'true';
-	const isPublished = publicationFilter(repo);
-	const licenseFor = courseLicenseResolver(repo);
-	const contentRoot = path.join(repo, 'content');
+	const isPublished = publicationFilter(repo, project);
+	const licenseFor = courseLicenseResolver(repo, project);
+	const contentRoot = project.contentDir;
 	const output = courseFilesDirectory(siteDir);
 	const wanted = new Set<string>();
 	for (const dir of ['index', 'blobs']) mkdirSync(path.join(output, dir), { recursive: true });
 	const courses = new Map(
-		parseGitmodules(path.join(repo, '.gitmodules'))
-			.filter((course) => course.path.startsWith('content/'))
-			.map((course) => [course.path.slice(8), [] as CourseFile[]])
+		declaredContentCourses(project).map((course) => [course.name, [] as CourseFile[]])
 	);
-	const key = JSON.stringify([siteDir, repo, publicEdition, development]);
+	const key = JSON.stringify([siteDir, projectIdentity(project), publicEdition, development]);
 	const previous = previousBuilds.get(key);
 	const active = new Set(courses.keys());
 	const outputByCourse = new Map<string, Set<string>>();
@@ -68,14 +72,7 @@ export async function buildCourseFiles(
 			JSON.stringify([...noteSlugs].filter((slug) => slug.startsWith(course + '/')).sort())
 		])
 	);
-	const paths = execFileSync(
-		'git',
-		['-C', repo, 'ls-files', '-z', '--recurse-submodules', '--', 'content'],
-		{ maxBuffer: 1 << 28 }
-	)
-		.toString()
-		.split('\0')
-		.filter(Boolean);
+	const paths = discoverSourceFiles(project);
 	const fingerprints = new Map<string, string>();
 	const cacheFile = (course: string) =>
 		path.join(
@@ -85,14 +82,27 @@ export async function buildCourseFiles(
 			`${course}.json`
 		);
 	const cacheRoot = path.join(siteDir, 'build/generated/cache');
-	const cacheContext = (course: string) => ({ repo, course, output, cache: cacheRoot });
+	const cacheContext = (course: string) => ({
+		repo,
+		contentRoot,
+		course,
+		output,
+		cache: cacheRoot
+	});
 	if (!development) {
-		const version = `${await stageFingerprint('files')}\0${publicEdition ? 'public' : 'full'}`;
+		const version = `${await stageFingerprint('files')}\0${publicEdition ? 'public' : 'full'}\0${project.publication}\0${project.discovery}`;
 		for (const course of courses.keys()) {
-			const tracked = paths.filter((file) => file.startsWith(`content/${course}/`));
+			const tracked = paths.filter((file) => file.startsWith(`${course}/`));
 			// Let the R renderer validate its installed runtime and worksheet dependencies.
 			if (tracked.some((file) => /\.rmd$/i.test(file))) continue;
-			const fingerprint = courseFingerprint(repo, course, tracked, version, noteKeys.get(course)!);
+			const fingerprint = courseFingerprint(
+				repo,
+				course,
+				tracked,
+				version,
+				noteKeys.get(course)!,
+				contentRoot
+			);
 			fingerprints.set(course, fingerprint);
 			const cached = readCourseCache(cacheFile(course), fingerprint, cacheContext(course));
 			if (!cached) continue;
@@ -153,11 +163,11 @@ export async function buildCourseFiles(
 		])
 	);
 	for (const tracked of paths) {
-		const relative = tracked.slice(8);
+		const relative = tracked;
 		const [course, ...segments] = relative.split('/');
 		const files = courses.get(course);
 		if (!files || !active.has(course) || !browsablePath(segments.join('/'))) continue;
-		const source = path.join(repo, tracked);
+		const source = path.join(contentRoot, tracked);
 		if (!existsSync(source) || !lstatSync(source).isFile()) continue;
 		if (realpathSync(source) !== path.join(contentRoot, relative)) continue;
 		const size = lstatSync(source).size;

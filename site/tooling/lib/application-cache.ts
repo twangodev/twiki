@@ -246,8 +246,15 @@ export function prepareApplicationStatic(site: string, destination: string) {
 				if (entry.isFile())
 					files.push(path.relative(site, path.join(entry.parentPath, entry.name)));
 	}
+	// Packaged runtimes often live under a Git-ignored .twiki directory; an empty
+	// git inventory there does not mean the engine's maintained fonts disappeared.
+	files.push('static/.gitignore', 'static/favicon.png');
+	const fonts = path.join(site, 'static/fonts');
+	if (existsSync(fonts))
+		for (const entry of readdirSync(fonts, { recursive: true, withFileTypes: true }))
+			if (entry.isFile()) files.push(path.relative(site, path.join(entry.parentPath, entry.name)));
 	const root = realpathSync(site);
-	for (const file of files) {
+	for (const file of new Set(files)) {
 		const source = path.resolve(site, file);
 		if (!file.startsWith('static/') || !within(root, source))
 			throw new Error('Invalid maintained static path');

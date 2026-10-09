@@ -9,6 +9,13 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { contentGit, contentRepositories } from './dev-git-state';
+import {
+	resolveProject,
+	discoverSourceFiles,
+	projectIdentity,
+	gitAvailable,
+	contentWithinProject
+} from './project-config';
 
 function fileStat(file: string): BigIntStats | null {
 	try {
@@ -33,7 +40,15 @@ function stamp(file: string, stat = fileStat(file)) {
 
 /** Validate tracked paths, working-copy edits, index changes and Git dates without reading large assets. */
 export function contentInputFingerprint(repo: string, pipeline: string) {
-	const hash = createHash('sha256').update(pipeline).update(repo);
+	const project = resolveProject(process.cwd(), repo);
+	const hash = createHash('sha256').update(pipeline).update(projectIdentity(project));
+	for (const file of discoverSourceFiles(project)) {
+		if (project.discovery === 'filesystem') {
+			const bytes = readFileSync(path.join(project.contentDir, file));
+			hash.update(JSON.stringify([file, bytes.length])).update(bytes);
+		} else hash.update(JSON.stringify([file, stamp(path.join(project.contentDir, file))]));
+	}
+	if (project.configFile) hash.update(readFileSync(project.configFile));
 	const modules = path.join(repo, '.gitmodules');
 	hash.update(existsSync(modules) ? readFileSync(modules) : '');
 	for (const repository of contentRepositories(repo)) {
@@ -51,9 +66,19 @@ export function contentInputFingerprint(repo: string, pipeline: string) {
 	}
 	// Git's recursive index is authoritative about which initialized submodules
 	// are enabled, including nested registration changes.
-	hash.update(
-		contentGit('-C', repo, 'ls-files', '-z', '--stage', '--recurse-submodules', '--', 'content')
-	);
+	if (project.discovery === 'git' && contentWithinProject(project) && gitAvailable(repo))
+		hash.update(
+			contentGit(
+				'-C',
+				repo,
+				'ls-files',
+				'-z',
+				'--stage',
+				'--recurse-submodules',
+				'--',
+				path.relative(repo, project.contentDir) || '.'
+			)
+		);
 	return hash.digest('hex');
 }
 

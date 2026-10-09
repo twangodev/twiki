@@ -10,6 +10,8 @@ import remarkRehype from 'remark-rehype';
 import rehypeRaw from 'rehype-raw';
 import { visit } from 'unist-util-visit';
 import { stripObsidianComments } from './lib/comments';
+import { site } from '../src/lib/config';
+import { resolveProject } from './lib/project-config';
 import { markdownFiles } from './lib/markdown-files';
 
 const parser = unified()
@@ -21,7 +23,7 @@ const parser = unified()
 	.use(remarkRehype, { allowDangerousHtml: true })
 	.use(rehypeRaw);
 
-export function directSiteLinks(markdown: string) {
+export function directSiteLinks(markdown: string, origin = site.url) {
 	// Blank metadata and comments without shifting diagnostics in the original file.
 	const source = stripObsidianComments(
 		markdown.replace(/^---\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)(?:\r?\n|$)/, (s) =>
@@ -44,11 +46,15 @@ export function directSiteLinks(markdown: string) {
 			if (typeof value !== 'string' || !/^(?:https?:)?\/\//i.test(value)) continue;
 			let url: URL;
 			try {
-				url = new URL(value, 'https://wisconsin.twango.dev');
+				url = new URL(value, origin);
 			} catch {
 				continue;
 			}
-			if (url.hostname.toLowerCase().replace(/\.$/, '') !== 'wisconsin.twango.dev') continue;
+			if (
+				url.hostname.toLowerCase().replace(/\.$/, '') !==
+				new URL(origin).hostname.toLowerCase().replace(/\.$/, '')
+			)
+				continue;
 			links.push({
 				url: value,
 				line: node.position?.start.line ?? 1,
@@ -61,11 +67,12 @@ export function directSiteLinks(markdown: string) {
 
 if (import.meta.main) {
 	const inputs = process.argv.slice(2);
-	const content = fileURLToPath(new URL('../../content', import.meta.url));
+	const project = resolveProject();
+	const content = project.contentDir;
 	const files = markdownFiles(inputs.length ? inputs : [content], /\.(?:md|rmd)$/i);
 	let failures = 0;
 	for (const file of files) {
-		for (const link of directSiteLinks(readFileSync(file, 'utf8'))) {
+		for (const link of directSiteLinks(readFileSync(file, 'utf8'), project.site.url)) {
 			console.error(
 				`${path.relative(process.cwd(), file)}:${link.line}:${link.column}: Use an Obsidian wikilink instead of ${link.url}`
 			);

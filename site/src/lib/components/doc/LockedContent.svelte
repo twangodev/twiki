@@ -1,6 +1,7 @@
 <script lang="ts">
 	import LockKeyhole from '@lucide/svelte/icons/lock-keyhole';
 	import { page } from '$app/state';
+	import { authEnabled } from '$lib/config';
 </script>
 
 <div
@@ -11,12 +12,18 @@
 	<div>
 		<p class="m-0 font-medium">Content locked</p>
 		<p class="mt-1 mb-3 text-muted">
-			The catalog is public. Reading this content requires approved access.
+			{#if authEnabled}
+				The catalog is public. Reading this content requires approved access.
+			{:else}
+				This content is unavailable on this site.
+			{/if}
 		</p>
-		<a
-			data-sveltekit-reload
-			class="text-accent hover:underline"
-			href={`/login?next=${encodeURIComponent(page.url.pathname)}`}>Sign in to read</a
-		>
+		{#if authEnabled}
+			<a
+				data-sveltekit-reload
+				class="text-accent hover:underline"
+				href={`/login?next=${encodeURIComponent(page.url.pathname)}`}>Sign in to read</a
+			>
+		{/if}
 	</div>
 </div>

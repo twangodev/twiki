@@ -1,8 +1,11 @@
 import { expect, test } from 'bun:test';
-import { proxyAnalytics } from '../../worker/analytics';
+import { proxyAnalytics as relayAnalytics } from '../../worker/analytics';
 import { authenticateRequest } from '../../worker/gate';
 import type { AuthEnv } from '../../worker/auth';
 
+const analytics = { siteId: '4', endpoint: 'https://analytics.example.test/api' };
+const proxyAnalytics = (request: Request, fetcher: typeof fetch = fetch) =>
+	relayAnalytics(request, fetcher, analytics);
 const origin = 'https://wisconsin.twango.dev';
 const request = (path: string, init?: RequestInit) =>
 	new Request(origin + '/api/analytics' + path, init);
@@ -25,7 +28,7 @@ test('analytics relay strips credentials, preserves visitor metadata and never c
 			body: JSON.stringify({ site_id: 4, user_id: 'octocat', type: 'pageview' })
 		}),
 		(async (url, init) => {
-			expect(url).toBe('https://rybbit.twango.dev/api/track');
+			expect(url).toBe('https://analytics.example.test/api/track');
 			const headers = new Headers(init?.headers);
 			expect(headers.has('cookie')).toBe(false);
 			expect(headers.has('authorization')).toBe(false);
@@ -75,7 +78,11 @@ test('anonymous analytics configuration bypasses auth without exposing other rou
 	try {
 		const response = await authenticateRequest(
 			request('/site/tracking-config/4'),
-			{ ORIGIN: origin } as AuthEnv,
+			{
+				ORIGIN: origin,
+				TWIKI_ANALYTICS_SITE_ID: analytics.siteId,
+				TWIKI_ANALYTICS_ENDPOINT: analytics.endpoint
+			} as AuthEnv,
 			async () => {
 				throw new Error('Analytics must not reach private assets');
 			}
@@ -129,7 +136,7 @@ test('analytics relay runs in workerd and rejects upstream redirects', async () 
 	expect(bundle.success).toBe(true);
 	const script =
 		(await bundle.outputs[0].text()) +
-		'\nexport default { fetch(request) { return proxyAnalytics(request); } };';
+		'\nexport default { fetch(request) { return proxyAnalytics(request, fetch, {siteId:"4",endpoint:"https://analytics.example.test/api"}); } };';
 	let redirect = false;
 	const runtime = new Miniflare({
 		modules: true,

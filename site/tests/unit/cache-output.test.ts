@@ -51,7 +51,7 @@ test('restored stage caches reproduce cold public and full output and honor publ
 				filter: (file) => !file.includes('/src/lib/generated')
 			});
 		}
-		symlinkSync(path.join(source, 'node_modules'), path.join(site, 'node_modules'), 'dir');
+		symlinkSync(path.resolve(source, '../node_modules'), path.join(site, 'node_modules'), 'dir');
 		const run = (publicEdition: boolean) =>
 			execFileSync('bun', ['tooling/prepare.ts'], {
 				cwd: site,

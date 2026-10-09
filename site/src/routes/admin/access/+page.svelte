@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { site } from '$lib/config';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { lookupGithubUser } from '$lib/github-user';
@@ -33,13 +34,13 @@
 	};
 </script>
 
-<svelte:head><title>Access · Wisconsin</title></svelte:head>
+<svelte:head><title>Access · {site.title}</title></svelte:head>
 
 <section class="mx-auto w-full max-w-xl">
 	<header class="mb-6">
 		<h1 class="mb-2 text-3xl font-semibold tracking-tight">Access</h1>
 		<p class="text-sm text-muted">
-			Approved people can read all courses. Only you can manage access.
+			Approved people can read all notes. Only you can manage access.
 		</p>
 	</header>
 

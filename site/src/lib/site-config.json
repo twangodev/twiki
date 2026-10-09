@@ -1,0 +1,9 @@
+{
+	"name": "twiki",
+	"url": "http://localhost:5173",
+	"title": "twiki",
+	"description": "Notes, ideas, and reference material.",
+	"author": { "name": "", "url": "", "github": "", "email": "" },
+	"locale": "en_US",
+	"language": "en"
+}

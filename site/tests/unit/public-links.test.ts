@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { Element, Root } from 'hast';
+import { site } from '../../src/lib/config';
 import { protectPublicLinks } from '../../tooling/lib/public-links';
 
 function tree(element: Partial<Element>): Root {
@@ -69,7 +70,7 @@ test('same-origin absolute links are checked, external links and local anchors a
 		protectPublicLinks(content, 'course/note', allowed);
 		expect((content.children[0] as Element).properties.href).toBe(href);
 	}
-	const content = tree({ properties: { href: 'https://wisconsin.twango.dev/course/secret' } });
+	const content = tree({ properties: { href: new URL('/course/secret', site.url).href } });
 	protectPublicLinks(content, 'course/note', allowed);
 	expect((content.children[0] as Element).tagName).toBe('span');
 });

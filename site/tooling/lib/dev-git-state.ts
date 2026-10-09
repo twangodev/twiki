@@ -1,6 +1,12 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, watch, type FSWatcher } from 'node:fs';
 import path from 'node:path';
+import {
+	resolveProject,
+	declaredContentCourses,
+	gitAvailable,
+	contentWithinProject
+} from './project-config';
 
 export interface ContentRepository {
 	directory: string;
@@ -20,41 +26,22 @@ export function contentGit(...args: string[]) {
 
 /** Course directories declared by the root, matching compiler discovery without loading renderers. */
 export function declaredCourseDirectories(repo: string): string[] {
-	const root = path.resolve(repo);
-	const directories: string[] = [];
-	const modules = path.join(root, '.gitmodules');
-	if (existsSync(modules)) {
-		let declared: Buffer;
-		try {
-			declared = contentGit(
-				'-C',
-				root,
-				'config',
-				'-z',
-				'--file',
-				modules,
-				'--get-regexp',
-				'^submodule\\..*\\.path$'
-			);
-		} catch (error) {
-			// A valid file with no submodule paths has no matching config entries.
-			if ((error as { status?: number }).status !== 1) throw error;
-			declared = Buffer.alloc(0);
-		}
-		for (const entry of declared.toString().split('\0').filter(Boolean)) {
-			const course = entry.slice(entry.indexOf('\n') + 1);
-			if (!course.startsWith('content/')) continue;
-			directories.push(path.resolve(root, course));
-		}
-	}
-	return directories;
+	return declaredContentCourses(resolveProject(process.cwd(), repo)).map(
+		(course) => course.directory
+	);
 }
 
 /** Follow initialized declared courses and indexed gitlinks, including nested projects. */
 export function contentRepositories(repo: string): ContentRepository[] {
+	const project = resolveProject(process.cwd(), repo);
+	if (project.discovery !== 'git') return [];
 	const root = path.resolve(repo);
 	const pending = [
-		root,
+		...(contentWithinProject(project) && gitAvailable(root)
+			? [root]
+			: gitAvailable(project.contentDir)
+				? [project.contentDir]
+				: []),
 		...declaredCourseDirectories(root).filter((directory) =>
 			existsSync(path.join(directory, '.git'))
 		)
@@ -65,7 +52,7 @@ export function contentRepositories(repo: string): ContentRepository[] {
 		const directory = pending[position];
 		if (visited.has(directory)) continue;
 		visited.add(directory);
-		const [gitDirectory, commonDirectory, index, config, worktreeConfig, head] = contentGit(
+		const [gitDirectory, commonDirectory, index, config, worktreeConfig] = contentGit(
 			'-C',
 			directory,
 			'rev-parse',
@@ -77,19 +64,26 @@ export function contentRepositories(repo: string): ContentRepository[] {
 			'--git-path',
 			'config',
 			'--git-path',
-			'config.worktree',
-			'HEAD'
+			'config.worktree'
 		)
 			.toString()
 			.trimEnd()
 			.split('\n');
+		let head = 'unborn';
+		try {
+			head = contentGit('-C', directory, 'rev-parse', '--verify', '--quiet', 'HEAD')
+				.toString()
+				.trim();
+		} catch {
+			/* Empty repositories still have tracked content. */
+		}
 		const tracked = contentGit(
 			'-C',
 			directory,
 			'ls-files',
 			'-z',
 			'--stage',
-			...(directory === root ? ['--', 'content'] : [])
+			...(directory === root ? ['--', path.relative(root, project.contentDir) || '.'] : [])
 		);
 		repositories.push({
 			directory,

@@ -1,3 +1,4 @@
+import { resolveProject } from './lib/project-config';
 import { markdownFiles } from './lib/markdown-files';
 export { markdownFiles } from './lib/markdown-files';
 import { preserveCurrency } from './lib/currency';
@@ -94,7 +95,7 @@ async function main() {
 		);
 		return;
 	}
-	const content = fileURLToPath(new URL('../../content', import.meta.url));
+	const content = resolveProject().contentDir;
 	const files = markdownFiles(args.length ? args : [content]);
 	if (!files.length) throw new Error('No Markdown files found');
 	let math = 0,

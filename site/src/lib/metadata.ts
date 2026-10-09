@@ -8,11 +8,18 @@ export interface ContentAuthor {
 	type: 'Person' | 'Organization';
 }
 
-export const curator: ContentAuthor = {
-	name: site.author.name,
-	url: site.author.url,
-	type: 'Person'
-};
+export function configuredCurator(): ContentAuthor | undefined {
+	return site.author.name.trim()
+		? {
+				name: site.author.name,
+				...(site.author.url ? { url: site.author.url } : {}),
+				type: 'Person'
+			}
+		: undefined;
+}
+
+/** UI fallback follows the consumer-provided author, when configured. */
+export const curator = configuredCurator();
 
 export function contentAuthor(value: unknown): ContentAuthor | undefined {
 	if (typeof value === 'string')
@@ -37,7 +44,10 @@ export function contentAuthor(value: unknown): ContentAuthor | undefined {
 export function pageAuthor(
 	page: Pick<ManifestPage, 'slug' | 'license'> & { author?: ContentAuthor }
 ) {
-	return page.author ?? (/^[^/]+\/README$/.test(page.slug) && !page.license ? curator : undefined);
+	return (
+		page.author ??
+		(/^[^/]+\/README$/.test(page.slug) && !page.license ? configuredCurator() : undefined)
+	);
 }
 
 export function breadcrumbs(route: string, title: string) {
@@ -80,7 +90,7 @@ export function collectionSchema(route: string, title: string, description: stri
 		name: site.name,
 		description: site.description,
 		inLanguage: site.language,
-		publisher: personSchema(curator)
+		...(configuredCurator() ? { publisher: personSchema(configuredCurator()!) } : {})
 	};
 	const collection = {
 		'@context': 'https://schema.org',
@@ -133,7 +143,7 @@ export function noteSchema(route: string, page: Omit<ManifestPage, 'backlinks'>)
 		inLanguage: site.language,
 		isPartOf: { '@id': `${site.url}/#website` },
 		...(author ? { author: personSchema(author) } : {}),
-		editor: personSchema(curator),
+		...(configuredCurator() ? { editor: personSchema(configuredCurator()!) } : {}),
 		...(page.dates.created ? { dateCreated: page.dates.created } : {}),
 		...(page.dates.modified ? { dateModified: page.dates.modified } : {}),
 		...(page.dates.published ? { datePublished: page.dates.published } : {}),

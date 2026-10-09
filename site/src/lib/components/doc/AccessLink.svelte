@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { authEnabled } from '$lib/config';
 	import UsersRound from '@lucide/svelte/icons/users-round';
 
 	let owner = $state(false);
 	onMount(() => {
+		if (!authEnabled) return;
 		const controller = new AbortController();
 		fetch('/api/access', { signal: controller.signal })
 			.then(async (response) => {

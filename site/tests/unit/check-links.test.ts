@@ -3,10 +3,12 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { directSiteLinks } from '../../tooling/check-links';
+import { directSiteLinks as detectSiteLinks } from '../../tooling/check-links';
 import { markdownFiles } from '../../tooling/lib/markdown-files';
 
-const url = 'https://wisconsin.twango.dev/fa26-stat324/homework/hw3.Rmd';
+const directSiteLinks = (markdown: string) =>
+	detectSiteLinks(markdown, 'https://notes.example.test');
+const url = 'https://notes.example.test/fa26-stat324/homework/hw3.Rmd';
 
 describe('internal link validation', () => {
 	test('finds Markdown, reference, automatic, image, and HTML destinations', () => {
@@ -27,11 +29,11 @@ describe('internal link validation', () => {
 
 	test('recognizes HTTP, protocol-relative, mixed-case hosts, ports, and anchors', () => {
 		for (const destination of [
-			'http://wisconsin.twango.dev/note#heading',
-			'//wisconsin.twango.dev/note',
-			'https://WISCONSIN.TWANGO.DEV:443/note?view=1',
-			'https://wisconsin.twango.dev./note',
-			'https://wisconsin.twango.dev'
+			'http://notes.example.test/note#heading',
+			'//notes.example.test/note',
+			'https://NOTES.EXAMPLE.TEST:443/note?view=1',
+			'https://notes.example.test./note',
+			'https://notes.example.test'
 		])
 			expect(directSiteLinks(`[note](${destination})`)).toHaveLength(1);
 	});
@@ -42,8 +44,8 @@ describe('internal link validation', () => {
 			'![[figure.png]]',
 			'[heading](#heading)',
 			'[note](./note)',
-			'[source](https://example.com/?url=https://wisconsin.twango.dev)',
-			'[different host](https://wisconsin.twango.dev.example.com/note)'
+			'[source](https://example.com/?url=https://notes.example.test)',
+			'[different host](https://notes.example.test.example.com/note)'
 		].join('\n');
 		expect(directSiteLinks(source)).toEqual([]);
 	});
@@ -95,7 +97,14 @@ describe('internal link validation', () => {
 			writeFileSync(file, `# Homework\n\n[Homework](${url})\n`);
 			expect(markdownFiles([dir, file], /\.(?:md|rmd)$/i)).toEqual([file]);
 			const script = path.resolve(import.meta.dir, '../../tooling/check-links.ts');
-			const bad = spawnSync(process.execPath, [script, dir], { encoding: 'utf8' });
+			writeFileSync(
+				path.join(dir, 'twiki.config.json'),
+				JSON.stringify({ version: 1, site: { url: 'https://notes.example.test' } })
+			);
+			const bad = spawnSync(process.execPath, [script, dir], {
+				encoding: 'utf8',
+				env: { ...process.env, TWIKI_PROJECT_ROOT: dir }
+			});
 			expect(bad.status).toBe(1);
 			expect(bad.stderr).toContain('hw3.Rmd:3:1: Use an Obsidian wikilink');
 			writeFileSync(file, '[[hw3.Rmd|Homework]]\n');

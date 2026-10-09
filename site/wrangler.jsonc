@@ -1,35 +1,37 @@
 {
-	"$schema": "./node_modules/wrangler/config-schema.json",
-	"name": "wisconsin",
-	"compatibility_date": "2026-06-07",
-	"compatibility_flags": ["nodejs_compat"],
-	"main": "build/.svelte-kit/worker.js",
-	"vars": {
-		"ORIGIN": "https://wisconsin.twango.dev",
-		"OWNER_GITHUB_ID": "48845764",
-		"GITHUB_CLIENT_ID": "Ov23liFBHrg7CX5yA0ko"
-	},
-	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "wisconsin",
-			"database_id": "adbf2cf8-5c57-497b-bfae-8ffd82042d41",
-			"migrations_dir": "migrations"
-		}
-	],
-	"assets": {
-		"binding": "ASSETS",
-		"directory": "build/.svelte-kit/cloudflare",
-		"html_handling": "drop-trailing-slash",
-		"not_found_handling": "404-page",
-		"run_worker_first": true
-	},
-	"workers_dev": false,
-	"preview_urls": false,
-	"routes": [
-		{
-			"pattern": "wisconsin.twango.dev",
-			"custom_domain": true
-		}
-	]
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "twiki",
+  "compatibility_date": "2026-06-07",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "main": "build/.svelte-kit/worker.js",
+  "vars": {
+    "ORIGIN": "https://notes.example.test",
+    "OWNER_GITHUB_ID": "0",
+    "GITHUB_CLIENT_ID": "development-only"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "twiki",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "build/.svelte-kit/cloudflare",
+    "html_handling": "drop-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": true
+  },
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "notes.example.test",
+      "custom_domain": true
+    }
+  ]
 }

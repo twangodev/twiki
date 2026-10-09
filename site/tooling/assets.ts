@@ -196,7 +196,8 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	const navOut = path.join(SITE_DIR, 'src/lib/generated/nav.json');
 	mkdirSync(path.dirname(navOut), { recursive: true });
 	const navigation = navTree();
-	for (const name of readdirSync(path.join(STATIC_DIR, '_files/index'))) {
+	const fileIndexDirectory = path.join(STATIC_DIR, '_files/index');
+	for (const name of existsSync(fileIndexDirectory) ? readdirSync(fileIndexDirectory) : []) {
 		if (!name.endsWith('.json')) continue;
 		const files: CourseFile[] = JSON.parse(
 			readFileSync(path.join(STATIC_DIR, '_files/index', name), 'utf8')

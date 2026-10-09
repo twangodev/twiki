@@ -38,15 +38,17 @@ interface FixtureOptions {
 	bundleFault?: 'missing' | 'extra' | 'symlink' | 'namespace' | 'traversal' | 'unselected';
 	twoGroups?: boolean;
 	destinationSymlink?: boolean;
+	stagedSite?: boolean;
+	siteOverride?: 'relative' | 'symlink';
 }
 function saveFixture(transfer: unknown, options: FixtureOptions = {}) {
 	const root = mkdtempSync(path.join(tmpdir(), 'wisconsin-product-action-'));
 	try {
 		execFileSync('git', ['init', '--quiet', root], { stdio: 'pipe' });
 		const action = path.join(root, '.github/actions/product-cache/index.mjs');
-		const site = path.join(root, 'site');
+		const site = path.join(root, options.stagedSite ? '.twiki/site' : 'site');
 		const products = path.join(site, 'build/generated/product-caches');
-		const sdk = path.join(site, 'node_modules/@actions/cache');
+		const sdk = path.join(options.stagedSite ? root : site, 'node_modules/@actions/cache');
 		const binary = path.join(root, 'bin/bun');
 		for (const directory of [
 			path.dirname(action),
@@ -61,7 +63,7 @@ function saveFixture(transfer: unknown, options: FixtureOptions = {}) {
 		);
 		writeFileSync(
 			path.join(sdk, 'package.json'),
-			JSON.stringify({ name: '@actions/cache', type: 'module' })
+			JSON.stringify({ name: '@actions/cache', type: 'module', main: 'lib/cache.js' })
 		);
 		writeFileSync(
 			path.join(sdk, 'lib/cache.js'),
@@ -178,6 +180,16 @@ if(args[1]==='plan') {
 		const stderrFile = path.join(root, 'stderr');
 		const stdoutDescriptor = openSync(stdoutFile, 'w');
 		const stderrDescriptor = openSync(stderrFile, 'w');
+		const siteAlias = path.join(root, 'site-alias');
+		if (options.siteOverride === 'symlink') symlinkSync(site, siteAlias, 'dir');
+		const siteOverride =
+			options.siteOverride === 'relative'
+				? '.twiki/site'
+				: options.siteOverride === 'symlink'
+					? siteAlias
+					: options.stagedSite
+						? site
+						: undefined;
 		const child = spawnSync('node', [action], {
 			cwd: root,
 			encoding: 'utf8',
@@ -185,6 +197,7 @@ if(args[1]==='plan') {
 			stdio: ['ignore', stdoutDescriptor, stderrDescriptor],
 			env: {
 				PATH: `${path.dirname(binary)}${path.delimiter}${process.env.PATH ?? ''}`,
+				...(siteOverride ? { TWIKI_SITE_DIR: siteOverride } : {}),
 				INPUT_MODE: options.mode ?? 'save',
 				INPUT_NAMESPACE: namespace,
 				INPUT_TRANSPORT: options.transport ?? 'groups',
@@ -680,4 +693,30 @@ describe('product cache action bundled transport', () => {
 			false
 		);
 	});
+});
+
+describe('installed engine cache staging', () => {
+	test.each(['save', 'restore'] as const)(
+		'uses consumer staging and package SDK for %s',
+		(mode) => {
+			const result = saveFixture(readyTransfer, { mode, stagedSite: true });
+			expect(result.status).toBe(0);
+			expect(result.counts[mode === 'save' ? 'published' : 'restored']).toBe(1);
+			expect(result.sdkCalls).toHaveLength(1);
+			expect(result.sdkCalls[0].files[0]).toContain('/.twiki/site/build/generated/product-caches/');
+		}
+	);
+	test.each(['relative', 'symlink'] as const)(
+		'rejects %s staging overrides before SDK access',
+		(siteOverride) => {
+			const result = saveFixture(readyTransfer, {
+				stagedSite: true,
+				siteOverride,
+				allowFailure: true
+			});
+			expect(result.status).not.toBe(0);
+			expect(result.sdkCalls).toEqual([]);
+			expect(result.transportCalls).toEqual([]);
+		}
+	);
 });

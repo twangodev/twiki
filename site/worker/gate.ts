@@ -45,10 +45,21 @@ async function routeRequest(
 	if (url.pathname.startsWith('/api/analytics/')) {
 		if (env.DISABLE_ANALYTICS === 'true')
 			return Response.json({}, { headers: { 'Cache-Control': 'no-store' } });
-		return proxyAnalytics(request);
+		return proxyAnalytics(
+			request,
+			fetch,
+			env.TWIKI_ANALYTICS_SITE_ID && env.TWIKI_ANALYTICS_ENDPOINT
+				? { siteId: env.TWIKI_ANALYTICS_SITE_ID, endpoint: env.TWIKI_ANALYTICS_ENDPOINT }
+				: undefined
+		);
 	}
 	const reading = request.method === 'GET' || request.method === 'HEAD';
 	if (reading && url.pathname === '/fonts/OverusedGrotesk-VF.woff2') return null;
+	if (env.TWIKI_AUTH_MODE === 'none') {
+		if (reading && servePublic)
+			return (await servePublic()) ?? new Response('Not found', { status: 404 });
+		return new Response('Not found', { status: 404 });
+	}
 	if (
 		reading &&
 		servePublic &&
@@ -74,7 +85,12 @@ async function routeRequest(
 	if (reading && url.pathname === '/login') {
 		const next = returnPath(url.searchParams.get('next'));
 		if (access) return redirect(next);
-		const page = loginPage(next, url.searchParams.has('error'));
+		const page = loginPage(
+			next,
+			url.searchParams.has('error'),
+			env.TWIKI_SITE_NAME,
+			env.TWIKI_SITE_DESCRIPTION
+		);
 		return request.method === 'HEAD' ? new Response(null, page) : page;
 	}
 	if (!access)

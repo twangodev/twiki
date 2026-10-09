@@ -46,7 +46,11 @@ cpSync(source, siteDirectory, {
 	recursive: true,
 	filter: (file) => !excluded.has(path.relative(source, file))
 });
-symlinkSync(path.join(source, 'node_modules'), path.join(siteDirectory, 'node_modules'), 'dir');
+symlinkSync(
+	path.resolve(source, '../node_modules'),
+	path.join(siteDirectory, 'node_modules'),
+	'dir'
+);
 // Merge the fixture's filesystem access with the real config, preserving its
 // server settings (including watch ignores) without duplicate object keys.
 const viteConfig = path.join(siteDirectory, 'vite.content-test.config.ts');
@@ -56,7 +60,7 @@ writeFileSync(
 import config from './vite.config';
 export default mergeConfig(config, {
   cacheDir: ${JSON.stringify(path.join(siteDirectory, 'build/.vite'))},
-  server: { fs: { allow: ${JSON.stringify([siteDirectory, realpathSync(path.join(source, 'node_modules'))])} } }
+  server: { fs: { allow: ${JSON.stringify([siteDirectory, realpathSync(path.resolve(source, '../node_modules'))])} } }
 });
 `
 );

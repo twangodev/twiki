@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "contentDir": "notes",
+  "discovery": "filesystem",
+  "publication": "public",
+  "site": {"name":"twiki demo","title":"twiki demo","url":"https://notes.example.test","description":"A small Obsidian vault."}
+}

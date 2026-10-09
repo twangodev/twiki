@@ -156,8 +156,8 @@ export function socialCard(
 
 export const defaultSocialCard = {
 	slug: undefined,
-	title: 'Notes from UW–Madison.',
-	label: 'Course notes'
+	title: site.title,
+	label: 'Notes'
 };
 
 export async function cachedSocialImage(siteDir: string, card: SocialCard & { slug?: string }) {

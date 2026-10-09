@@ -12,7 +12,7 @@
 
 <SEO
 	title="Tag Index"
-	description="Browse topics across UW–Madison course notes and reference material."
+	description="Browse topics across notes and reference material."
 	canonical="/tags"
 />
 

@@ -2,6 +2,12 @@ import fs from 'node:fs';
 import { stageFingerprint } from '../fingerprint';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import {
+	resolveProject,
+	declaredContentCourses,
+	contentRelative,
+	gitRepositoryRoot
+} from './project-config';
 
 const datesVersion = await stageFingerprint('gitdates');
 
@@ -87,11 +93,13 @@ export interface GitDateMap {
 	modified: Record<string, number>;
 }
 
-export function buildGitDateMap(repoRoot: string, cacheDir: string): GitDateMap {
+export function buildGitDateMap(
+	repoRoot: string,
+	cacheDir: string,
+	project = resolveProject(process.cwd(), repoRoot)
+): GitDateMap {
 	fs.mkdirSync(cacheDir, { recursive: true });
-	const submodules = parseGitmodules(path.join(repoRoot, '.gitmodules')).filter((s) =>
-		s.path.startsWith('content/')
-	);
+	const submodules = declaredContentCourses(project);
 
 	const created: Record<string, number> = {};
 	const modified: Record<string, number> = {};
@@ -121,25 +129,23 @@ export function buildGitDateMap(repoRoot: string, cacheDir: string): GitDateMap 
 		return dates;
 	};
 	for (const sub of submodules) {
-		const name = sub.path.slice('content/'.length);
-		if (!fs.existsSync(path.join(sub.fullPath, '.git'))) continue;
-		const dates = loadRepo(sub.fullPath, name);
+		const name = sub.name;
+		if (!fs.existsSync(path.join(sub.directory, '.git'))) continue;
+		const dates = loadRepo(sub.directory, name);
 		for (const [p, epoch] of Object.entries(dates.modified)) {
 			modified[`${name}/${p}`] = epoch;
 			created[`${name}/${p}`] = dates.created[p];
 		}
 	}
-	const superDates = loadRepo(repoRoot, 'superproject');
+	const dateRoot = gitRepositoryRoot(project.contentDir) ?? repoRoot;
+	const superDates =
+		project.discovery === 'git'
+			? loadRepo(dateRoot, 'superproject')
+			: { created: {}, modified: {} };
 	for (const [p, epoch] of Object.entries(superDates.modified)) {
-		if (p.startsWith('content/')) {
-			const rel = p.slice('content/'.length);
-			if (
-				!submodules.some(
-					(s) =>
-						rel === s.path.slice('content/'.length) ||
-						rel.startsWith(s.path.slice('content/'.length) + '/')
-				)
-			) {
+		const rel = contentRelative(project, path.join(dateRoot, p));
+		if (rel) {
+			if (!submodules.some((s) => rel === s.name || rel.startsWith(s.name + '/'))) {
 				modified[rel] = epoch;
 				created[rel] = superDates.created[p];
 			}

@@ -142,7 +142,7 @@ test('production parser depends on file policy without depending on R rendering'
 		cpSync(path.join(site, 'tooling'), path.join(root, 'tooling'), { recursive: true });
 		cpSync(path.join(site, 'src/lib'), path.join(root, 'src/lib'), { recursive: true });
 		cpSync(path.join(site, 'package.json'), path.join(root, 'package.json'));
-		symlinkSync(path.join(site, 'node_modules'), path.join(root, 'node_modules'), 'dir');
+		symlinkSync(path.resolve(site, '../node_modules'), path.join(root, 'node_modules'), 'dir');
 		const parser = await fingerprint('parser');
 		const files = await fingerprint('files');
 		const source = (file: string) => readFileSync(path.join(root, file), 'utf8');

@@ -1,16 +1,30 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { resolveProject } from './lib/project-config';
 import { CloudflareDeploymentAPI } from './lib/deployment-upload';
 
 const mode = process.argv[2];
-const origin = 'https://wisconsin.twango.dev';
+const project = resolveProject();
+const origin = project.site.url;
+const worker = project.cloudflare?.name;
+const requestedPaths = process.env.TWIKI_LIVE_PATHS;
+const testPaths: string[] = requestedPaths ? JSON.parse(requestedPaths) : ['/'];
+if (
+	!Array.isArray(testPaths) ||
+	testPaths.some(
+		(value) => typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')
+	)
+)
+	throw new Error('TWIKI_LIVE_PATHS must be a JSON array of local URL paths');
 const directory = 'build/benchmarks/live';
 mkdirSync(directory, { recursive: true });
 if (mode === 'capture' || mode === 'verify-rollback') {
+	if (typeof worker !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(worker))
+		throw new Error('Configure the Worker name before live capture');
 	const account = process.env.CLOUDFLARE_ACCOUNT_ID;
 	if (!account || !/^[a-f0-9]{32}$/.test(account)) throw new Error('Missing account identity');
 	const api = new CloudflareDeploymentAPI(process.env.CLOUDFLARE_API_TOKEN ?? '');
 	const result = (await api.request(
-		`/accounts/${account}/workers/scripts/wisconsin/deployments`
+		`/accounts/${account}/workers/scripts/${worker}/deployments`
 	)) as {
 		deployments: { versions: { version_id: string; percentage: number }[] }[];
 	};
@@ -34,7 +48,7 @@ if (mode === 'capture' || mode === 'verify-rollback') {
 	appendFileSync(process.env.GITHUB_OUTPUT!, `version=${version}\n`);
 	console.log(`Rollback version: ${version}`);
 } else if (mode === 'baseline' || mode === 'measure') {
-	const paths = ['/', '/des-inv/cnc/cnc-1', '/des-inv/cnc/cnc-2'];
+	const paths = testPaths;
 	const reports = [];
 	for (const pathname of paths) {
 		const samples = [];
@@ -90,8 +104,13 @@ if (mode === 'capture' || mode === 'verify-rollback') {
 			if (![401, 403, 404].includes(response.status))
 				throw new Error('Internal asset access was not denied');
 		}
-		for (const cookie of ['', 'better-auth.session_token=invalid']) {
-			const response = await fetch(origin + '/sp26-cs544/lectures/lecture-01', {
+		for (const cookie of process.env.TWIKI_LIVE_PRIVATE_PATH
+			? ['', 'better-auth.session_token=invalid']
+			: []) {
+			const privatePath = process.env.TWIKI_LIVE_PRIVATE_PATH!;
+			if (!privatePath.startsWith('/') || privatePath.startsWith('//'))
+				throw new Error('Invalid private test path');
+			const response = await fetch(origin + privatePath, {
 				headers: { cookie },
 				signal: AbortSignal.timeout(10_000)
 			});

@@ -1,3 +1,4 @@
+import { resolveProject } from './lib/project-config';
 import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
@@ -86,7 +87,7 @@ async function runtimeBuild(appOnly: boolean) {
 		const { contentInputFingerprint } = await import('./lib/dev-state');
 		const environment = app.applicationEnvironment();
 		const identity = app.applicationCacheIdentity(site, environment);
-		const contentRepo = process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(site, '..');
+		const contentRepo = resolveProject(site).root;
 		const contentInputs = appOnly ? '' : contentInputFingerprint(contentRepo, identity.identity);
 		let cached = app.loadApplicationCache(site, identity);
 		if (cached)
@@ -318,7 +319,7 @@ async function isolatedBuild(mode: 'parallel' | 'isolated-serial') {
 			import('./lib/app-version.js'),
 			import('./lib/dev-state')
 		]);
-		const contentRepo = process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(site, '..');
+		const contentRepo = resolveProject(site).root;
 		const versionEnvironment: NodeJS.ProcessEnv = {
 			...process.env,
 			NODE_ENV: process.env.NODE_ENV ?? 'production'

@@ -16,7 +16,18 @@ import { fileURLToPath } from "node:url";
 
 // A JavaScript action receives the Actions cache service credentials. Do not
 // export those credentials into a workflow log or a repository artifact.
-const site = fileURLToPath(new URL("../../../site/", import.meta.url));
+const site = process.env.TWIKI_SITE_DIR
+  ? path.resolve(process.env.TWIKI_SITE_DIR)
+  : fileURLToPath(new URL("../../../site/", import.meta.url));
+if (
+  process.env.TWIKI_SITE_DIR &&
+  (!path.isAbsolute(process.env.TWIKI_SITE_DIR) ||
+    !lstatSync(site).isDirectory() ||
+    realpathSync(site) !== site)
+)
+  throw new Error(
+    "Product cache requires a real absolute engine working directory",
+  );
 const mode = process.env.INPUT_MODE;
 if (!["restore", "save"].includes(mode))
   throw new Error("Expected restore or save mode");
@@ -73,12 +84,19 @@ if (!process.env.BUILD_CACHE_KEY) {
     "Encrypted product cache unavailable; using the normal build path",
   );
 } else {
-  const { restoreCache, saveCache, isFeatureAvailable } = await import(
-    new URL(
+  // Standard package resolution also supports hoisted consumer dependencies.
+  let sdk;
+  try {
+    sdk = import.meta.resolve("@actions/cache");
+  } catch (error) {
+    if (error.code !== "ERR_MODULE_NOT_FOUND") throw error;
+    // Legacy engine development and isolated test fixtures keep site dependencies.
+    sdk = new URL(
       "../../../site/node_modules/@actions/cache/lib/cache.js",
       import.meta.url,
-    )
-  );
+    );
+  }
+  const { restoreCache, saveCache, isFeatureAvailable } = await import(sdk);
   if (!isFeatureAvailable())
     throw new Error("Actions cache service is unavailable");
   mkdirSync(path.join(site, "build/generated/product-caches"), {

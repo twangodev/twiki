@@ -1,5 +1,6 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { site } from '../src/lib/config';
 
 interface Descriptor {
 	schemaVersion: number;
@@ -27,7 +28,7 @@ if (import.meta.main) {
 		)
 	)
 		throw new Error('Invalid local deployment descriptor');
-	const origin = new URL(process.env.DEPLOYMENT_ORIGIN ?? 'https://wisconsin.twango.dev');
+	const origin = new URL(process.env.DEPLOYMENT_ORIGIN ?? site.url);
 	if (origin.protocol !== 'https:' && origin.hostname !== '127.0.0.1')
 		throw new Error('Deployment verification requires HTTPS');
 	const started = Date.now();

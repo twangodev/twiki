@@ -24,7 +24,13 @@ export type CourseCacheRecord = {
 	outputs: CourseCacheOutput[];
 	payloadSha256: string;
 };
-export type CourseCacheContext = { repo: string; course: string; output: string; cache: string };
+export type CourseCacheContext = {
+	repo: string;
+	contentRoot?: string;
+	course: string;
+	output: string;
+	cache: string;
+};
 
 function regularBytes(root: string, relative: string) {
 	if (
@@ -50,22 +56,24 @@ export function courseFingerprint(
 	course: string,
 	tracked: string[],
 	version: string,
-	notes: string
+	notes: string,
+	contentRoot?: string
 ) {
+	const sourceRoot = contentRoot ?? path.join(repo, 'content');
 	if (!courseName.test(course)) throw new Error('Unsafe course name');
 	const hash = createHash('sha256').update(
 		JSON.stringify(['course-files-v2', course, version, notes])
 	);
 	try {
 		hash.update(
-			execFileSync('git', ['-C', path.join(repo, 'content', course), 'rev-parse', 'HEAD'], {
+			execFileSync('git', ['-C', path.join(sourceRoot, course), 'rev-parse', 'HEAD'], {
 				stdio: ['ignore', 'pipe', 'ignore']
 			})
 		);
 	} catch {
 		hash.update('unborn');
 	}
-	const prefix = `content/${course}/`;
+	const prefix = contentRoot === undefined ? `content/${course}/` : `${course}/`;
 	const inputs = [
 		...new Set([
 			...tracked.filter(
@@ -75,7 +83,7 @@ export function courseFingerprint(
 		])
 	].sort();
 	for (const file of inputs) {
-		const bytes = regularBytes(repo, file);
+		const bytes = regularBytes(contentRoot === undefined ? repo : sourceRoot, file);
 		hash.update(JSON.stringify([file, bytes ? [bytes.length, digest(bytes)] : null]));
 	}
 	return hash.digest('hex');
@@ -209,7 +217,10 @@ export function readCourseCache(file: string, fingerprint: string, context: Cour
 		const recoveryBytes = (output: CourseCacheOutput) => {
 			if (output.origin.kind === 'index') return Buffer.from(JSON.stringify(saved.files));
 			if (output.origin.kind === 'source')
-				return regularBytes(path.join(context.repo, 'content', context.course), output.origin.path);
+				return regularBytes(
+					path.join(context.contentRoot ?? path.join(context.repo, 'content'), context.course),
+					output.origin.path
+				);
 			return regularBytes(context.cache, output.origin.cachePath);
 		};
 		for (const output of saved.outputs) {

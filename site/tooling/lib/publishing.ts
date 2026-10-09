@@ -2,7 +2,12 @@ import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { parseDocument } from 'yaml';
-import { parseGitmodules } from './lastmod';
+import {
+	declaredContentCourses,
+	projectSourceVisible,
+	resolveProject,
+	type ResolvedProject
+} from './project-config';
 import type { ContentLicense } from '../../src/lib/content-license';
 
 export interface PublishPolicy {
@@ -94,21 +99,20 @@ export function publicationDecision(file: string, policy?: PublishPolicy) {
 		: { public: false, reason: 'Not included' };
 }
 
-export function coursePolicies(repo: string) {
+export function coursePolicies(repo: string, project = resolveProject(process.cwd(), repo)) {
 	const policies = new Map<string, PublishPolicy>();
-	for (const course of parseGitmodules(path.join(repo, '.gitmodules'))) {
-		if (!course.path.startsWith('content/')) continue;
-		const file = path.join(course.fullPath, 'publish.yaml');
+	for (const course of declaredContentCourses(project)) {
+		const file = path.join(course.directory, 'publish.yaml');
 		if (!existsSync(file)) continue;
 		try {
 			if (!lstatSync(file).isFile() || realpathSync(file) !== file)
 				throw new Error('Policy must be a regular file');
 			execFileSync(
 				'git',
-				['-C', course.fullPath, 'ls-files', '--error-unmatch', '--', 'publish.yaml'],
+				['-C', course.directory, 'ls-files', '--error-unmatch', '--', 'publish.yaml'],
 				{ stdio: 'pipe' }
 			);
-			policies.set(course.path.slice(8), parsePublishPolicy(readFileSync(file, 'utf8')));
+			policies.set(course.name, parsePublishPolicy(readFileSync(file, 'utf8')));
 		} catch (error) {
 			throw new Error(`${file}: invalid or untracked publication policy`, { cause: error });
 		}
@@ -116,8 +120,19 @@ export function coursePolicies(repo: string) {
 	return policies;
 }
 
-export function publicationResolver(repo: string) {
-	const policies = coursePolicies(repo);
+export function publicationResolver(
+	repo: string,
+	project: ResolvedProject = resolveProject(process.cwd(), repo)
+) {
+	if (project.publication === 'public')
+		return (relative: string) => ({
+			public:
+				projectSourceVisible(project, relative) && !relative.split('/').includes('publish.yaml'),
+			reason: 'Project publication is public; reserved paths stay private.'
+		});
+	if (project.publication === 'private')
+		return (_relative: string) => ({ public: false, reason: 'Project publication is private.' });
+	const policies = coursePolicies(repo, project);
 	return (relative: string) => {
 		const [course, ...segments] = relative.split('/');
 		if (!segments.length)
@@ -130,12 +145,12 @@ export function publicationResolver(repo: string) {
 	};
 }
 
-export function publicationFilter(repo: string) {
-	const resolve = publicationResolver(repo);
+export function publicationFilter(repo: string, project = resolveProject(process.cwd(), repo)) {
+	const resolve = publicationResolver(repo, project);
 	return (relative: string) => resolve(relative).public;
 }
 
-export function courseLicenseResolver(repo: string) {
-	const policies = coursePolicies(repo);
+export function courseLicenseResolver(repo: string, project = resolveProject(process.cwd(), repo)) {
+	const policies = coursePolicies(repo, project);
 	return (relative: string) => policies.get(relative.split('/')[0])?.license;
 }

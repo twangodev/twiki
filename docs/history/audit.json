@@ -1,0 +1,20 @@
+{
+  "sourceHead": "9d9fa9d84a730b53f433d4fa3ae8726adf57f676",
+  "originalCommits": 2293,
+  "retainedCommits": 1792,
+  "removedEmptyCommits": 501,
+  "authorCommitterMismatches": [],
+  "messageReferenceRewrites": [
+    "0880a65403564b5cc4c6c9e58074e749612cfa12",
+    "137d55eb1b64e87ff6f3cec52786e5e1bb68798e",
+    "30640e3441f9273dfdb9f8cf6ea0a29f0bec04a0",
+    "540b599daf1f211ebe2088efa9d026a2988bc8a5",
+    "6a9e6352e88aa9ff18e5b33cf2de442a250bd960",
+    "70e029d151ccbb9aeab30a0f811b9f529b7f8818",
+    "73a890ab126786cba2e0cef701601672c9b28ee2",
+    "9ae6343dd0104d44e6bdf083572f987b70ba50c9",
+    "9cefcd0dd1a503c727c8bbb2deb1b631329b3a42",
+    "ad52d095670f2a08a330d1d4ee5ed4bc784e65aa"
+  ],
+  "nonContentTreeMismatches": []
+}

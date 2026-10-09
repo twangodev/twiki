@@ -5,6 +5,7 @@ import { prepareContent } from './pipeline';
 import { contentRepositories, watchContentGitDirectory } from './lib/dev-git-state';
 import { rebuildQueue } from './lib/rebuild-queue';
 import { resolveRuntimeDataImport } from './lib/runtime-data-modules';
+import { resolveProject, projectSourceVisible } from './lib/project-config';
 
 export function content(): Plugin {
 	return {
@@ -26,8 +27,9 @@ export function content(): Plugin {
 		},
 		async configureServer(server) {
 			await prepareContent(true, undefined, true);
-			const repo = process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(server.config.root, '..');
-			const directory = path.join(repo, 'content');
+			const project = resolveProject(server.config.root);
+			const repo = project.root;
+			const directory = project.contentDir;
 			let closed = false;
 			let failure: Error | undefined;
 			let changedInputs = new Set<string>();
@@ -97,6 +99,10 @@ export function content(): Plugin {
 			};
 			const changed = (event: string, file: string) => {
 				if (!['add', 'change', 'unlink'].includes(event)) return;
+				if (file === project.configFile) {
+					void server.restart().catch((error) => server.config.logger.error(String(error)));
+					return;
+				}
 				if (
 					file === path.join(repo, '.gitmodules') ||
 					(file.startsWith(directory + path.sep) &&
@@ -106,7 +112,11 @@ export function content(): Plugin {
 					rebuild(file);
 					return;
 				}
-				if (!file.startsWith(directory + path.sep)) return;
+				if (
+					!file.startsWith(directory + path.sep) ||
+					!projectSourceVisible(project, path.relative(directory, file).split(path.sep).join('/'))
+				)
+					return;
 				// Hidden paths never enter the content catalog; Git metadata is watched separately.
 				if (
 					path
@@ -117,7 +127,11 @@ export function content(): Plugin {
 					return;
 				rebuild(file);
 			};
-			server.watcher.add([directory, path.join(repo, '.gitmodules')]);
+			server.watcher.add([
+				directory,
+				path.join(repo, '.gitmodules'),
+				...(project.configFile ? [project.configFile] : [])
+			]);
 			server.watcher.on('all', changed);
 			function refreshGitWatchers() {
 				const wanted = new Map<

@@ -137,8 +137,8 @@ try {
 				if (
 					response.status === 200 &&
 					response.headers.get('content-type')?.includes('text/html') &&
-					/<h1\b[^>]*>[\s\S]*?wisconsin[\s\S]*?<\/h1>/i.test(html) &&
-					html.includes('My course notes from UW')
+					/<h1\b[^>]*>[\s\S]*?<\/h1>/i.test(html) &&
+					!html.includes('<vite-error-overlay')
 				) {
 					httpSeconds = elapsed();
 				}

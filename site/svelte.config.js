@@ -1,3 +1,4 @@
+import site from './src/lib/site-config.json' with { type: 'json' };
 import { staticDirectory } from './tooling/lib/edition-paths.js';
 import adapter from './tooling/adapter.js';
 import { readFileSync } from 'node:fs';
@@ -35,7 +36,7 @@ const config = {
 		version: { name: applicationVersion(process.cwd()) },
 		prerender: {
 			concurrency: prerenderConcurrency,
-			origin: 'https://wisconsin.twango.dev',
+			origin: site.url,
 			handleUnseenRoutes: ({ routes, message }) => {
 				if (
 					process.env.VITE_PUBLIC_EDITION === 'true' &&

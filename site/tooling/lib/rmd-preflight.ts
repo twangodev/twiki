@@ -5,7 +5,7 @@ import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import type { CourseFile } from '../../src/lib/files';
 import { stageFingerprint } from '../fingerprint';
-import { contentGit, declaredCourseDirectories } from './dev-git-state';
+import { resolveProject, declaredContentCourses, discoverSourceFiles } from './project-config';
 import { browsablePath } from './file-policy';
 import { publicationFilter } from './publishing';
 import { lockedRRuntime, readRRenderProfile } from './r-runtime';
@@ -30,21 +30,17 @@ export async function preflightRmdPreviews(
 	let worksheets = 0,
 		verified = 0;
 	try {
-		const courses = new Set(
-			declaredCourseDirectories(repo).map((course) =>
-				path.relative(path.join(repo, 'content'), course)
-			)
-		);
+		const project = resolveProject(site, repo, environment);
+		const courses = new Set(declaredContentCourses(project).map((course) => course.name));
+		if (!courses.size)
+			return { schemaVersion: 1, requiresR: false, worksheets: 0, verified: 0, reason: 'unused' };
 		const sources = new Map<string, { relative: string; source: string }[]>();
-		const paths = contentGit('-C', repo, 'ls-files', '-z', '--recurse-submodules', '--', 'content')
-			.toString()
-			.split('\0')
-			.filter(Boolean);
+		const paths = discoverSourceFiles(project);
 		for (const tracked of paths) {
-			const [course, ...segments] = tracked.slice(8).split('/');
+			const [course, ...segments] = tracked.split('/');
 			const relative = segments.join('/');
 			if (!courses.has(course) || !browsablePath(relative)) continue;
-			const source = path.resolve(repo, tracked);
+			const source = path.resolve(project.contentDir, tracked);
 			const info = lstatSync(source, { throwIfNoEntry: false });
 			if (!info?.isFile() || realpathSync(source) !== source) continue;
 			const files = sources.get(course) ?? [];
@@ -56,19 +52,19 @@ export async function preflightRmdPreviews(
 		);
 		if (!worksheetCourses.length)
 			return { schemaVersion: 1, requiresR: false, worksheets: 0, verified: 0, reason: 'unused' };
-		const published = publicationFilter(repo);
+		const published = publicationFilter(repo, project);
 		const editions: { course: string; files: CourseFile[] }[] = [];
 		for (const [course, sources] of worksheetCourses) {
 			const noteSlugs = new Set<string>();
 			// Match the compiler's whole non-draft catalog, including locked notes.
 			for (const tracked of paths) {
 				if (
-					!tracked.startsWith(`content/${course}/`) ||
+					!tracked.startsWith(`${course}/`) ||
 					path.extname(tracked).toLowerCase() !== '.md' ||
 					tracked.split('/').some((segment) => segment.startsWith('.'))
 				)
 					continue;
-				const source = path.resolve(repo, tracked);
+				const source = path.resolve(project.contentDir, tracked);
 				const info = lstatSync(source, { throwIfNoEntry: false });
 				if (!info?.isFile() || realpathSync(source) !== source) continue;
 				if (info.size > 25 * 1024 * 1024) throw new Error('Uncertain oversized note catalog');
@@ -76,7 +72,7 @@ export async function preflightRmdPreviews(
 					engines: { yaml: (value) => yaml.load(value, { schema: yaml.JSON_SCHEMA }) as object }
 				});
 				if (data.draft !== true && data.draft !== 'true')
-					noteSlugs.add(slugifyFilePath(tracked.slice(8) as FilePath));
+					noteSlugs.add(slugifyFilePath(tracked as FilePath));
 			}
 			const full: CourseFile[] = [],
 				publicFiles: CourseFile[] = [];
