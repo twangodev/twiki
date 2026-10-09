@@ -413,7 +413,7 @@ test("engine dependency declarations and lock match the shipped exact runtime gr
   ).toBe(true);
   expect(readFileSync(path.join(packageRoot, "site/bun.lock"), "utf8")).toBe(
     readFileSync(path.join(packageRoot, "bun.lock"), "utf8").replace(
-      '"name": "twiki"',
+      '"name": ' + JSON.stringify(root.name),
       '"name": "twiki-engine"',
     ),
   );

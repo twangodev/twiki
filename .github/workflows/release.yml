@@ -46,7 +46,7 @@ jobs:
           assert.match(process.env.GITHUB_SHA, /^[a-f0-9]{40}$/);
           assert.match(pkg.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/);
           assert.equal(process.env.GITHUB_REF_NAME, 'v' + pkg.version);
-          assert.equal(pkg.name, 'twiki');
+          assert.equal(pkg.name, '@twango/twiki');
           assert.notEqual(pkg.private, true);
           assert.equal(pkg.repository.url, 'git+https://github.com/twangodev/twiki.git');
           appendFileSync(process.env.GITHUB_OUTPUT, 'dist-tag=' + (pkg.version.includes('-') ? 'next' : 'latest') + '\n');

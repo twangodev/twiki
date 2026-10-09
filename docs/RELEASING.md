@@ -1,4 +1,4 @@
-# Releasing twiki
+# Releasing @twango/twiki
 
 The `release.yml` workflow publishes tags such as `v0.1.0` from commits already
 on `main`. The tag must equal the package version. It validates the engine,
@@ -34,8 +34,8 @@ Configure the package's trusted publisher with these exact values:
 With an authenticated npm 11.21.0 client, the equivalent command is:
 
 ```sh
-npm trust github twiki --repository twangodev/twiki --file release.yml --environment npm --allow-publish
-npm trust list twiki
+npm trust github @twango/twiki --repository twangodev/twiki --file release.yml --environment npm --allow-publish
+npm trust list @twango/twiki
 ```
 
 The first successful publication must occur within two days of configuring

@@ -51,10 +51,10 @@ export function validatePackagePlan(plan, expected) {
     "Expected exactly one package",
   );
   const entry = plan[0];
-  assert.equal(expected.name, "twiki");
+  assert.equal(expected.name, "@twango/twiki");
   assert.equal(entry.name, expected.name);
   assert.equal(entry.version, expected.version);
-  assert.equal(entry.filename, `twiki-${expected.version}.tgz`);
+  assert.equal(entry.filename, `twango-twiki-${expected.version}.tgz`);
   assert(Array.isArray(entry.files), "Missing package file inventory");
   const paths = entry.files.map((file) => file.path);
   assert.equal(new Set(paths).size, paths.length, "Duplicate package file");

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "twiki",
+      "name": "@twango/twiki",
       "dependencies": {
         "@actions/cache": "6.3.0",
         "@better-auth/drizzle-adapter": "1.7.2",

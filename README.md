@@ -10,7 +10,7 @@ Installed engine files remain read-only; generated state belongs to the consumer
 ## Start a vault
 
 ```sh
-bun add --dev --exact twiki
+bun add --dev --exact @twango/twiki
 bunx twiki init
 bunx twiki dev
 ```
@@ -122,8 +122,8 @@ cannot change the engine compiler. Repeated preparation reuses that installation
 `exec` runs Bun arguments from that runtime, including cache tools, migrations,
 and verification scripts.
 
-The package exports `twiki/actions/product-cache` for Node action bootstraps,
-`twiki/cli` for locating the executable, and `twiki/runtime` for Bun scripts.
+The package exports `@twango/twiki/actions/product-cache` for Node action bootstraps,
+`@twango/twiki/cli` for locating the executable, and `@twango/twiki/runtime` for Bun scripts.
 
 ## Engine development
 

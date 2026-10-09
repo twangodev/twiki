@@ -11,11 +11,15 @@ import {
 } from '../../../.github/scripts/verify-package.mjs';
 
 const root = path.resolve(import.meta.dirname, '../../..');
-const expected = { name: 'twiki', version: '1.2.3' };
+const expected = { name: '@twango/twiki', version: '1.2.3' };
 const paths = [...requiredFiles, 'site/static/fonts/example.woff2', 'site/migrations/0001.sql'];
 function plan(names = paths) {
 	return [
-		{ ...expected, filename: 'twiki-1.2.3.tgz', files: names.map((name) => ({ path: name })) }
+		{
+			...expected,
+			filename: 'twango-twiki-1.2.3.tgz',
+			files: names.map((name) => ({ path: name }))
+		}
 	];
 }
 
@@ -84,6 +88,7 @@ test('release grants OIDC only to publishing the validated tarball on protected 
 	}
 	const identity = validate.find((step) => step.id === 'version').run;
 	expect(identity).toContain("process.env.GITHUB_REF_NAME, 'v' + pkg.version");
+	expect(identity).toContain("assert.equal(pkg.name, '@twango/twiki')");
 	expect(identity).toContain('git merge-base --is-ancestor HEAD refs/remotes/origin/main');
 	const publishText = JSON.stringify(publish);
 	expect(publishText).toContain('EXPECTED_SHA256');
