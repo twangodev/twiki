@@ -5,6 +5,9 @@ on `main`. The tag must equal the package version. It validates the engine,
 CLI, both build targets and the installed npm tarball before publishing those
 same bytes. Stable versions use `latest`; prereleases use `next`.
 
+After the frozen install, `bun audit --audit-level high` blocks release validation
+on known high or critical dependency advisories. The gate has no ignored advisories.
+
 ## One-time npm setup
 
 Use an npm account with package write access and account-level 2FA. The package

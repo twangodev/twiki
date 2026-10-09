@@ -1,6 +1,6 @@
 # Extraction validation
 
-The first complete Wisconsin CLI build used main at
+The first complete Wisconsin CLI build, before dependency security updates, used main at
 `9d9fa9d84a730b53f433d4fa3ae8726adf57f676` in a dedicated migration worktree.
 Its 1,662 emitted page JSON files were byte-identical to the performance branch
 build that was merged into that main revision. Manifest counts, pages, folders,
@@ -32,3 +32,10 @@ bytes remained unchanged through the full Cloudflare build.
 
 Production was not deployed as part of extraction validation. GitHub Actions
 results must be assessed separately from these local checks.
+
+Before the first registry publication, inherited dependency alerts prompted
+updates to SvelteKit 2.70.2, js-yaml 3.15.2, Mermaid 11.16.1, and KaTeX 0.18.2.
+The initial byte-parity comparison above applies to extraction before those
+updates; rendering libraries can change serialized output after an upgrade.
+The final release requires new build, content-check, and installed-tarball
+validation against the patched frozen graph.

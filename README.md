@@ -141,3 +141,7 @@ engine ships a matching frozen lockfile and installs its own dependencies into
 versions do not affect the engine graph. Bun reuses its package cache; CI can
 retain the runtime dependency directory for subsequent runs. The compatible
 Svelte ESM printer (`esrap`) is pinned explicitly.
+
+The stable Wrangler 4.149.0 toolchain uses its official pinned
+`miniflare@5.20261006.1-alpha` implementation for local Workers. Twiki pins that
+matching version rather than selecting an independent preview runtime.

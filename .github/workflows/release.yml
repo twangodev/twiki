@@ -54,6 +54,8 @@ jobs:
           test "$(git rev-parse HEAD)" = "$(git rev-parse "${GITHUB_SHA}^{commit}")"
           git merge-base --is-ancestor HEAD refs/remotes/origin/main
       - run: bun install --frozen-lockfile
+      - name: Audit release dependencies
+        run: bun audit --audit-level high
       - run: bunx playwright install --with-deps chromium
       - name: Validate the CLI
         run: |
