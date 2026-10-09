@@ -1,0 +1,168 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { appendFileSync, copyFileSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+export const requiredFiles = [
+  "package.json",
+  "README.md",
+  "LICENSE",
+  "cli/twiki.ts",
+  "cli/runtime.ts",
+  ".github/actions/product-cache/index.mjs",
+  ".github/actions/product-cache/action.yml",
+  "site/package.json",
+  "site/bun.lock",
+  "site/svelte.config.js",
+  "site/vite.config.ts",
+  "site/tsconfig.json",
+  "site/wrangler.jsonc",
+  "site/drizzle.config.ts",
+  "site/tooling/build.ts",
+  "site/tooling/deploy.ts",
+  "site/tooling/lib/project-config.ts",
+  "site/worker/index.ts",
+  "site/src/app.html",
+  "site/static/favicon.png",
+];
+const files = new Set(requiredFiles);
+const prefixes = [
+  "cli/",
+  ".github/actions/product-cache/",
+  "site/src/",
+  "site/tooling/",
+  "site/worker/",
+  "site/assets/",
+  "site/static/fonts/",
+  "site/migrations/",
+  "site/database/",
+];
+const additionalFiles = new Set([
+  "bun.lock",
+  "site/_headers",
+  "site/_redirects",
+]);
+
+export function validatePackagePlan(plan, expected) {
+  assert(
+    Array.isArray(plan) && plan.length === 1,
+    "Expected exactly one package",
+  );
+  const entry = plan[0];
+  assert.equal(expected.name, "twiki");
+  assert.equal(entry.name, expected.name);
+  assert.equal(entry.version, expected.version);
+  assert.equal(entry.filename, `twiki-${expected.version}.tgz`);
+  assert(Array.isArray(entry.files), "Missing package file inventory");
+  const paths = entry.files.map((file) => file.path);
+  assert.equal(new Set(paths).size, paths.length, "Duplicate package file");
+  for (const name of paths) {
+    assert(
+      typeof name === "string" && !/[\x00-\x1f\x7f\\]/.test(name),
+      "Unsafe package filename",
+    );
+    const segments = name.split("/");
+    assert(
+      !segments.some((segment) =>
+        [
+          "",
+          ".",
+          "..",
+          ".git",
+          ".twiki",
+          "node_modules",
+          "build",
+          ".svelte-kit",
+          "generated",
+        ].includes(segment),
+      ),
+      "Generated or unsafe package path",
+    );
+    assert(
+      !segments.some((segment) =>
+        /^\.env(?:\.|$)|^\.dev\.vars(?:\.|$)|^\.npmrc$/.test(segment),
+      ),
+      "Configuration secret in package",
+    );
+    assert(
+      files.has(name) ||
+        additionalFiles.has(name) ||
+        prefixes.some((prefix) => name.startsWith(prefix)),
+      "Unexpected package path",
+    );
+  }
+  for (const name of requiredFiles)
+    assert(paths.includes(name), `Missing runtime file: ${name}`);
+  assert(
+    paths.some((name) => name.startsWith("site/static/fonts/")),
+    "Missing runtime fonts",
+  );
+  assert(
+    paths.some((name) => name.startsWith("site/migrations/")),
+    "Missing database migrations",
+  );
+  return entry;
+}
+
+export function verifyArchive(archive, paths) {
+  const listing = execFileSync("tar", ["-tzf", archive], {
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+  })
+    .trimEnd()
+    .split("\n")
+    .filter((name) => !name.endsWith("/"));
+  assert(
+    listing.every((name) => name.startsWith("package/")),
+    "Archive contains an unexpected root",
+  );
+  assert.deepEqual(
+    listing.map((name) => name.slice("package/".length)).sort(),
+    [...paths].sort(),
+    "Archive differs from inspected package inventory",
+  );
+  const types = execFileSync("tar", ["-tvzf", archive], {
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  assert(
+    types
+      .trimEnd()
+      .split("\n")
+      .every((line) => line.startsWith("-")),
+    "Archive contains nonregular files",
+  );
+}
+
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  const planFile = path.resolve(process.argv[2] ?? "dist/pack.json");
+  const expected = JSON.parse(readFileSync("package.json", "utf8"));
+  const entry = validatePackagePlan(
+    JSON.parse(readFileSync(planFile, "utf8")),
+    expected,
+  );
+  const archive = path.join(path.dirname(planFile), entry.filename);
+  verifyArchive(
+    archive,
+    entry.files.map((file) => file.path),
+  );
+  const bytes = readFileSync(archive);
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  copyFileSync(archive, path.join(path.dirname(planFile), "twiki.tgz"));
+  if (process.env.GITHUB_OUTPUT)
+    appendFileSync(process.env.GITHUB_OUTPUT, `sha256=${sha256}\n`);
+  console.log(
+    JSON.stringify({
+      name: entry.name,
+      version: entry.version,
+      files: entry.files.length,
+      bytes: bytes.length,
+      sha256,
+    }),
+  );
+}
