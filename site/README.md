@@ -13,8 +13,24 @@ bun run dev
 ```
 
 Rendered worksheets need R and knitr; without them, source and interactive views
-remain available. CI also preinstalls `car`. Worksheet package-install calls reuse
-installed packages; missing dependencies must be installed before rendering.
+remain available. The current worksheets also use the preinstalled `car` package.
+On Debian/Ubuntu, install the same dependencies as CI:
+
+```sh
+sudo apt-get install --no-install-recommends r-base-core r-cran-knitr r-cran-car
+```
+
+During rendering, unqualified `install.packages(...)` calls use installed packages
+and fail clearly when a requested package is missing. Dependencies are provisioned
+before building. Namespaced calls such as `utils::install.packages(...)` retain
+normal R behavior; this policy does not intercept them.
+
+Plot cache identities include resolved fonts, font bytes, and active Fontconfig
+configuration. Rendering respects the configured fonts. If the font environment
+cannot be verified, previews render normally without reusing cached previews.
+
+See [build performance experiments](docs/build-performance.md) for the benchmark
+runner, production baseline, and cache constraints.
 
 ## Checks
 

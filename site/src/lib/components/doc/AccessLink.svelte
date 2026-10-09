@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { UsersRound } from '@lucide/svelte';
+	import UsersRound from '@lucide/svelte/icons/users-round';
 
 	let owner = $state(false);
 	onMount(() => {

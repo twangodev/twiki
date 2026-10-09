@@ -5,6 +5,7 @@ import {
 	existsSync,
 	unlinkSync,
 	statSync,
+	utimesSync,
 	cpSync,
 	readFileSync,
 	realpathSync,
@@ -16,8 +17,18 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { publicationFixture } from './publication-fixture';
+import { nestedPublicationFixture } from './nested-publication-fixture';
 
+const started = performance.now();
 const fixture = publicationFixture();
+const { nested, git } = nestedPublicationFixture(fixture);
+fixture.write(
+	'content/sp99-cs101/publish.yaml',
+	readFileSync(path.join(fixture.course, 'publish.yaml'), 'utf8').replace(
+		'include:\n',
+		'include:\n  - projects/nested.md\n'
+	)
+);
 const isolated = mkdtempSync(path.join(tmpdir(), 'wisconsin-content-dev-'));
 const source = path.resolve(import.meta.dirname, '..');
 const siteDirectory = path.join(isolated, 'site');
@@ -44,6 +55,7 @@ writeFileSync(
 	`import { mergeConfig } from 'vite';
 import config from './vite.config';
 export default mergeConfig(config, {
+  cacheDir: ${JSON.stringify(path.join(siteDirectory, 'build/.vite'))},
   server: { fs: { allow: ${JSON.stringify([siteDirectory, realpathSync(path.join(source, 'node_modules'))])} } }
 });
 `
@@ -139,6 +151,68 @@ try {
 	if (!output.includes('reused saved output') || statSync(initialPage).mtimeMs !== initialTime)
 		throw new Error(`Restart did not reuse output: ${output}`);
 	console.log(output.match(/content startup: .*/)?.[0]);
+	const pipelineCount = () => (output.match(/content pipeline:/g) ?? []).length;
+	const reuseCount = () => (output.match(/reused saved output/g) ?? []).length;
+	async function metadataReuse(change: () => void, label: string) {
+		const pipelines = pipelineCount();
+		const reused = reuseCount();
+		change();
+		await until(async () => reuseCount() > reused, label);
+		if (!(await fetch(origin + '/sp99-cs101/notes/public')).ok)
+			throw new Error(`${label} blocked existing content`);
+		if (pipelineCount() !== pipelines || statSync(initialPage).mtimeMs !== initialTime)
+			throw new Error(`${label} unnecessarily rebuilt content`);
+	}
+	await metadataReuse(
+		() => git(fixture.repo, 'branch', 'unrelated-worktree'),
+		'unrelated shared ref reuses content'
+	);
+	await metadataReuse(() => {
+		// Refresh metadata on the actual index, leaving its tracked entries unchanged.
+		const index = execFileSync(
+			'git',
+			['-C', fixture.repo, 'rev-parse', '--path-format=absolute', '--git-path', 'index'],
+			{ encoding: 'utf8' }
+		).trim();
+		const now = new Date();
+		utimesSync(index, now, now);
+	}, 'no-op Git index event reuses content');
+	server.kill('SIGTERM');
+	await stopped;
+	fixture.write(
+		'content/sp99-cs101/projects/nested.md',
+		'# Nested project\n\nOffline nested edit.'
+	);
+	({ server, stopped } = startServer());
+	await until(
+		async () =>
+			(await (await fetch(origin + '/sp99-cs101/projects/nested')).text()).includes(
+				'Offline nested edit.'
+			),
+		'offline nested edit on restart'
+	);
+	server.kill('SIGTERM');
+	await stopped;
+	git(fixture.course, 'config', 'submodule.projects.active', 'false');
+	({ server, stopped } = startServer());
+	await until(
+		async () => (await fetch(origin + '/sp99-cs101/projects/nested')).status === 404,
+		'offline nested unregistration removes stale output'
+	);
+	git(fixture.course, 'config', 'submodule.projects.active', 'true');
+	await until(
+		async () =>
+			(await (await fetch(origin + '/sp99-cs101/projects/nested')).text()).includes(
+				'Offline nested edit.'
+			),
+		'live nested registration restores output'
+	);
+	fixture.write('content/sp99-cs101/projects/added.md', '# Nested tracked addition\n');
+	git(nested, 'add', 'added.md');
+	await until(
+		async () => (await fetch(origin + '/sp99-cs101/projects/added')).ok,
+		'live nested index discovers tracked addition'
+	);
 	server.kill('SIGTERM');
 	await stopped;
 	fixture.write('content/sp99-cs101/notes/public.md', fixture.publicNote + '\nOffline edit.');
@@ -223,7 +297,14 @@ try {
 		async () => (await page.locator('vite-error-overlay').count()) === 0,
 		'error overlay cleared'
 	);
+	const untrackedPipelines = pipelineCount();
 	fixture.write('content/sp99-cs101/notes/new.md', '# Newly tracked note\n\nNew note body.');
+	await until(
+		async () => pipelineCount() > untrackedPipelines,
+		'ordinary untracked file event still reconciles content'
+	);
+	if ((await fetch(origin + '/sp99-cs101/notes/new')).status !== 404)
+		throw new Error('Untracked note bypassed authoritative Git discovery');
 	execFileSync('git', ['-C', path.join(fixture.repo, 'content/sp99-cs101'), 'add', 'notes/new.md']);
 	await until(
 		async () =>
@@ -320,7 +401,7 @@ try {
 	if (!output.includes('reused saved output'))
 		throw new Error('Lazy history invalidated startup cache');
 	console.log(
-		'Content dev integration passed: restart reuse, offline edits, missing output, lazy history, refresh, failure recovery, add, delete, revoke'
+		`Content dev integration passed: restart reuse, offline edits, missing output, lazy history, refresh, failure recovery, add, delete, revoke (${((performance.now() - started) / 1000).toFixed(2)}s)`
 	);
 } finally {
 	await browser.close();

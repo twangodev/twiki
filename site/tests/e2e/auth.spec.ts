@@ -1,9 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { siGithub } from 'simple-icons';
-import { readFileSync } from 'node:fs';
+import { runtimeSnapshot } from './runtime-snapshot';
 import type { CourseFile } from '../../src/lib/files';
 
-const publicAssets = JSON.parse(readFileSync('build/generated/public-assets.json', 'utf8'));
+const { routing: publicRouting } = runtimeSnapshot();
+const publicAssets = publicRouting.assets;
+const publicRoutes = new Set<string>(publicRouting.routes);
+const isPublic = (route: string) =>
+	publicAssets[route] ||
+	publicRoutes.has(
+		route.endsWith('/__data.json') ? route.slice(0, -'/__data.json'.length) || '/' : route
+	);
 const privatePage = '/sp26-cs544/lectures/lecture-01';
 
 for (const mode of ['light', 'dark'] as const) {
@@ -70,8 +77,9 @@ test('anonymous visitors cannot fetch private content, even after the owner warm
 	const homepage = await request.get('/');
 	expect(homepage.status()).toBe(200);
 	const html = await homepage.text();
-	const asset = html.match(/(?:src|href)="([^"\s]*\/_app\/immutable\/[^"\s]+)"/)?.[1];
-	expect(asset).toBeTruthy();
+	const rawAsset = html.match(/(?:src|href)="([^"\s]*\/_app\/immutable\/[^"\s]+)"/)?.[1];
+	expect(rawAsset).toBeTruthy();
+	const asset = new URL(rawAsset!, homepage.url()).pathname;
 	const files: CourseFile[] = await (await request.get('/_files/index/sp26-cs544.json')).json();
 	const privateFile = files.find((file) => file.note === privatePage)!;
 	expect(privateFile.download).toBeTruthy();
@@ -91,13 +99,15 @@ test('anonymous visitors cannot fetch private content, even after the owner warm
 			'/pagefind/pagefind.js',
 			'/index.xml',
 			'/sitemap.xml',
-			asset!
-		].filter((path) => !publicAssets[path])) {
-			expect((await request.get(path)).status()).toBe(200);
+			asset
+		].filter((path) => !isPublic(path))) {
+			expect((await request.get(path)).status(), `Owner GET ${path}`).toBe(200);
 			for (const method of ['GET', 'HEAD']) {
 				const response = await anonymous.request.fetch(path, { method });
-				expect(response.status()).toBe(401);
-				expect(response.headers()['cache-control']).toBe('private, no-store');
+				expect(response.status(), `Anonymous ${method} ${path}`).toBe(401);
+				expect(response.headers()['cache-control'], `Anonymous ${method} ${path}`).toBe(
+					'private, no-store'
+				);
 			}
 		}
 		const page = await anonymous.newPage();

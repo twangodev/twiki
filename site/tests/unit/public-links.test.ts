@@ -73,3 +73,15 @@ test('same-origin absolute links are checked, external links and local anchors a
 	protectPublicLinks(content, 'course/note', allowed);
 	expect((content.children[0] as Element).tagName).toBe('span');
 });
+
+test('renderer class names in raw HTML cannot bypass publication checks', () => {
+	const allowed = new Set(['course/note']);
+	for (const className of ['katex', 'shiki']) {
+		const content = tree({
+			tagName: 'span',
+			properties: { className: [className] },
+			children: tree({ tagName: 'iframe', properties: { src: './secret' } }).children as Element[]
+		});
+		expect(() => protectPublicLinks(content, 'course/note', allowed)).toThrow();
+	}
+});

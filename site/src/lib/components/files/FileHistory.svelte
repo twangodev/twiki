@@ -2,7 +2,7 @@
 	import { onDestroy } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { X } from '@lucide/svelte';
+	import X from '@lucide/svelte/icons/x';
 	import type { FileHistory, FileBlame, FileChange } from '$lib/file-history';
 	let {
 		url,

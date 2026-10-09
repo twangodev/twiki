@@ -7,7 +7,8 @@ import {
 	slugTag,
 	splitAnchor,
 	transformInternalLink,
-	transformLink
+	transformLink,
+	createTransformOptions
 } from '../../tooling/lib/slug';
 
 const fp = (s: string) => s as FilePath;
@@ -234,6 +235,54 @@ describe('transformLink (fork nearest-match resolution)', () => {
 				allSlugs: ['fa25-cs354/cheatsheet.pdf'] as FullSlug[]
 			})
 		).toBe('../fa25-cs354/cheatsheet.pdf#page=3');
+	});
+});
+
+describe('indexed link resolution', () => {
+	test('preserves suffix matching, nearest ambiguity, folders, assets and missing targets', () => {
+		const slugs = [
+			...allSlugs,
+			'sp26-cs544/textbook/index',
+			'sp26-cs537/lectures/index',
+			'sp26-cs544/lectures/index',
+			'sp26-cs544/mytextbook/ch-04',
+			'sp26-cs537/textbook/ch-04'
+		].map(fs);
+		const targets = [
+			'README',
+			'review',
+			'textbook/ch-04',
+			'ch-04#The Abstraction',
+			'textbook/index',
+			'textbook/index.md#Overview',
+			'lectures/#Overview',
+			'index',
+			'index.md',
+			'/',
+			'./Instructions.md',
+			'../README.md',
+			'cheatsheet.pdf#page=3',
+			'assets/Pasted image 20251001120000.png',
+			'missing'
+		];
+		for (const strategy of ['shortest', 'relative', 'absolute'] as const) {
+			const indexed = createTransformOptions(slugs, strategy);
+			for (const source of slugs)
+				for (const target of targets)
+					expect(transformLink(source, target, indexed)).toBe(
+						transformLink(source, target, { strategy, allSlugs: slugs })
+					);
+		}
+	});
+
+	test('a new corpus gets a new snapshot without invalidating previous options', () => {
+		const slugs = [fs('first/note')];
+		const previous = createTransformOptions(slugs);
+		slugs.push(fs('second/note'));
+		const current = createTransformOptions(slugs);
+		expect<unknown>(transformLink(fs('second/source'), 'note', previous)).toBe('../first/note');
+		expect<unknown>(transformLink(fs('second/source'), 'note', current)).toBe('../second/note');
+		expect(previous.allSlugs).toEqual([fs('first/note')]);
 	});
 });
 

@@ -2,7 +2,8 @@
 	import { onMount, tick } from 'svelte';
 	import { page } from '$app/state';
 	import { Spring, prefersReducedMotion } from 'svelte/motion';
-	import { Maximize2, X } from '@lucide/svelte';
+	import Maximize2 from '@lucide/svelte/icons/maximize-2';
+	import X from '@lucide/svelte/icons/x';
 	import {
 		addToVisited,
 		idForRoute,

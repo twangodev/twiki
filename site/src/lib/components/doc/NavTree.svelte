@@ -4,7 +4,8 @@
 	import { page } from '$app/state';
 	import { slide } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { ChevronRight, LockKeyhole } from '@lucide/svelte';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import LockKeyhole from '@lucide/svelte/icons/lock-keyhole';
 	let {
 		nodes,
 		depth = 0,

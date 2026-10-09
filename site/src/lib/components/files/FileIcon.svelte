@@ -1,12 +1,13 @@
 <script lang="ts">
-	import themeData from '$lib/generated/file-icons.json';
+	import { getContext } from 'svelte';
+	const theme = getContext<() => FileIconTheme>('wisconsin-file-icons');
 	import { selectFileIcon, type FileIconTheme } from '$lib/file-icons';
 	const {
 		name,
 		folder = false,
 		expanded = false
 	}: { name: string; folder?: boolean; expanded?: boolean } = $props();
-	const icon = $derived(selectFileIcon(themeData as FileIconTheme, name, folder, expanded));
+	const icon = $derived(selectFileIcon(theme(), name, folder, expanded));
 </script>
 
 <span class="inline-flex size-4 shrink-0" aria-hidden="true" data-file-icon>

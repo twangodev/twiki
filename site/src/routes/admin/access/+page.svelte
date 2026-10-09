@@ -2,7 +2,8 @@
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { lookupGithubUser } from '$lib/github-user';
-	import { ShieldCheck, UserPlus } from '@lucide/svelte';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
+	import UserPlus from '@lucide/svelte/icons/user-plus';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();

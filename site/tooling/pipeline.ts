@@ -1,10 +1,9 @@
-import { compileContent } from './compiler';
-import { prepareAssets } from './assets';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { stageFingerprint } from './fingerprint';
 import { trackOutputs, writeChanged } from './lib/output';
 import { contentInputFingerprint, contentOutputFingerprint } from './lib/dev-state';
+import { rRendererIdentity } from './lib/r-runtime';
 
 const state = globalThis as typeof globalThis & {
 	wisconsinContentBuilds?: Map<string, Promise<Set<string>>>;
@@ -16,15 +15,16 @@ export async function prepareContent(
 	development = false
 ) {
 	const builds = (state.wisconsinContentBuilds ??= new Map());
+	const site = process.cwd();
+	const repo = process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(site, '..');
 	const key = JSON.stringify([
 		process.cwd(),
 		process.env.WISCONSIN_CONTENT_REPO,
 		process.env.VITE_PUBLIC_EDITION,
 		await stageFingerprint('pipeline'),
-		development
+		development,
+		development ? rRendererIdentity(repo) : undefined
 	]);
-	const site = process.cwd();
-	const repo = process.env.WISCONSIN_CONTENT_REPO ?? path.resolve(site, '..');
 	const marker = path.resolve('build/generated/dev-state.json');
 	const started = performance.now();
 	let inputs = development ? contentInputFingerprint(repo, key) : '';
@@ -56,7 +56,11 @@ export async function prepareContent(
 	)
 		return builds.get(key);
 	rmSync(marker, { force: true });
-	const build = runPipeline(changedInputs, development);
+	// A changed renderer or configuration must reconcile all courses, including unchanged worksheets.
+	const build = runPipeline(
+		development && process.env.WISCONSIN_PREPARED_CONTENT !== key ? undefined : changedInputs,
+		development
+	);
 	builds.set(key, build);
 	try {
 		const changed = await build;
@@ -80,6 +84,11 @@ export async function prepareContent(
 
 async function runPipeline(changedInputs?: Set<string>, development = false) {
 	const start = performance.now();
+	// A saved development snapshot does not need the parser or asset renderers.
+	const [{ compileContent }, { prepareAssets }] = await Promise.all([
+		import('./compiler'),
+		import('./assets')
+	]);
 	const changed = await trackOutputs(async () => {
 		await compileContent();
 		await prepareAssets(changedInputs, development);

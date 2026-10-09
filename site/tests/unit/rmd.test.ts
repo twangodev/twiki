@@ -101,6 +101,30 @@ test('Rmd wikilinks resolve notes and worksheet files without changing code or m
 	expect(result.blocks.find((b) => b.kind === 'r')).toMatchObject({ code: 'x <- "[[hw2.Rmd]]"' });
 });
 
+test.each([
+	['course/lectures/lecture-01', '/course/lectures/lecture-01'],
+	['/course/lectures/lecture-01', '/course/lectures/lecture-01'],
+	['//outside.example/lecture-01', '/outside.example/lecture-01'],
+	['/\\outside.example/lecture-01', '/outside.example/lecture-01'],
+	['/\n/outside.example/lecture-01', '/outside.example/lecture-01']
+])('Rmd note route %j stays rooted at the current origin', async (note, expectedPath) => {
+	const result = await parseRmd(
+		'[[lecture-01#Sampling Methods|Lecture]]',
+		'course',
+		'homework/hw1.Rmd',
+		[{ path: 'lectures/lecture-01.md', note, kind: 'text', size: 1 }]
+	);
+	const html = result.blocks
+		.filter((block) => block.kind === 'markdown')
+		.map((block) => block.html)
+		.join('');
+	const href = html.match(/href="([^"]+)"/)![1];
+	expect(href).toBe(`${expectedPath}#sampling-methods`);
+	expect(new URL(href, 'https://wisconsin.example/homework/hw1').origin).toBe(
+		'https://wisconsin.example'
+	);
+});
+
 test('Flowershow parses heading-only links and escaped table aliases; private embeds stay links', async () => {
 	const result = await parseRmd(
 		[

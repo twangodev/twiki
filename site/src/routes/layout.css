@@ -1,4 +1,7 @@
 @import 'tailwindcss';
+@source not '../../docs';
+@source not '../../tests';
+@source not '../../benchmarks';
 @import '../lib/styles/foundation.css';
 @import '../lib/styles/shell.css';
 @import '../lib/styles/article.css';

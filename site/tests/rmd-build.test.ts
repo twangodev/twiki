@@ -89,8 +89,15 @@ file.exists("private.csv")
 		const first = worksheet.rmdPreview;
 		const stamp = statSync(plot).mtimeMs;
 		const executable = process.env.RSCRIPT;
+		const cacheOnly = path.join(site, 'cache-only-Rscript');
+		const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
+		writeFileSync(
+			cacheOnly,
+			`#!/bin/sh\nif [ "$2" = "-e" ]; then exec ${quote(executable ?? 'Rscript')} "$@"; fi\necho 'A cached preview must not knit again' >&2\nexit 1\n`,
+			{ mode: 0o755 }
+		);
 		try {
-			process.env.RSCRIPT = '/no-r-execution-on-cache-hit';
+			process.env.RSCRIPT = cacheOnly;
 			await render();
 		} finally {
 			if (executable === undefined) delete process.env.RSCRIPT;
@@ -114,10 +121,10 @@ file.exists("private.csv")
 		await expect(render()).rejects.toThrow('Could not render test-course/notes/example.Rmd');
 		input(
 			'notes/example.Rmd',
-			'```{r}\ninstall.packages("wisconsin_missing_test_dependency", repos="https://invalid.example")\n```\n'
+			'```{r}\ninstall.packages("wisconsinMissingTestDependency", repos="https://invalid.example")\n```\n'
 		);
 		await expect(render()).rejects.toThrow(
-			'Install required R packages before rendering worksheets: wisconsin_missing_test_dependency'
+			'Missing preinstalled R packages: wisconsinMissingTestDependency'
 		);
 	} finally {
 		rmSync(site, { recursive: true, force: true });

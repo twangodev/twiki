@@ -1,17 +1,18 @@
-import { watch } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { existsSync, type FSWatcher } from 'node:fs';
 import path from 'node:path';
 import type { Plugin } from 'vite';
 import { prepareContent } from './pipeline';
-import { parseGitmodules } from './lib/lastmod';
-import { serveDevSocialImage } from './lib/dev-social-images';
-import { serveDevHistory } from './lib/dev-history';
+import { contentRepositories, watchContentGitDirectory } from './lib/dev-git-state';
 import { rebuildQueue } from './lib/rebuild-queue';
+import { resolveRuntimeDataImport } from './lib/runtime-data-modules';
 
 export function content(): Plugin {
 	return {
 		name: 'wisconsin-content',
 		enforce: 'pre',
+		resolveId(source) {
+			return resolveRuntimeDataImport(source, this.environment.config);
+		},
 		config: {
 			order: 'pre',
 			async handler(_config, environment) {
@@ -30,12 +31,27 @@ export function content(): Plugin {
 			let closed = false;
 			let failure: Error | undefined;
 			let changedInputs = new Set<string>();
+			let forceRebuild = false;
+			let gitTopologyChanged = true;
+			const gitWatchers = new Map<
+				string,
+				{ watcher: FSWatcher; recursive: boolean; files: Set<string>; repositories: Set<string> }
+			>();
 			const queue = rebuildQueue(async () => {
 				if (closed) return;
 				try {
 					const inputs = changedInputs;
 					changedInputs = new Set();
-					const changed = await prepareContent(false, inputs, true);
+					const reuse = !forceRebuild && !failure;
+					forceRebuild = false;
+					if (gitTopologyChanged) {
+						refreshGitWatchers();
+						gitTopologyChanged = false;
+					}
+					// Git can refresh an index or another worktree's ref without changing
+					// our inputs. Validate its snapshot; content events and failure
+					// recovery still force reconciliation.
+					const changed = await prepareContent(reuse, inputs, true);
 					const recovered = Boolean(failure);
 					failure = undefined;
 					if (!changed?.size && !recovered) return;
@@ -61,6 +77,8 @@ export function content(): Plugin {
 				} catch (error) {
 					failure = error instanceof Error ? error : new Error(String(error));
 					changedInputs.add(repo); // Recovery must reconcile every course after a partial failure.
+					forceRebuild = true;
+					gitTopologyChanged = true;
 					server.config.logger.error(failure.message);
 					server.ws.send({
 						type: 'error',
@@ -69,12 +87,22 @@ export function content(): Plugin {
 				}
 			});
 			const rebuild = (file: string) => {
+				forceRebuild = true;
 				changedInputs.add(file);
+				queue.schedule();
+			};
+			const rebuildGit = (repository: string) => {
+				changedInputs.add(repository);
 				queue.schedule();
 			};
 			const changed = (event: string, file: string) => {
 				if (!['add', 'change', 'unlink'].includes(event)) return;
-				if (file === path.join(repo, '.gitmodules')) {
+				if (
+					file === path.join(repo, '.gitmodules') ||
+					(file.startsWith(directory + path.sep) &&
+						['.gitmodules', '.git'].includes(path.basename(file)))
+				) {
+					gitTopologyChanged = true;
 					rebuild(file);
 					return;
 				}
@@ -91,34 +119,91 @@ export function content(): Plugin {
 			};
 			server.watcher.add([directory, path.join(repo, '.gitmodules')]);
 			server.watcher.on('all', changed);
-			const repositories = [
-				repo,
-				...parseGitmodules(path.join(repo, '.gitmodules')).map((course) => course.fullPath)
-			];
-			const gitWatchers = repositories.flatMap((repository) => {
-				try {
-					const index = execFileSync(
-						'git',
-						['-C', repository, 'rev-parse', '--path-format=absolute', '--git-path', 'index'],
-						{ encoding: 'utf8' }
-					).trim();
-					return [
-						watch(path.dirname(index), (_event, file) => {
-							if (file && ['index', 'HEAD', 'packed-refs'].includes(String(file)))
-								rebuild(repository);
-						})
-					];
-				} catch {
-					return [];
+			function refreshGitWatchers() {
+				const wanted = new Map<
+					string,
+					{ recursive: boolean; files: Set<string>; repositories: Set<string> }
+				>();
+				const add = (directory: string, file: string, repository: string, recursive = false) => {
+					const entry = wanted.get(directory) ?? {
+						recursive,
+						files: new Set<string>(),
+						repositories: new Set<string>()
+					};
+					entry.recursive ||= recursive;
+					entry.files.add(file);
+					entry.repositories.add(repository);
+					wanted.set(directory, entry);
+				};
+				for (const repository of contentRepositories(repo)) {
+					for (const file of [
+						repository.index,
+						repository.config,
+						repository.worktreeConfig,
+						path.join(repository.gitDirectory, 'HEAD'),
+						path.join(repository.commonDirectory, 'packed-refs'),
+						path.join(repository.commonDirectory, 'refs')
+					])
+						add(path.dirname(file), path.basename(file), repository.directory);
+					const refs = path.join(repository.commonDirectory, 'refs');
+					if (existsSync(refs)) add(refs, '', repository.directory, true);
 				}
-			});
+				for (const [directory, entry] of gitWatchers) {
+					if (!wanted.has(directory) || wanted.get(directory)!.recursive !== entry.recursive) {
+						entry.watcher.close();
+						gitWatchers.delete(directory);
+					}
+				}
+				for (const [directory, entry] of wanted) {
+					const previous = gitWatchers.get(directory);
+					if (previous) {
+						previous.files = entry.files;
+						previous.repositories = entry.repositories;
+						continue;
+					}
+					// Watch metadata directories shallowly; recurse only through refs,
+					// never through the shared object store.
+					const watcher = watchContentGitDirectory(
+						directory,
+						entry.recursive,
+						() => gitWatchers.get(directory)?.files ?? new Set(),
+						() => {
+							const current = gitWatchers.get(directory);
+							if (closed || !current) return;
+							gitTopologyChanged = true;
+							for (const repository of current.repositories) rebuildGit(repository);
+						}
+					);
+					if (!watcher) continue;
+					watcher.on('error', () => {
+						const current = gitWatchers.get(directory);
+						watcher.close();
+						gitWatchers.delete(directory);
+						if (closed) return;
+						gitTopologyChanged = true;
+						for (const repository of current?.repositories ?? []) rebuildGit(repository);
+					});
+					gitWatchers.set(directory, { ...entry, watcher });
+				}
+			}
+			refreshGitWatchers();
+			gitTopologyChanged = false;
 			server.middlewares.use((request, response, next) => {
 				void queue
 					.wait()
 					.then(async () => {
 						if (failure) return next(failure);
-						if (serveDevHistory(request, response, server.config.root, repo)) return;
-						if (!(await serveDevSocialImage(request, response, server.config.root))) next();
+						// Keep optional renderers and history builders off the startup path.
+						const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
+						if (pathname.startsWith('/__content/history')) {
+							const { serveDevHistory } = await import('./lib/dev-history');
+							if (serveDevHistory(request, response, server.config.root, repo)) return;
+						}
+						if (pathname.startsWith('/_og/')) {
+							const { serveDevSocialImage } = await import('./lib/dev-social-images');
+							if (await serveDevSocialImage(request, response, server.config.root)) return;
+						}
+						next();
 					})
 					.catch(next);
 			});
@@ -126,7 +211,7 @@ export function content(): Plugin {
 				closed = true;
 
 				server.watcher.off('all', changed);
-				for (const watcher of gitWatchers) watcher.close();
+				for (const { watcher } of gitWatchers.values()) watcher.close();
 			});
 		},
 		hotUpdate({ file }) {

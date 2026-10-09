@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Command, Search } from '@lucide/svelte';
+	import Command from '@lucide/svelte/icons/command';
+	import Search from '@lucide/svelte/icons/search';
 	import type { ClassValue } from 'svelte/elements';
 	import { cn } from '$lib/utils';
 	import IconButton from '../ui/IconButton.svelte';
@@ -15,8 +16,10 @@
 
 	// Resolved after mount so SSR output is deterministic (no hydration mismatch).
 	let isMac = $state(false);
+	let ready = $state(false);
 	onMount(() => {
 		isMac = /Mac|iP(hone|ad|od)/.test(navigator.platform);
+		ready = true;
 	});
 </script>
 
@@ -37,6 +40,7 @@
 			className
 		)}
 		onclick={openSearch}
+		disabled={!ready}
 	>
 		<Search class="size-4" />
 		<span>Search</span>

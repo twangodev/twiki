@@ -1,0 +1,34 @@
+{
+	"recordedAt": "2026-10-06",
+	"runtime": "Bun 1.4.0",
+	"status": "complete; current 1647-page corpus includes initialized nested assignment submodules",
+	"kind": "preloaded-corpus microbenchmarks, not build or deployment timings",
+	"corpus": {
+		"pages": 1647,
+		"elements": 3126519,
+		"trackedVisibleSlugs": 10843,
+		"internalLinkAndResourceReferences": 15772,
+		"suffixQueries": 15447,
+		"uniqueSuffixTargets": 7192
+	},
+	"elementTraversal": {
+		"originalMilliseconds": [630, 621, 632],
+		"optimizedMilliseconds": [103, 97, 102],
+		"exactCallbackNodeIdentityAndOrder": true
+	},
+	"linkResolution": {
+		"originalMilliseconds": 5936,
+		"indexedMilliseconds": 75,
+		"indexCreationMilliseconds": 8,
+		"originalCandidateLookupMilliseconds": 4321,
+		"indexedCandidateLookupMilliseconds": 3,
+		"exactResolvedUrlEquality": true,
+		"exactCandidateArrayOrderEquality": true
+	},
+	"safety": {
+		"allRawHtmlElementsRemainTraversed": true,
+		"focusedUnitTestsPassed": 38,
+		"focusedAssertionsPassed": 1024,
+		"strictTypesPassed": true
+	}
+}

@@ -86,7 +86,8 @@ for (const action of ['close', 'zoom', 'Escape'] as const) {
 		if (action === 'zoom') {
 			await expect(page.locator('.pswp')).toHaveClass(/pswp--zoomed-in/);
 			await expect
-				.poll(async () => (await page.locator('.pswp__img').first().boundingBox())!.width)
+				// PhotoSwipe can briefly hide the image while its opening transition changes geometry.
+				.poll(async () => (await page.locator('.pswp__img').first().boundingBox())?.width ?? 0)
 				.toBeGreaterThan(evidence.width * 1.5);
 			await page.keyboard.press('Escape');
 		}

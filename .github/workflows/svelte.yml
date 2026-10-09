@@ -5,9 +5,38 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      performance:
+        description: Benchmark builds without deployment or other jobs
+        type: boolean
+        default: false
+      cache_benchmark:
+        description: Isolated complete-cache benchmark or capture the real CI R profile
+        type: choice
+        default: 'off'
+        options: ['off', profile, seed, restore, edit]
+      live_test:
+        description: Explicit production SSR experiment or rollback from the performance branch
+        type: choice
+        default: 'off'
+        options: ['off', deploy, rollback]
+      rollback_version:
+        description: Previously recorded Worker version for an explicit rollback
+        type: string
+        default: ""
+      build_mode:
+        description: Build mode for performance benchmarks only
+        type: choice
+        default: ssr
+        options:
+          - ssr
+          - serial
+          - parallel
+          - isolated-serial
 
 permissions:
   contents: read
+  actions: read
 
 env:
   FORCE_COLOR: "3"
@@ -18,20 +47,27 @@ defaults:
 
 jobs:
   check:
+    if: github.event_name != 'workflow_dispatch' || (!inputs.performance && (inputs.cache_benchmark == 'off' || !inputs.cache_benchmark))
     concurrency:
       group: svelte-check-${{ github.ref }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
-      - run: git config --global submodule.fetchJobs 8
+      - &configure-submodules
+        run: git config --global submodule.fetchJobs 8
         working-directory: ${{ github.workspace }}
-      - uses: actions/checkout@v7
+      - &checkout-content
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           submodules: recursive
           token: ${{ secrets.PAT_TOKEN }}
-      - uses: oven-sh/setup-bun@v2
-      - uses: actions/cache@v6
+      - &setup-bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+      - &bun-cache
+        uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
@@ -50,8 +86,20 @@ jobs:
         run: bun tooling/cache.ts restore
       - &install-r
         name: Install R worksheet renderer
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core r-cran-knitr r-cran-car
-      - run: bun install --frozen-lockfile
+        timeout-minutes: 6
+        run: &install-r-command |
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends r-base-core r-cran-knitr r-cran-car
+      - &install-dependencies
+        run: bun install --frozen-lockfile
+      - &restore-ci-products
+        name: Restore verified main build products
+        uses: ./.github/actions/product-cache
+        continue-on-error: true
+        with:
+          mode: restore
+          transport: bundle
+        env: *cache-encryption
       - run: bunx playwright install --with-deps chromium
       - name: Install Lychee 0.24.2
         run: |
@@ -61,6 +109,7 @@ jobs:
       - run: bun run check
 
   unit-tests:
+    if: github.event_name != 'workflow_dispatch' || (!inputs.performance && (inputs.cache_benchmark == 'off' || !inputs.cache_benchmark))
     concurrency:
       group: svelte-unit-tests-${{ github.ref }}
       cancel-in-progress: true
@@ -68,6 +117,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
       - uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
@@ -77,6 +128,7 @@ jobs:
       - run: bun run test
 
   browser-tests:
+    if: github.event_name != 'workflow_dispatch' || (!inputs.performance && (inputs.cache_benchmark == 'off' || !inputs.cache_benchmark))
     concurrency:
       group: svelte-browser-tests-${{ github.ref }}
       cancel-in-progress: true
@@ -90,6 +142,8 @@ jobs:
           submodules: recursive
           token: ${{ secrets.PAT_TOKEN }}
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
       - uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
@@ -99,6 +153,7 @@ jobs:
       - *decrypt-compiler-cache
       - *install-r
       - run: bun install --frozen-lockfile
+      - *restore-ci-products
       - run: bunx playwright install --with-deps chromium
       - run: bun test ./tests/browser-diagrams.test.ts ./tests/browser-analytics.test.ts
       - run: bun test tests/rmd-build.test.ts
@@ -111,12 +166,17 @@ jobs:
     concurrency:
       group: svelte-build-and-deploy-${{ github.ref }}
       cancel-in-progress: false
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !inputs.performance && inputs.live_test != 'deploy' && inputs.live_test != 'rollback' && (inputs.cache_benchmark == 'off' || !inputs.cache_benchmark)
+    runs-on: ubuntu-24.04
+    env:
+      WISCONSIN_R_REQUIRE_PROFILE: "1"
     environment:
       name: production
       url: https://wisconsin.twango.dev
     steps:
+      - name: Start deployment timer
+        working-directory: ${{ runner.temp }}
+        run: echo "DEPLOYMENT_STARTED_AT=$(date +%s%3N)" >> "$GITHUB_ENV"
       - run: git config --global submodule.fetchJobs 8
         working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v7
@@ -125,6 +185,8 @@ jobs:
           submodules: recursive
           token: ${{ secrets.PAT_TOKEN }}
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
       - uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
@@ -132,23 +194,373 @@ jobs:
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - *restore-compiler-cache
       - *decrypt-compiler-cache
-      - *install-r
       - run: bun install --frozen-lockfile
-      - run: bun run build:all
-      - name: Encrypt compiler cache
-        id: encrypted-cache
-        env: *cache-encryption
-        run: bun tooling/cache.ts save
-      - uses: actions/cache/save@v6
-        if: steps.encrypted-cache.outputs.ready == 'true'
+      - &install-r-fonts
+        name: Provision pinned worksheet fonts
+        timeout-minutes: 6
+        run: &worksheet-font-command |
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends fonts-mathjax=2.7.9+dfsg-1 fonts-glyphicons-halflings=1.009~3.4.1+dfsg-3+deb12u1build0.24.04.1
+      - name: Restore encrypted build products
+        uses: ./.github/actions/product-cache
+        continue-on-error: true
         with:
-          path: site/build/generated/compiler-cache.gpg
-          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
+          mode: restore
+          transport: bundle
+        env: *cache-encryption
+      - name: Check restored worksheet coverage
+        id: worksheets
+        run: bun tooling/r-cache.ts preflight --github-output
+      - name: Install R worksheet renderer
+        if: steps.worksheets.outputs.requiresR != 'false'
+        timeout-minutes: 6
+        run: *install-r-command
+      - name: Enforce verified worksheet cache reuse
+        if: steps.worksheets.outputs.requiresR == 'false'
+        run: echo "WISCONSIN_R_CACHE_ONLY=1" >> "$GITHUB_ENV"
+      - &record-build-runtimes
+        name: Record build runtimes
+        run: &runtime-diagnostic-command |
+          node --input-type=module -e 'import { availableParallelism } from "node:os"; console.log(JSON.stringify({ node: process.version, availableCpus: availableParallelism(), platform: process.platform, architecture: process.arch }));'
+          bun -e '
+            import { readRRenderProfile, rFontIdentity } from "./tooling/lib/r-runtime.ts";
+            const profile = readRRenderProfile(process.cwd());
+            const fontIdentity = rFontIdentity();
+            console.log(JSON.stringify({ bun: Bun.version, rendererProfilePresent: !!profile, rendererRuntimeSha256: profile?.runtimeSha256, fontIdentityVerified: /^fontconfig-v1:[a-f0-9]{64}$/.test(fontIdentity), worksheetCacheOnly: process.env.WISCONSIN_R_CACHE_ONLY === "1" }));
+          '
+          if command -v Rscript >/dev/null 2>&1; then
+            Rscript --vanilla -e 'cat("R: ", R.version.string, "\nknitr: ", as.character(packageVersion("knitr")), "\ncar: ", as.character(packageVersion("car")), "\n", sep = "")'
+          else
+            echo "R: not installed; worksheet coverage was checked independently"
+          fi
+      - run: bun run build:all
       - run: bunx wrangler d1 migrations apply wisconsin --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-      - run: bunx wrangler deploy
+      - run: bun run deploy:incremental
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify live content version
+        run: bun tooling/verify-deployment.ts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Save encrypted build products
+        uses: ./.github/actions/product-cache
+        continue-on-error: true
+        with:
+          mode: save
+          transport: bundle
+        env: *cache-encryption
+      # Persist the optional cache after the site is live, outside the deployment path.
+      - &encrypt-compiler-cache
+        name: Encrypt compiler cache
+        id: encrypted-cache
+        continue-on-error: true
+        env: *cache-encryption
+        run: bun tooling/cache.ts save
+      - &save-compiler-cache
+        uses: actions/cache/save@v6
+        if: steps.encrypted-cache.outputs.ready == 'true'
+        continue-on-error: true
+        with:
+          path: site/build/generated/compiler-cache.gpg
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
+
+  performance:
+    if: github.event_name == 'workflow_dispatch' && inputs.performance && inputs.live_test != 'deploy' && inputs.live_test != 'rollback' && (inputs.cache_benchmark == 'off' || !inputs.cache_benchmark)
+    concurrency:
+      group: svelte-performance-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BENCHMARK_TIMEOUT_SECONDS: "1200"
+      WISCONSIN_BUILD_MODE: ${{ inputs.build_mode == 'ssr' && 'serial' || inputs.build_mode || 'serial' }}
+      WISCONSIN_BENCHMARK_STATIC: ${{ inputs.build_mode != 'ssr' && 'true' || 'false' }}
+    steps:
+      - *configure-submodules
+      - *checkout-content
+      - *setup-bun
+      - *bun-cache
+      - *restore-compiler-cache
+      - *decrypt-compiler-cache
+      - *install-r
+      - *install-dependencies
+      - name: Restore encrypted SSR build products
+        if: inputs.build_mode == 'ssr'
+        uses: ./.github/actions/product-cache
+        continue-on-error: true
+        with:
+          mode: restore
+        env: *cache-encryption
+      - *record-build-runtimes
+      - name: Record benchmark build mode
+        run: |
+          bun -e '
+            import { rFontIdentity } from "./tooling/lib/r-runtime.ts";
+            const buildMode = process.env.WISCONSIN_BUILD_MODE;
+            if (!["serial", "parallel", "isolated-serial"].includes(buildMode)) throw new Error("Unsupported benchmark build mode");
+            const probeStarted = performance.now();
+            const fontIdentity = rFontIdentity();
+            const fontIdentityVerified = /^fontconfig-v1:[a-f0-9]{64}$/.test(fontIdentity);
+            const probeMilliseconds = Math.round(performance.now() - probeStarted);
+            console.log(JSON.stringify({ buildMode, fontIdentityVerified, probeMilliseconds }));
+          '
+      - name: Benchmark restored compiler cache with fresh output
+        run: bun tooling/benchmark.ts build ci-first
+      - name: Benchmark retained compiler cache and output
+        run: bun tooling/benchmark.ts build ci-warm
+      - name: Summarize benchmark measurements
+        if: always()
+        run: |
+          bun -e '
+            import { appendFileSync, existsSync, readFileSync } from "node:fs";
+            for (const label of ["ci-first", "ci-warm"]) {
+              const file = `build/benchmarks/${label}.json`;
+              if (!existsSync(file)) continue;
+              const { success, seconds, exitCode, exitSignal, host } = JSON.parse(readFileSync(file, "utf8"));
+              const result = { success, seconds, exitCode, exitSignal, host, buildMode: process.env.WISCONSIN_BUILD_MODE };
+              appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### ${label}\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n\n`);
+            }
+          '
+      # Retain current fingerprints for a later fresh-runner benchmark.
+      - *encrypt-compiler-cache
+      - *save-compiler-cache
+
+  live-test:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/perf/build-performance' && (inputs.live_test == 'deploy' || inputs.live_test == 'rollback') && (inputs.cache_benchmark == 'off' || !inputs.cache_benchmark)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      WISCONSIN_R_REQUIRE_PROFILE: "1"
+    concurrency:
+      group: svelte-build-and-deploy-refs/heads/main
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://wisconsin.twango.dev
+    steps:
+      - name: Start deployment timer
+        working-directory: ${{ runner.temp }}
+        run: echo "DEPLOYMENT_STARTED_AT=$(date +%s%3N)" >> "$GITHUB_ENV"
+      - *configure-submodules
+      - *checkout-content
+      - *setup-bun
+      - *bun-cache
+      - *install-dependencies
+      - name: Explicit rollback
+        if: inputs.live_test == 'rollback'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          ROLLBACK_VERSION: ${{ inputs.rollback_version }}
+        run: |
+          [[ "$ROLLBACK_VERSION" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$ ]]
+          bunx wrangler rollback "$ROLLBACK_VERSION" --yes
+          bun tooling/live-test.ts verify-rollback
+      - name: Restore compiler seed
+        if: inputs.live_test == 'deploy'
+        uses: actions/cache/restore@v6
+        with:
+          path: site/build/generated/compiler-cache.gpg
+          key: compiler-encrypted-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: compiler-encrypted-v2-${{ runner.os }}-${{ runner.arch }}-
+      - name: Decrypt compiler seed
+        if: inputs.live_test == 'deploy'
+        env: *cache-encryption
+        run: bun tooling/cache.ts restore
+      - name: Provision pinned worksheet fonts
+        if: inputs.live_test == 'deploy'
+        timeout-minutes: 6
+        run: *worksheet-font-command
+      - name: Restore encrypted SSR products
+        if: inputs.live_test == 'deploy'
+        uses: ./.github/actions/product-cache
+        continue-on-error: true
+        with:
+          mode: restore
+          namespace: benchmark
+          transport: bundle
+        env: *cache-encryption
+      - name: Check restored worksheet coverage
+        if: inputs.live_test == 'deploy'
+        id: worksheets
+        run: bun tooling/r-cache.ts preflight --github-output
+      - name: Install R worksheet renderer
+        if: inputs.live_test == 'deploy' && steps.worksheets.outputs.requiresR != 'false'
+        timeout-minutes: 6
+        run: *install-r-command
+      - name: Enforce verified worksheet cache reuse
+        if: inputs.live_test == 'deploy' && steps.worksheets.outputs.requiresR == 'false'
+        run: echo "WISCONSIN_R_CACHE_ONLY=1" >> "$GITHUB_ENV"
+      - name: Record build runtimes
+        if: inputs.live_test == 'deploy'
+        run: *runtime-diagnostic-command
+      - name: Build complete SSR deployment
+        if: inputs.live_test == 'deploy'
+        run: bun run build:all
+      - name: Record exact rollback version
+        if: inputs.live_test == 'deploy'
+        id: previous
+        env: &live-cloudflare
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: bun tooling/live-test.ts capture
+      - name: Measure existing production
+        if: inputs.live_test == 'deploy'
+        run: bun tooling/live-test.ts baseline
+      - name: Deploy SSR experiment
+        if: inputs.live_test == 'deploy'
+        id: upload
+        env: *live-cloudflare
+        run: |
+          echo "attempted=true" >> "$GITHUB_OUTPUT"
+          bun run deploy:incremental
+      - name: Verify deployed version
+        if: inputs.live_test == 'deploy'
+        run: bun tooling/verify-deployment.ts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Measure SSR and check anonymous access
+        if: inputs.live_test == 'deploy'
+        run: bun tooling/live-test.ts measure
+      - name: Roll back a failed experiment
+        if: failure() && steps.upload.outputs.attempted == 'true' && steps.previous.outputs.version != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          ROLLBACK_VERSION: ${{ steps.previous.outputs.version }}
+        run: |
+          bunx wrangler rollback "$ROLLBACK_VERSION" --yes
+          bun tooling/live-test.ts verify-rollback
+      - name: Retain sanitized measurements and rollback version
+        if: always() && inputs.live_test == 'deploy'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ssr-live-acceptance
+          path: site/build/benchmarks/live/*.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  cache-benchmark:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/perf/build-performance' && (inputs.cache_benchmark == 'profile' || inputs.cache_benchmark == 'seed' || inputs.cache_benchmark == 'restore' || inputs.cache_benchmark == 'edit') && inputs.live_test != 'deploy' && inputs.live_test != 'rollback'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    concurrency:
+      group: svelte-cache-benchmark-${{ github.ref }}
+      cancel-in-progress: false
+    env:
+      BENCHMARK_TIMEOUT_SECONDS: "1200"
+      WISCONSIN_R_REQUIRE_PROFILE: ${{ inputs.cache_benchmark != 'profile' && '1' || '0' }}
+    steps:
+      - name: Start complete-cache timer
+        working-directory: ${{ runner.temp }}
+        run: echo "CACHE_BENCHMARK_STARTED_AT=$(date +%s%3N)" >> "$GITHUB_ENV"
+      - *configure-submodules
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          submodules: ${{ inputs.cache_benchmark != 'profile' && 'recursive' || 'false' }}
+          token: ${{ secrets.PAT_TOKEN }}
+      - *setup-bun
+      - *bun-cache
+      - *install-dependencies
+      - name: Restore compiler cache
+        if: inputs.cache_benchmark != 'profile'
+        uses: actions/cache/restore@v6
+        with:
+          path: site/build/generated/compiler-cache.gpg
+          key: compiler-encrypted-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: compiler-encrypted-v2-${{ runner.os }}-${{ runner.arch }}-
+      - name: Decrypt compiler cache
+        if: inputs.cache_benchmark != 'profile'
+        env: *cache-encryption
+        run: bun tooling/cache.ts restore
+      - name: Restore isolated complete products
+        if: inputs.cache_benchmark != 'profile'
+        id: products
+        uses: ./.github/actions/product-cache
+        with:
+          mode: restore
+          namespace: benchmark
+          transport: bundle
+        env: *cache-encryption
+      - name: Require complete product hits on a fresh runner
+        if: inputs.cache_benchmark == 'restore' || inputs.cache_benchmark == 'edit'
+        env:
+          RESTORED_PRODUCTS: ${{ steps.products.outputs.restored }}
+          REQUESTED_PRODUCTS: ${{ steps.products.outputs.requested }}
+          MISSING_PRODUCTS: ${{ steps.products.outputs.misses }}
+          REBUILD_PRODUCTS: ${{ steps.products.outputs.rebuild_needed }}
+          FAILED_PRODUCTS: ${{ steps.products.outputs.failed }}
+        run: |
+          [[ "$RESTORED_PRODUCTS" =~ ^[0-9]+$ ]]
+          test "$REQUESTED_PRODUCTS" -gt 0
+          test "$RESTORED_PRODUCTS" -eq "$REQUESTED_PRODUCTS"
+          test "$MISSING_PRODUCTS" -eq 0
+          test "$REBUILD_PRODUCTS" -eq 0
+          test "$FAILED_PRODUCTS" -eq 0
+      - name: Provision pinned worksheet fonts
+        if: inputs.cache_benchmark != 'profile'
+        timeout-minutes: 6
+        run: *worksheet-font-command
+      - name: Check restored worksheet coverage
+        if: inputs.cache_benchmark != 'profile'
+        id: worksheets
+        run: bun tooling/r-cache.ts preflight --github-output
+      - name: Provision required R renderer
+        if: inputs.cache_benchmark == 'profile' || steps.worksheets.outputs.requiresR == 'true'
+        timeout-minutes: 6
+        run: |
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends r-base-core r-cran-knitr r-cran-car
+      - name: Enforce cache-only worksheet reuse when complete
+        if: inputs.cache_benchmark != 'profile' && steps.worksheets.outputs.requiresR == 'false'
+        run: echo "WISCONSIN_R_CACHE_ONLY=1" >> "$GITHUB_ENV"
+      - name: Capture verified CI R profile
+        if: inputs.cache_benchmark == 'profile'
+        run: bun tooling/r-cache.ts capture-profile --output build/benchmarks/r-render-profile.json
+      - name: Edit one public note in the disposable checkout
+        if: inputs.cache_benchmark == 'edit'
+        run: |
+          bun -e 'import {appendFileSync,lstatSync,realpathSync} from "node:fs"; import path from "node:path"; const file=path.resolve("../content/des-inv/cnc/cnc-1.md"); if(!lstatSync(file).isFile() || realpathSync(file)!==file) throw new Error("Public benchmark fixture must be a regular owned file"); appendFileSync(file, "\n\nBuild cache benchmark fixture " + process.env.GITHUB_RUN_ID + ".\n");'
+      - name: Benchmark restored complete products
+        if: inputs.cache_benchmark != 'profile'
+        run: bun tooling/benchmark.ts build complete-${{ inputs.cache_benchmark }}
+      - name: Save isolated complete products
+        if: inputs.cache_benchmark == 'seed'
+        uses: ./.github/actions/product-cache
+        with:
+          mode: save
+          namespace: benchmark
+          transport: bundle
+        env: *cache-encryption
+      - name: Encrypt current compiler objects
+        if: inputs.cache_benchmark == 'seed'
+        id: seed-compiler
+        env: *cache-encryption
+        run: bun tooling/cache.ts save
+      - name: Retain compiler seed for a different runner
+        if: inputs.cache_benchmark == 'seed' && steps.seed-compiler.outputs.ready == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: site/build/generated/compiler-cache.gpg
+          key: compiler-encrypted-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Record complete runner duration
+        if: inputs.cache_benchmark != 'profile'
+        run: |
+          bun -e 'console.log(JSON.stringify({ mode: process.env.BENCHMARK_KIND, runnerSeconds: (Date.now() - Number(process.env.CACHE_BENCHMARK_STARTED_AT)) / 1000 }))'
+        env:
+          BENCHMARK_KIND: ${{ inputs.cache_benchmark }}
+      - name: Retain measurement metadata
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: complete-cache-${{ inputs.cache_benchmark }}
+          path: |
+            site/build/benchmarks/r-render-profile.json
+            site/build/benchmarks/complete-*.json
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { LockKeyhole } from '@lucide/svelte';
+	import LockKeyhole from '@lucide/svelte/icons/lock-keyhole';
 	import { page } from '$app/state';
 </script>
 

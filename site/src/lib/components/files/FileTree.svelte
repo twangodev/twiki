@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { ChevronRight, LockKeyhole } from '@lucide/svelte';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import LockKeyhole from '@lucide/svelte/icons/lock-keyhole';
 	import FileIcon from './FileIcon.svelte';
 	import { fileWorkspace } from './file-workspace.svelte';
 	import { fileRoute, type FileNode } from '$lib/files';

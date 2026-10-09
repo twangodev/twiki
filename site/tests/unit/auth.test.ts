@@ -8,6 +8,7 @@ import { createAuth, isOwner, type AuthEnv } from '../../worker/auth';
 import { authenticateRequest } from '../../worker/gate';
 import { loginPage, returnPath } from '../../worker/login';
 import { revokeAccess } from '../../src/lib/server/access-admin';
+import { cachedHtml, type HtmlCache } from '../../worker/content-runtime';
 
 describe('private Worker gate', () => {
 	let proxy: Awaited<ReturnType<typeof getPlatformProxy<AuthEnv>>>;
@@ -228,6 +229,66 @@ describe('private Worker gate', () => {
 			{ ...env, OWNER_GITHUB_ID: '1' }
 		);
 		expect(response.status).toBe(401);
+	});
+	test('full SSR cache hits still check current access and append refreshed session cookies', async () => {
+		const entries = new Map<string, Response>();
+		let matches = 0;
+		let renders = 0;
+		const pending: Promise<unknown>[] = [];
+		const cache: HtmlCache = {
+			async match(request) {
+				matches++;
+				return entries.get(request.url)?.clone();
+			},
+			async put(request, response) {
+				entries.set(request.url, response.clone());
+			}
+		};
+		const snapshot = {
+			edition: 'full' as const,
+			snapshot: 'a'.repeat(64),
+			applicationVersion: 'b'.repeat(64)
+		};
+		const routing = { schemaVersion: 1 as const, routes: ['/cached-note'], assets: {} };
+		const cachedRequest = (config = env) => {
+			const incoming = new Request(origin + '/cached-note', { headers: { cookie } });
+			return authenticateRequest(incoming, config, () =>
+				cachedHtml(
+					incoming,
+					snapshot,
+					routing,
+					cache,
+					{
+						waitUntil(promise) {
+							pending.push(promise);
+						}
+					},
+					async () => {
+						renders++;
+						return new Response('cached private note', {
+							headers: { 'Content-Type': 'text/html' }
+						});
+					}
+				)
+			);
+		};
+		expect(await (await cachedRequest()).text()).toBe('cached private note');
+		await Promise.all(pending);
+		await env.DB.prepare('UPDATE session SET updatedAt = ?, expiresAt = ? WHERE token = ?')
+			.bind(Date.now() - 2 * 86400000, Date.now() + 5 * 86400000, token)
+			.run();
+		const cached = await cachedRequest();
+		expect(await cached.text()).toBe('cached private note');
+		expect(cached.headers.get('cache-control')).toBe('private, no-store');
+		expect(cached.headers.getSetCookie().some((value) => value.includes('session_token='))).toBe(
+			true
+		);
+		expect(renders).toBe(1);
+		expect(matches).toBe(2);
+		const revoked = await cachedRequest({ ...env, OWNER_GITHUB_ID: '1' });
+		expect(revoked.status).toBe(401);
+		expect(matches).toBe(2);
+		for (const stored of entries.values()) expect(stored.headers.has('set-cookie')).toBe(false);
 	});
 	test('allowlisted members can read content but lose access immediately when removed', async () => {
 		await env.DB.prepare(

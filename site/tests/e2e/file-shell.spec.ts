@@ -1,24 +1,24 @@
 import { expect, test } from '@playwright/test';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 
 const first = '/fa24-cs300/files/p01/src/main/java/ElectionManager.java';
 const second = '/fa24-cs300/files/README.md';
 
-test('file routes share one static shell and have no per-route HTML or server-data payload', async ({
+test('file routes render through the application without per-route HTML or serialized catalogs', async ({
 	request,
 	browser,
 	baseURL
 }) => {
-	const routes = JSON.parse(readFileSync('build/generated/public-routes.json', 'utf8'));
-	expect(Object.keys(routes).some((route) => /^\/[^/]+\/files(?:\/|$)/.test(route))).toBe(false);
-	expect(existsSync('build/generated/public-site/_file-browser.html')).toBe(true);
-	expect(existsSync(`build/generated/public-site${first}.html`)).toBe(false);
+	expect(existsSync('build/.svelte-kit/cloudflare/_published/_file-browser.html')).toBe(false);
+	expect(existsSync(`build/.svelte-kit/cloudflare/_published${first}.html`)).toBe(false);
 	const full = await request.get(first);
 	expect(full.status()).toBe(200);
 	const html = await full.text();
-	expect(html).toBe(await (await request.get(second)).text());
+	expect((await request.get(second)).status()).toBe(200);
 	expect(html).not.toContain('/_files/blobs/');
-	expect((await request.get(first + '/__data.json')).status()).toBe(404);
+	const data = await request.get(first + '/__data.json');
+	expect(data.status()).toBe(200);
+	expect(await data.text()).not.toContain('/_files/blobs/');
 	const anonymous = await browser.newContext({
 		baseURL,
 		storageState: { cookies: [], origins: [] }
@@ -27,8 +27,10 @@ test('file routes share one static shell and have no per-route HTML or server-da
 		const publicPage = await anonymous.request.get(first);
 		expect(publicPage.status()).toBe(200);
 		expect(publicPage.headers()['x-robots-tag']).toBe('noindex');
-		expect(await publicPage.text()).toBe(await (await anonymous.request.get(second)).text());
-		expect((await anonymous.request.get(first + '/__data.json')).status()).toBe(404);
+		expect((await anonymous.request.get(second)).status()).toBe(200);
+		const publicData = await anonymous.request.get(first + '/__data.json');
+		expect(publicData.status()).toBe(200);
+		expect(await publicData.text()).not.toContain('/_files/blobs/');
 		expect((await anonymous.request.get(first + '/missing')).status()).toBe(404);
 		const head = await anonymous.request.head(first);
 		expect(head.status()).toBe(200);

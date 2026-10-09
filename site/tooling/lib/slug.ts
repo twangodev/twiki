@@ -209,7 +209,40 @@ export function getAllSegmentPrefixes(tags: string): string[] {
 
 export interface TransformOptions {
 	strategy: 'absolute' | 'relative' | 'shortest';
-	allSlugs: FullSlug[];
+	allSlugs: readonly FullSlug[];
+	slugIndex?: {
+		files: ReadonlyMap<string, readonly FullSlug[]>;
+		folders: ReadonlyMap<string, readonly FullSlug[]>;
+	};
+}
+
+/** Index each path suffix once for a corpus snapshot, preserving candidate order.
+ * Create new options when the corpus changes; no index survives between builds.
+ */
+export function createTransformOptions(
+	allSlugs: readonly FullSlug[],
+	strategy: TransformOptions['strategy'] = 'shortest'
+): TransformOptions {
+	const options: TransformOptions = { strategy, allSlugs: Object.freeze([...allSlugs]) };
+	if (strategy !== 'shortest') return options;
+	const files = new Map<string, FullSlug[]>();
+	const folders = new Map<string, FullSlug[]>();
+	const add = (index: Map<string, FullSlug[]>, candidate: string, slug: FullSlug) => {
+		while (true) {
+			const matches = index.get(candidate);
+			if (matches) matches.push(slug);
+			else index.set(candidate, [slug]);
+			const slash = candidate.indexOf('/');
+			if (slash < 0) break;
+			candidate = candidate.slice(slash + 1);
+		}
+	};
+	for (const slug of options.allSlugs) {
+		add(files, slug, slug);
+		add(folders, stripSlashes(simplifySlug(slug)), slug);
+	}
+	options.slugIndex = { files, folders };
+	return options;
 }
 
 export function transformLink(src: FullSlug, target: string, opts: TransformOptions): RelativeURL {
@@ -239,10 +272,12 @@ export function transformLink(src: FullSlug, target: string, opts: TransformOpti
 			// this is equivalent to matching the last path segment, and for
 			// path-prefix wikilinks like [[folder/file]] it finds slugs whose path
 			// ends in folder/file (mirrors Obsidian's shortest-path resolution).
-			const matchingFileNames = opts.allSlugs.filter((slug) => {
-				const candidate = folderTail ? stripSlashes(simplifySlug(slug)) : slug;
-				return candidate === targetCanonical || candidate.endsWith('/' + targetCanonical);
-			});
+			const matchingFileNames = opts.slugIndex
+				? ((folderTail ? opts.slugIndex.folders : opts.slugIndex.files).get(targetCanonical) ?? [])
+				: opts.allSlugs.filter((slug) => {
+						const candidate = folderTail ? stripSlashes(simplifySlug(slug)) : slug;
+						return candidate === targetCanonical || candidate.endsWith('/' + targetCanonical);
+					});
 
 			// only match, just use it
 			if (matchingFileNames.length === 1) {

@@ -14,6 +14,7 @@ test('note visibility matches generated publication metadata', async ({ page }) 
 	);
 	await expect(badge).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Manage access' })).toBeVisible();
+	await expect(badge).toBeEnabled();
 	await badge.focus();
 	await expect(page.getByRole('tooltip')).toHaveText(note.publication.reason!);
 });

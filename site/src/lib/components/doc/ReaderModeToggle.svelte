@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { BookOpen } from '@lucide/svelte';
+	import BookOpen from '@lucide/svelte/icons/book-open';
 	import IconButton from '../ui/IconButton.svelte';
 	import type { ClassValue } from 'svelte/elements';
 	import { readerMode } from './reader-mode.svelte';

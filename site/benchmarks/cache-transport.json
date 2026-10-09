@@ -1,0 +1,63 @@
+{
+	"scope": "Structural cache transport comparison",
+	"caveat": "Current manifests reflect the latest available development and build state. Parser, card rendering and history subprocess stages may use different Bun or Node fingerprints. This is a cache selection and compression experiment, not the final CI deployment cache snapshot.",
+	"repetitions": 1,
+	"host": {
+		"platform": "linux",
+		"arch": "x64",
+		"cpus": 48,
+		"cpuModel": "AMD Ryzen Threadripper 9960X 24-Cores",
+		"bun": "1.4.0",
+		"node": "v25.9.0"
+	},
+	"measurements": [
+		{
+			"name": "baseline",
+			"gzipLevel": 6,
+			"seconds": 10.972421746,
+			"compressedBytes": 331735673
+		},
+		{
+			"name": "current",
+			"gzipLevel": 6,
+			"seconds": 5.411972014999999,
+			"compressedBytes": 163270885
+		},
+		{
+			"name": "current-fast",
+			"gzipLevel": 1,
+			"seconds": 3.6248449660000004,
+			"compressedBytes": 175970653
+		}
+	],
+	"decision": "Retain gzip level 6. Live selection halves archive size and save time; level 1 saves another 1.8 seconds but adds 7.8 percent to transport size. Cache persistence runs after deployment.",
+	"finalEncryptedSave": {
+		"scope": "Final production build encrypted compiler cache save",
+		"repetitions": 1,
+		"seconds": 6.79281474,
+		"encryptedBytes": 170829440,
+		"selectedFiles": 21114,
+		"gzipLevel": 6,
+		"host": {
+			"platform": "linux",
+			"arch": "x64",
+			"cpus": 48,
+			"cpuModel": "AMD Ryzen Threadripper 9960X 24-Cores",
+			"bun": "1.4.0",
+			"node": "v25.9.0"
+		},
+		"disposableKey": true,
+		"originalArchiveRestored": true,
+		"caveat": "Measures cache save only on the local machine after the final production build; remote upload and restore are not measured.",
+		"productionBuild": {
+			"documents": 1647,
+			"realRWorksheets": 8,
+			"r": "4.5.0",
+			"knitr": "1.50",
+			"buildSeconds": 81.95,
+			"state": "Complete real-course production validation after public fixture tests, with freshly regenerated course outputs and R enabled.",
+			"comparativeWarmBenchmark": false,
+			"rFallbackUsed": false
+		}
+	}
+}

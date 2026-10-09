@@ -1,23 +1,21 @@
 <script lang="ts">
 	import 'katex/dist/katex.min.css';
 	import './layout.css';
-	import { onMount, type Snippet } from 'svelte';
+	import { onMount, setContext, type Snippet } from 'svelte';
 	import { dev } from '$app/environment';
 	import { onNavigate, invalidateAll } from '$app/navigation';
 	import { ModeWatcher } from 'mode-watcher';
 	import DocShell from '$lib/components/doc/DocShell.svelte';
-	import type { NavNode } from '$lib/types';
-	// Static import (emitted by tooling/assets.ts): the Explorer tree
-	// ships once in a shared JS chunk instead of being serialized into every
-	// prerendered page's data payload (~60 kB x ~960 pages).
-	import navData from '$lib/generated/nav.json';
+	import type { LayoutData } from './$types';
 
 	interface Props {
 		children: Snippet;
+		data: LayoutData;
 	}
 
-	const { children }: Props = $props();
-	const nav = navData as NavNode[];
+	const { children, data }: Props = $props();
+	const nav = $derived(data.nav ?? []);
+	setContext('wisconsin-file-icons', () => data.fileIcons);
 
 	onMount(() => {
 		if (dev) return;

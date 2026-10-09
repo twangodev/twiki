@@ -1,0 +1,147 @@
+{
+	"kind": "Final local validation and documented intermittent browser failures",
+	"sourceCommit": "91bbf3493e399dc9c713ce9277d4f4d2fffc714e",
+	"mergedMainCommit": "0c142e327a149baf52a1ce37f44a02b7b6017314",
+	"corpus": {
+		"compiledPages": 1654,
+		"socialCards": 1655,
+		"rWorksheets": 10,
+		"assets": 7102,
+		"pdfs": 60
+	},
+	"conditions": {
+		"fontConfigOverrideRemoved": true,
+		"r": "4.5.0",
+		"knitr": "1.50",
+		"car": "3.1-3",
+		"remoteDeploymentPerformed": false
+	},
+	"unit": {
+		"passed": 238,
+		"failed": 0,
+		"assertions": 2416,
+		"files": 51,
+		"seconds": 17.62
+	},
+	"types": {
+		"svelteErrors": 0,
+		"svelteWarnings": 0,
+		"workerTypeScriptPassed": true
+	},
+	"linkChecks": {
+		"markdownAndRmdFiles": 1667,
+		"sameSiteUrls": 0,
+		"targetLinks": 15729,
+		"targetErrors": 0,
+		"targetNotes": 1667,
+		"targetStandaloneRerunPassed": true,
+		"lycheeVersion": "0.24.2",
+		"setupIssue": "Pinned local Lychee was absent after output resets; restored before successful target rerun."
+	},
+	"diagrams": {
+		"notes": 1657,
+		"mathExpressions": 67238,
+		"mermaidDiagrams": 248,
+		"errors": 0
+	},
+	"realParallelBuild": {
+		"seconds": 55.7865,
+		"publicSeconds": 20.2915,
+		"fullSeconds": 46.1842,
+		"setupSeconds": 4.0483,
+		"buildSpanSeconds": 46.1865,
+		"validationSeconds": 0.0953,
+		"cacheMergeSeconds": 2.0608,
+		"assemblySeconds": 2.3016,
+		"cleanupSeconds": 1.0939,
+		"success": true,
+		"matchedFreshOutputComparison": false,
+		"condition": "Current-source real validation with retained canonical output; excluded from accepted five-trial timing table."
+	},
+	"realSiteBrowser": {
+		"fullSuite": {
+			"passed": 68,
+			"skipped": 10,
+			"failed": 1,
+			"failureClass": "Navigation toggle aria-expanded did not change after click"
+		},
+		"focusedUnchangedOutputRecheck": {
+			"passed": 1,
+			"testSeconds": 3.5
+		},
+		"sourceFixAppliedForFailure": false,
+		"retryConfigurationChanged": false,
+		"cleanLatestFullSuiteClaim": false
+	},
+	"publication": {
+		"latestWholeSuitePassed": 10,
+		"fixtureBuilds": 3,
+		"publicTests": 8,
+		"filesOnlyTests": 1,
+		"revokedTests": 1,
+		"earlierIntermittentFailure": "Private tooltip timeout",
+		"focusedUnchangedFixtureRecheckPassed": 1,
+		"sourceFixAppliedForFailure": false,
+		"retryConfigurationChanged": false
+	},
+	"developmentGitMetadataIntegration": {
+		"passed": true,
+		"seconds": 41.56,
+		"browserEditMilliseconds": 824,
+		"fixtureWarmValidationMilliseconds": 40,
+		"unchangedGitMetadataSkipsPipeline": true,
+		"ordinaryUntrackedNotesRemainUndiscoveredUntilIndexed": true,
+		"devStateChanged": false,
+		"cases": [
+			"unrelated Git ref",
+			"unchanged index",
+			"indexed note admission",
+			"nested registration",
+			"offline edit",
+			"missing output",
+			"recovery",
+			"privacy",
+			"private history"
+		]
+	},
+	"wranglerDryRun": {
+		"version": "4.100.0",
+		"success": true,
+		"scannedAssetFiles": 70133,
+		"workerKiB": 8932.41,
+		"workerGzipKiB": 1644.28,
+		"remoteDeploymentPerformed": false
+	},
+	"earlierFrozenBenchmarkSourceValidation": {
+		"sourceCommit": "9faa529dfa5df16b612bbd09ceee3cfe5be86ba2",
+		"corpusPages": 1652,
+		"realSiteBrowserPassed": 69,
+		"realSiteBrowserSkipped": 10,
+		"realSiteBrowserFailed": 0,
+		"postPublicationRealParallelBuildSeconds": 62.1823,
+		"matchedFiveTrialPoint": false
+	},
+	"limitations": [
+		"The latest full E2E suite contains an intermittent navigation failure; its focused unchanged-output recheck passes. This is not a clean 69-test latest full suite.",
+		"Accepted five-trial build performance/parity uses earlier frozen 9faa529 and 1652 pages; current validation/development uses 91bbf34 and 1654 pages.",
+		"All observations are local; optimized remote CI, cache transport and Cloudflare deployment timings remain unmeasured."
+	],
+	"finalMainSynchronization": {
+		"mergedMainCommit": "1910cfb929e311d70ab57d82625709b208883a90",
+		"applicationAndBuildSourceMatchesMeasuredCommit": "91bbf3493e399dc9c713ce9277d4f4d2fffc714e",
+		"applicationAndBuildSourceUnchanged": true,
+		"newRealRRegressionTests": {
+			"passed": 18,
+			"failed": 0,
+			"assertions": 82,
+			"seconds": 4.64
+		},
+		"requiredCompleteParallelBuild": {
+			"success": true,
+			"seconds": 55.618087761,
+			"publicSeconds": 19.137757918,
+			"fullSeconds": 46.556262567
+		},
+		"matchedPerformanceComparison": false
+	}
+}

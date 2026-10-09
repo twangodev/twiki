@@ -1,9 +1,15 @@
 <script lang="ts">
-	import { Globe, Lock } from '@lucide/svelte';
+	import Globe from '@lucide/svelte/icons/globe';
+	import Lock from '@lucide/svelte/icons/lock';
 	import { Tooltip } from 'bits-ui';
+	import { onMount } from 'svelte';
 	import type { PagePublication } from '$lib/types';
 
 	const { publication }: { publication: PagePublication } = $props();
+	let ready = $state(false);
+	onMount(() => {
+		ready = true;
+	});
 	const label = $derived(publication.public ? 'Public' : 'Private');
 	const description = $derived(
 		publication.reason ??
@@ -19,6 +25,7 @@
 				publication.public && 'text-accent'
 			]}
 			aria-label={`Page visibility: ${label}`}
+			disabled={!ready}
 		>
 			{#if publication.public}<Globe size={12} aria-hidden="true" />{:else}<Lock
 					size={12}

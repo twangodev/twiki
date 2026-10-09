@@ -20,44 +20,10 @@ import { stageFingerprint } from '../fingerprint';
 import { courseFingerprint, readCourseCache, saveCourseCache } from './course-cache';
 import { publicationFilter, courseLicenseResolver } from './publishing';
 import { buildRmdPreviews } from './rmd-previews';
-
-const excludedDirectories = new Set([
-	'node_modules',
-	'vendor',
-	'build',
-	'dist',
-	'target',
-	'__pycache__'
-]);
-const excludedNames =
-	/^(?:credentials?|secrets?|id_rsa|id_ed25519)(?:[._-]|$)|\.(?:pem|key|p12|pfx|keystore)$/i;
+import { browsablePath } from './file-policy';
+export { browsablePath, fileHistoryPolicyKey } from './file-policy';
 const inlineImages = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif']);
 export const assetLimit = 25 * 1024 * 1024;
-
-export function browsablePath(file: string) {
-	return (
-		!file.includes('\\') &&
-		!file.split('/').includes('publish.yaml') &&
-		!/[\x00-\x1f\x7f]/.test(file) &&
-		file
-			.split('/')
-			.every(
-				(segment) =>
-					segment.length > 0 &&
-					!segment.startsWith('.') &&
-					!excludedDirectories.has(segment.toLowerCase()) &&
-					!excludedNames.test(segment)
-			)
-	);
-}
-
-export function fileHistoryPolicyKey() {
-	return createHash('sha256')
-		.update(browsablePath.toString())
-		.update(JSON.stringify([...excludedDirectories].sort()))
-		.update(excludedNames.source)
-		.digest('hex');
-}
 
 export function previewText(bytes: Uint8Array): { text: string } | undefined {
 	if (Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).includes(0)) return;
@@ -118,15 +84,17 @@ export async function buildCourseFiles(
 			publicEdition ? 'public' : 'full',
 			`${course}.json`
 		);
+	const cacheRoot = path.join(siteDir, 'build/generated/cache');
+	const cacheContext = (course: string) => ({ repo, course, output, cache: cacheRoot });
 	if (!development) {
-		const version = `${await stageFingerprint('files')}\0${output}`;
+		const version = `${await stageFingerprint('files')}\0${publicEdition ? 'public' : 'full'}`;
 		for (const course of courses.keys()) {
 			const tracked = paths.filter((file) => file.startsWith(`content/${course}/`));
 			// Let the R renderer validate its installed runtime and worksheet dependencies.
 			if (tracked.some((file) => /\.rmd$/i.test(file))) continue;
 			const fingerprint = courseFingerprint(repo, course, tracked, version, noteKeys.get(course)!);
 			fingerprints.set(course, fingerprint);
-			const cached = readCourseCache(cacheFile(course), fingerprint);
+			const cached = readCourseCache(cacheFile(course), fingerprint, cacheContext(course));
 			if (!cached) continue;
 			courses.set(course, cached.files);
 			outputByCourse.set(course, cached.outputs);
@@ -250,6 +218,18 @@ export async function buildCourseFiles(
 		}
 	}
 	pruneOutputs(output, wanted, (file) => file === path.join(output, 'icons'));
+	if (!publicEdition && !development) {
+		const history = [...outputByCourse].flatMap(([course, outputs]) =>
+			[...outputs]
+				.filter((file) => path.dirname(file) === path.join(output, 'history'))
+				.map((file) => `file-history/${course}/${path.basename(file)}`)
+		);
+		// Keep transport selection portable when a fresh runner restores only the cache.
+		writeChanged(
+			path.join(siteDir, 'build/generated/cache/history-current.json'),
+			JSON.stringify([...new Set(history)].sort())
+		);
+	}
 	mkdirSync(path.join(siteDir, 'src/lib/generated'), { recursive: true });
 	writeChanged(path.join(siteDir, 'src/lib/generated/file-entries.json'), JSON.stringify(entries));
 	buildFileIcons(
@@ -263,9 +243,19 @@ export async function buildCourseFiles(
 				cacheFile(course),
 				fingerprint,
 				courses.get(course)!,
-				outputByCourse.get(course)!
+				outputByCourse.get(course)!,
+				cacheContext(course)
 			);
 	}
+	if (!development)
+		writeChanged(
+			path.join(cacheRoot, `course-files-current-${publicEdition ? 'public' : 'full'}.json`),
+			JSON.stringify(
+				[...fingerprints.keys()]
+					.map((course) => `course-files/${publicEdition ? 'public' : 'full'}/${course}.json`)
+					.sort()
+			)
+		);
 	previousBuilds.set(
 		key,
 		new Map(

@@ -1,0 +1,447 @@
+{
+	"kind": "Local bounded prerender-concurrency comparison",
+	"sourceAndRuntime": {
+		"baseCommit": "747136011a18b1cb6adad22aa17145cf556d3435",
+		"trackedDiffSha256": "d9556ad11a0d80e4cbf2929c75d7791eae04b3d5e3bca28f536b9fbb4289fd4e",
+		"recursiveSubmodulePinsSha256": "d2e90249a9237ff3a5ab74ffd4cc5c166bf10389914ea1575a0bd51537fb852a",
+		"applicationVersion": "43dbf4d7c894ac901bd13385f703edbe5c1bbc51f8f3e63ee67c165c2d6c822d"
+	},
+	"compilerSeed": {
+		"operation": "capture",
+		"files": 21786,
+		"bytes": 654481752,
+		"selectionSha256": "06cf5dc197a30438ec0b3996305d55697ae1a1ea8fd4d765be1a5dfcd30011cf",
+		"seedContentSha256": "a9572987d711351ae662f889f13f180f335ba3789adef6bb800bbf222b584420"
+	},
+	"originalCompilerSeed": {
+		"operation": "capture",
+		"files": 21786,
+		"bytes": 654481752,
+		"selectionSha256": "8b7e335905b6fb455e8ec30c14d60f75313d19ff3cf6a5731745a751a308baa3",
+		"seedContentSha256": "992fae653f819e1121583d7809150259d1a40d02a5e026878ad5a06e595ff569"
+	},
+	"trials": [
+		{
+			"label": "prerender-c1-first",
+			"mode": "baseline-native",
+			"cpuMode": "four-cpu",
+			"acceptedForComparison": true,
+			"success": true,
+			"wallSeconds": 68,
+			"exitCode": 0,
+			"exitSignal": null,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.0",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v25.9.0",
+				"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+				"availableCpus": 4,
+				"memoryBytes": 134389583872
+			},
+			"measurementConditions": "Original first local control, same source, four CPUs, fresh output.",
+			"editions": {
+				"public": {
+					"parse": {
+						"pages": 1655,
+						"milliseconds": 2630,
+						"cached": 1655,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 739
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10983,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 306,
+						"upToDate": 0,
+						"total": 539
+					},
+					"socialCards": {
+						"cards": 1656,
+						"rendered": 0,
+						"cached": 1656
+					},
+					"pipeline": {
+						"seconds": 5.58,
+						"changedOutputs": 2092
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"explicitCacheHitCountsAvailable": false
+					},
+					"viteReportedBuildSeconds": [1.99, 9.81],
+					"search": {
+						"pages": 2094,
+						"fileRecords": 11877,
+						"seconds": 1.71
+					},
+					"adapter": {
+						"seconds": 0.31
+					},
+					"childSeconds": 18.53,
+					"cacheConditions": {
+						"parserMisses": 0,
+						"socialCardMisses": 0,
+						"catalogsRegenerated": 28,
+						"catalogsReused": 0,
+						"worksheetKnitsLogged": 0,
+						"rFallbackLogged": false
+					}
+				},
+				"full": {
+					"parse": {
+						"pages": 1655,
+						"milliseconds": 2524,
+						"cached": 1655,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 1944
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10983,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 34384,
+						"upToDate": 0,
+						"total": 37697
+					},
+					"socialCards": {
+						"cards": 1656,
+						"rendered": 0,
+						"cached": 1656
+					},
+					"pipeline": {
+						"seconds": 21.0,
+						"changedOutputs": 12343
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"explicitCacheHitCountsAvailable": false
+					},
+					"viteReportedBuildSeconds": [3.11, 20.75],
+					"history": {
+						"courses": 28,
+						"workers": 4,
+						"seconds": 1.08
+					},
+					"search": {
+						"pages": 2115,
+						"fileRecords": 0,
+						"seconds": 4.77
+					},
+					"adapter": {
+						"seconds": 1.45
+					},
+					"childSeconds": 49.41,
+					"cacheConditions": {
+						"parserMisses": 0,
+						"socialCardMisses": 0,
+						"catalogsRegenerated": 28,
+						"catalogsReused": 0,
+						"worksheetKnitsLogged": 0,
+						"rFallbackLogged": false
+					}
+				}
+			},
+			"phases": {
+				"totalSeconds": 68
+			},
+			"allLifecyclePhasesTimed": false,
+			"prerenderConcurrency": 1,
+			"resources": {
+				"maxSingleProcessRssKiB": 6552152,
+				"outerSeconds": 68.03356592601631
+			}
+		},
+		{
+			"label": "prerender-c4",
+			"prerenderConcurrency": 4,
+			"acceptedForComparison": false,
+			"success": false,
+			"wallSeconds": 16.03,
+			"exitCode": 1,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.0",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v25.9.0",
+				"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+				"availableCpus": 4,
+				"memoryBytes": 134389583872
+			},
+			"rejectionReason": "Prerender emitted an invalid relative JavaScript entry URL and failed with HTTP404; concurrency4 is rejected."
+		},
+		{
+			"label": "prerender-c1-repeat",
+			"mode": "baseline-native",
+			"cpuMode": "four-cpu",
+			"acceptedForComparison": true,
+			"success": true,
+			"wallSeconds": 64.36,
+			"exitCode": 0,
+			"exitSignal": null,
+			"host": {
+				"platform": "linux",
+				"architecture": "x64",
+				"bun": "1.4.0",
+				"nodeCompatibilityVersion": "26.3.0",
+				"actualNodeVersion": "v25.9.0",
+				"cpu": "AMD Ryzen Threadripper 9960X 24-Cores",
+				"availableCpus": 4,
+				"memoryBytes": 134389583872
+			},
+			"measurementConditions": "Local four-CPU affinity, native serial editions, identical selected seed and fresh output; common reset untimed. Required build command fully timed.",
+			"editions": {
+				"public": {
+					"parse": {
+						"pages": 1655,
+						"milliseconds": 2543,
+						"cached": 1655,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 759
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10983,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 306,
+						"upToDate": 0,
+						"total": 539
+					},
+					"socialCards": {
+						"cards": 1656,
+						"rendered": 0,
+						"cached": 1656
+					},
+					"pipeline": {
+						"seconds": 6.05,
+						"changedOutputs": 2092
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"explicitCacheHitCountsAvailable": false
+					},
+					"viteReportedBuildSeconds": [1.89, 9.55],
+					"search": {
+						"pages": 2094,
+						"fileRecords": 11877,
+						"seconds": 1.66
+					},
+					"adapter": {
+						"seconds": 0.24
+					},
+					"childSeconds": 18.67,
+					"cacheConditions": {
+						"parserMisses": 0,
+						"socialCardMisses": 0,
+						"catalogsRegenerated": 28,
+						"catalogsReused": 0,
+						"worksheetKnitsLogged": 0,
+						"rFallbackLogged": false
+					}
+				},
+				"full": {
+					"parse": {
+						"pages": 1655,
+						"milliseconds": 2580,
+						"cached": 1655,
+						"parsed": 0
+					},
+					"resolution": {
+						"milliseconds": 1968
+					},
+					"courseCatalogs": {
+						"trackedFiles": 10983,
+						"changedCourses": 28,
+						"reusedCourses": 0
+					},
+					"assets": {
+						"synced": 34384,
+						"upToDate": 0,
+						"total": 37697
+					},
+					"socialCards": {
+						"cards": 1656,
+						"rendered": 0,
+						"cached": 1656
+					},
+					"pipeline": {
+						"seconds": 17.21,
+						"changedOutputs": 12343
+					},
+					"worksheets": {
+						"newlyRenderedLogCount": 0,
+						"fallbackLogged": false,
+						"explicitCacheHitCountsAvailable": false
+					},
+					"viteReportedBuildSeconds": [3.11, 20.62],
+					"history": {
+						"courses": 28,
+						"workers": 4,
+						"seconds": 1.07
+					},
+					"search": {
+						"pages": 2115,
+						"fileRecords": 0,
+						"seconds": 4.68
+					},
+					"adapter": {
+						"seconds": 1.83
+					},
+					"childSeconds": 45.63,
+					"cacheConditions": {
+						"parserMisses": 0,
+						"socialCardMisses": 0,
+						"catalogsRegenerated": 28,
+						"catalogsReused": 0,
+						"worksheetKnitsLogged": 0,
+						"rFallbackLogged": false
+					}
+				}
+			},
+			"phases": {
+				"totalSeconds": 64.36
+			},
+			"allLifecyclePhasesTimed": false,
+			"prerenderConcurrency": 1,
+			"resources": {
+				"maxSingleProcessRssKiB": 4649784,
+				"outerSeconds": 64.3875661479833
+			},
+			"seedResetMatchesCapturedBytes": true,
+			"outputIntegrity": {
+				"label": "prerender-c1-repeat",
+				"counts": {
+					"pages": 1655,
+					"applicationCatalogs": 3,
+					"publication": 2,
+					"contentMetadata": 3,
+					"publicSourceAssets": 2507,
+					"fullFileCatalogs": 28,
+					"stage1Seeds": 1656,
+					"cloudflareAssets": 64860,
+					"immutableAssets": 616,
+					"applicationVersions": 2
+				},
+				"assetBytes": 2163406182,
+				"seconds": 3.412,
+				"publicationRoutesMissing": 0,
+				"publicationAliasesMissing": 0,
+				"publicCompiledSourcePreserved": true,
+				"rPreviews": 10,
+				"rPreviewsMissing": 0,
+				"rPreviewBlobsMissing": 0
+			}
+		}
+	],
+	"parity": [
+		{
+			"baselineLabel": "prerender-c1-first",
+			"candidateLabel": "prerender-c1-repeat",
+			"categoryDeltaCounts": {
+				"pages": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"applicationCatalogs": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"publication": {
+					"added": 0,
+					"removed": 0,
+					"changed": 1
+				},
+				"contentMetadata": {
+					"added": 0,
+					"removed": 0,
+					"changed": 1
+				},
+				"publicSourceAssets": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"fullFileCatalogs": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"stage1Seeds": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				}
+			},
+			"assets": {
+				"added": 6,
+				"removed": 6,
+				"changed": 2
+			},
+			"nonPagefindAssets": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"immutableAssets": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"applicationVersions": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"pageDocActualBytesEqual": true,
+			"publicAllowlistExactEquality": false,
+			"publicAllowlistExcludingPagefindExactEquality": true,
+			"publicRoutesActualBytesEqual": true,
+			"applicationCatalogActualBytesEqual": true,
+			"contentManifestChangedFields": ["generatedAt"],
+			"contentManifestExceptGeneratedAtExactEquality": true,
+			"rPreviewReferencesExactEquality": true,
+			"rPreviewCounts": [10, 10],
+			"publicSourceAssetsExactEquality": true,
+			"publicCompiledSourcePreservedExactly": [true, true],
+			"strictNonPagefindParityPass": true,
+			"allowedExceptionClasses": [
+				"Pagefind-generated assets and aliases",
+				"content-manifest generatedAt timestamp"
+			]
+		}
+	],
+	"limitations": [
+		"Concurrency4 failed before complete output; no accepted concurrency speed comparison exists.",
+		"Four-CPU workstation affinity is not equivalent to GitHub CI hardware.",
+		"Reported RSS is wait4 maximum single-process RSS, not simultaneous aggregate process-family memory.",
+		"No Cloudflare deployment or remote upload measured.",
+		"Strict parity must pass before accepting concurrency4.",
+		"Recovery uses a recaptured current compiler seed; file/byte counts match the original but selection/content digests differ, so the recovery is correctness evidence rather than a matched timing point.",
+		"Both accepted output inventories contain1655PageDocs,616immutableassets,10Rpreviews and84referencedpreviewblobs; strict recovery parity allows only Pagefind artifacts and generatedAt."
+	],
+	"experimentAccepted": false,
+	"experimentalHelperRetained": false,
+	"experimentalSourcePatchSha256": "d9556ad11a0d80e4cbf2929c75d7791eae04b3d5e3bca28f536b9fbb4289fd4e",
+	"firstAndFailedConcurrency4SeedMatched": true,
+	"recoverySeedMatchesOriginal": false
+}

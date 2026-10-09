@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Command, Dialog } from 'bits-ui';
 	import { goto } from '$app/navigation';
-	import { Search } from '@lucide/svelte';
+	import Search from '@lucide/svelte/icons/search';
 	import {
 		ensureIndex,
 		resetIndex,
@@ -139,9 +139,7 @@
 						>
 							{#if import.meta.env.DEV}
 								<span>No search index in dev — Pagefind indexes the built site.</span>
-								<code class="rounded-sm bg-surface px-1.5 py-0.5 text-xs"
-									>bun run build</code
-								>
+								<code class="rounded-sm bg-surface px-1.5 py-0.5 text-xs">bun run build</code>
 							{:else}
 								<span>Couldn't load the search index.</span>
 								<button

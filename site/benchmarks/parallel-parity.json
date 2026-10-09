@@ -1,0 +1,340 @@
+{
+	"kind": "Strict accepted final-source output parity summaries",
+	"sourceCommit": "9faa529dfa5df16b612bbd09ceee3cfe5be86ba2",
+	"comparisons": [
+		{
+			"comparison": "native-versus-isolated-serial",
+			"sourceCommit": "9faa529dfa5df16b612bbd09ceee3cfe5be86ba2",
+			"counts": {
+				"compiledPagesPerBuild": 1652,
+				"finalStaticFilesPerBuild": 64811,
+				"immutableAssetsAcrossBothEditions": 616,
+				"rPreviewsPerBuild": 10
+			},
+			"allowedExceptionClasses": [
+				"Pagefind-generated assets and aliases",
+				"content-manifest generatedAt timestamp"
+			],
+			"strictNonPagefindParityPass": true,
+			"pageDocActualBytesEqual": true,
+			"applicationCatalogActualBytesEqual": true,
+			"publicRoutesActualBytesEqual": true,
+			"publicSourceAssetsExactEquality": true,
+			"rPreviewReferencesExactEquality": true,
+			"publicAllowlistExactEquality": false,
+			"publicAllowlistExcludingPagefindExactEquality": true,
+			"contentManifestExceptGeneratedAtExactEquality": true,
+			"assets": {
+				"added": 6,
+				"removed": 6,
+				"changed": 2
+			},
+			"applicationVersions": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"immutableAssets": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"nonPagefindAssets": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"categoryDeltaCounts": {
+				"applicationCatalogs": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"contentMetadata": {
+					"added": 0,
+					"removed": 0,
+					"changed": 1
+				},
+				"fullFileCatalogs": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"pages": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"publicSourceAssets": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"publication": {
+					"added": 0,
+					"removed": 0,
+					"changed": 1
+				},
+				"stage1Seeds": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				}
+			},
+			"publicCompiledSourcePreservedExactly": [true, true],
+			"rPreviewCounts": [10, 10],
+			"contentManifestChangedFields": ["generatedAt"]
+		},
+		{
+			"comparison": "native-versus-parallel",
+			"sourceCommit": "9faa529dfa5df16b612bbd09ceee3cfe5be86ba2",
+			"counts": {
+				"compiledPagesPerBuild": 1652,
+				"finalStaticFilesPerBuild": 64811,
+				"immutableAssetsAcrossBothEditions": 616,
+				"rPreviewsPerBuild": 10
+			},
+			"allowedExceptionClasses": [
+				"Pagefind-generated assets and aliases",
+				"content-manifest generatedAt timestamp"
+			],
+			"strictNonPagefindParityPass": true,
+			"pageDocActualBytesEqual": true,
+			"applicationCatalogActualBytesEqual": true,
+			"publicRoutesActualBytesEqual": true,
+			"publicSourceAssetsExactEquality": true,
+			"rPreviewReferencesExactEquality": true,
+			"publicAllowlistExactEquality": false,
+			"publicAllowlistExcludingPagefindExactEquality": true,
+			"contentManifestExceptGeneratedAtExactEquality": true,
+			"assets": {
+				"added": 6,
+				"removed": 6,
+				"changed": 2
+			},
+			"applicationVersions": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"immutableAssets": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"nonPagefindAssets": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"categoryDeltaCounts": {
+				"applicationCatalogs": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"contentMetadata": {
+					"added": 0,
+					"removed": 0,
+					"changed": 1
+				},
+				"fullFileCatalogs": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"pages": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"publicSourceAssets": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"publication": {
+					"added": 0,
+					"removed": 0,
+					"changed": 1
+				},
+				"stage1Seeds": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				}
+			},
+			"publicCompiledSourcePreservedExactly": [true, true],
+			"rPreviewCounts": [10, 10],
+			"contentManifestChangedFields": ["generatedAt"]
+		},
+		{
+			"comparison": "isolated-serial-versus-parallel",
+			"sourceCommit": "9faa529dfa5df16b612bbd09ceee3cfe5be86ba2",
+			"counts": {
+				"compiledPagesPerBuild": 1652,
+				"finalStaticFilesPerBuild": 64811,
+				"immutableAssetsAcrossBothEditions": 616,
+				"rPreviewsPerBuild": 10
+			},
+			"allowedExceptionClasses": [
+				"Pagefind-generated assets and aliases",
+				"content-manifest generatedAt timestamp"
+			],
+			"strictNonPagefindParityPass": true,
+			"pageDocActualBytesEqual": true,
+			"applicationCatalogActualBytesEqual": true,
+			"publicRoutesActualBytesEqual": true,
+			"publicSourceAssetsExactEquality": true,
+			"rPreviewReferencesExactEquality": true,
+			"publicAllowlistExactEquality": false,
+			"publicAllowlistExcludingPagefindExactEquality": true,
+			"contentManifestExceptGeneratedAtExactEquality": true,
+			"assets": {
+				"added": 6,
+				"removed": 6,
+				"changed": 2
+			},
+			"applicationVersions": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"immutableAssets": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"nonPagefindAssets": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"categoryDeltaCounts": {
+				"applicationCatalogs": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"contentMetadata": {
+					"added": 0,
+					"removed": 0,
+					"changed": 1
+				},
+				"fullFileCatalogs": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"pages": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"publicSourceAssets": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"publication": {
+					"added": 0,
+					"removed": 0,
+					"changed": 1
+				},
+				"stage1Seeds": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				}
+			},
+			"publicCompiledSourcePreservedExactly": [true, true],
+			"rPreviewCounts": [10, 10],
+			"contentManifestChangedFields": ["generatedAt"]
+		},
+		{
+			"comparison": "native-unrestricted-versus-parallel-four-cpu",
+			"sourceCommit": "9faa529dfa5df16b612bbd09ceee3cfe5be86ba2",
+			"counts": {
+				"compiledPagesPerBuild": 1652,
+				"finalStaticFilesPerBuild": 64811,
+				"immutableAssetsAcrossBothEditions": 616,
+				"rPreviewsPerBuild": 10
+			},
+			"allowedExceptionClasses": [
+				"Pagefind-generated assets and aliases",
+				"content-manifest generatedAt timestamp"
+			],
+			"strictNonPagefindParityPass": true,
+			"pageDocActualBytesEqual": true,
+			"applicationCatalogActualBytesEqual": true,
+			"publicRoutesActualBytesEqual": true,
+			"publicSourceAssetsExactEquality": true,
+			"rPreviewReferencesExactEquality": true,
+			"publicAllowlistExactEquality": false,
+			"publicAllowlistExcludingPagefindExactEquality": true,
+			"contentManifestExceptGeneratedAtExactEquality": true,
+			"assets": {
+				"added": 6,
+				"removed": 6,
+				"changed": 2
+			},
+			"applicationVersions": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"immutableAssets": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"nonPagefindAssets": {
+				"added": 0,
+				"removed": 0,
+				"changed": 0
+			},
+			"categoryDeltaCounts": {
+				"applicationCatalogs": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"contentMetadata": {
+					"added": 0,
+					"removed": 0,
+					"changed": 1
+				},
+				"fullFileCatalogs": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"pages": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"publicSourceAssets": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				},
+				"publication": {
+					"added": 0,
+					"removed": 0,
+					"changed": 1
+				},
+				"stage1Seeds": {
+					"added": 0,
+					"removed": 0,
+					"changed": 0
+				}
+			},
+			"publicCompiledSourcePreservedExactly": [true, true],
+			"rPreviewCounts": [10, 10],
+			"contentManifestChangedFields": ["generatedAt"]
+		}
+	],
+	"allStrictNonPagefindComparisonsPass": true,
+	"limitation": "Pagefind-generated assets/aliases and content-manifest generatedAt vary. Full public allowlists differ only in Pagefind records; no exact zero-churn or remote upload savings claim. Raw output paths and private page contents are excluded."
+}

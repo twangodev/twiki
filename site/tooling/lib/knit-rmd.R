@@ -15,14 +15,23 @@ knit_hooks$set(plot = function(x, options) {
   paste0("\n\n![", caption, "](", x, ")\n\n")
 })
 set.seed(1)
+# Worksheets often include setup instructions for their interactive session.
+# Builds use packages provisioned beforehand, without updating shared libraries.
+# This binding applies to unqualified worksheet calls, not utils::install.packages.
 worksheet <- new.env(parent = globalenv())
-# Course files can contain setup instructions for students. During a build,
-# reuse provisioned packages instead of installing them from those instructions.
-worksheet$install.packages <- function(pkgs, ...) {
-  missing <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]
-  if (length(missing)) {
-    stop("Install required R packages before rendering worksheets: ",
-         paste(missing, collapse = ", "), call. = FALSE)
+worksheet$install.packages <- function(pkgs, lib = .libPaths(), ...) {
+  if (missing(pkgs) || !is.character(pkgs) || anyNA(pkgs) ||
+      any(!grepl("^[A-Za-z][A-Za-z0-9.]*$", pkgs))) {
+    stop("Worksheet package setup requires names of preinstalled R packages.", call. = FALSE)
+  }
+  available <- rownames(utils::installed.packages(lib.loc = lib))
+  missing_packages <- setdiff(pkgs, available)
+  if (length(missing_packages)) {
+    stop(paste0(
+      "Missing preinstalled R packages: ", paste(missing_packages, collapse = ", "),
+      ". Install worksheet dependencies in the build environment before rendering; ",
+      "worksheet package installation is disabled."
+    ), call. = FALSE)
   }
   invisible(NULL)
 }
