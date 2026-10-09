@@ -6,4 +6,4 @@ export const site = metadata;
 
 /** Only configured server authentication exposes account controls. Static exports have no session API. */
 export const authEnabled =
-	authentication.enabled === true && import.meta.env.VITE_STATIC_EXPORT !== 'true';
+	authentication.enabled === true && import.meta.env?.VITE_STATIC_EXPORT !== 'true';

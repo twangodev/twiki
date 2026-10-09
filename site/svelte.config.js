@@ -3,6 +3,7 @@ import { staticDirectory } from './tooling/lib/edition-paths.js';
 import adapter from './tooling/adapter.js';
 import { readFileSync } from 'node:fs';
 import { applicationVersion } from './tooling/lib/app-version.js';
+import { emptyTagRoute } from './tooling/lib/empty-tag-route.js';
 
 const prerenderConcurrency = Number(process.env.WISCONSIN_PRERENDER_CONCURRENCY ?? 1);
 if (!Number.isInteger(prerenderConcurrency) || prerenderConcurrency < 1)
@@ -38,6 +39,7 @@ const config = {
 			concurrency: prerenderConcurrency,
 			origin: site.url,
 			handleUnseenRoutes: ({ routes, message }) => {
+				if (emptyTagRoute(process.cwd(), routes)) return;
 				if (
 					process.env.VITE_PUBLIC_EDITION === 'true' &&
 					routes.every((route) => ['/tags/[...tag]', '/[course]/files/[...file]'].includes(route))

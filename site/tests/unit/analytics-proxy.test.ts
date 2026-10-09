@@ -131,32 +131,41 @@ test('disabled analytics acknowledges configuration and events without upstream 
 });
 
 test('analytics relay runs in workerd and rejects upstream redirects', async () => {
-	const { Miniflare } = await import('miniflare');
+	const { Miniflare, convertV4MiniflareOptions } = await import('miniflare');
 	const bundle = await Bun.build({ entrypoints: ['./worker/analytics.ts'], target: 'browser' });
 	expect(bundle.success).toBe(true);
 	const script =
 		(await bundle.outputs[0].text()) +
 		'\nexport default { fetch(request) { return proxyAnalytics(request, fetch, {siteId:"4",endpoint:"https://analytics.example.test/api"}); } };';
 	let redirect = false;
-	const runtime = new Miniflare({
-		modules: true,
-		script,
-		compatibilityDate: '2026-06-07',
-		compatibilityFlags: ['nodejs_compat'],
-		outboundService: () =>
-			redirect
-				? new Response(null, { status: 302, headers: { Location: 'https://elsewhere.test' } })
-				: Response.json({ trackInitialPageView: true })
-	});
+	let upstreamRequests = 0;
+	const runtime = new Miniflare(
+		convertV4MiniflareOptions({
+			modules: true,
+			script,
+			compatibilityDate: '2026-06-07',
+			compatibilityFlags: ['nodejs_compat'],
+			outboundService: (upstream) => {
+				upstreamRequests++;
+				expect(upstream.url).toBe('https://analytics.example.test/api/site/tracking-config/4');
+				return redirect
+					? new Response(null, { status: 302, headers: { Location: 'https://elsewhere.test' } })
+					: Response.json({ trackInitialPageView: true });
+			}
+		})
+	);
 	try {
-		const url = origin + '/api/analytics/site/tracking-config/4';
-		const response = await runtime.dispatchFetch(url);
+		// Bun ignores Undici's dispatcher override used by dispatchFetch; use the actual local Worker socket.
+		const url = new URL('/api/analytics/site/tracking-config/4', await runtime.ready);
+		const response = await fetch(url);
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({ trackInitialPageView: true });
+		expect(upstreamRequests).toBe(1);
 		redirect = true;
-		const redirected = await runtime.dispatchFetch(url);
+		const redirected = await fetch(url);
 		expect(redirected.status).toBe(502);
 		expect(redirected.headers.get('cache-control')).toBe('no-store');
+		expect(upstreamRequests).toBe(2);
 	} finally {
 		await runtime.dispose();
 	}
