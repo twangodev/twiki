@@ -8,7 +8,7 @@ tags, tree, assets, HTML assets, and graph also matched. All 10 R worksheets
 rendered successfully; the cold build completed in 213.12 seconds without restored
 product caches. This is extraction parity evidence, not a new CI timing claim.
 
-The plain-vault example passed Cloudflare and static builds. Browser checks of
+Before the dependency security updates, the plain-vault example passed Cloudflare and static builds. Browser checks of
 static output verified navigation, transclusions, Pagefind search, and graph data
 with no JavaScript, console, or network errors. Current staged Svelte and Worker
 type checks passed. After resolving installed dependency access, the final isolated engine observed 1.09 seconds
@@ -17,7 +17,8 @@ graph interaction. Development search correctly reports its missing build-only
 Pagefind index; production static search was verified. These observations use
 existing caches on a powerful workstation and do not predict CI performance.
 
-The engine unit suite passed 403 tests with four expected R-dependent skips.
+The final patched engine unit suite passed 412 tests with four expected R-dependent skips,
+3,285 assertions, and no failures across 77 files.
 Wisconsin checks passed with zero type errors or warnings, 15,810 local link
 targets, 67,299 math expressions, and 248 Mermaid diagrams.
 The CLI suite also validates generated authentication settings and local preview
@@ -37,5 +38,25 @@ Before the first registry publication, inherited dependency alerts prompted
 updates to SvelteKit 2.70.2, js-yaml 3.15.2, Mermaid 11.16.1, and KaTeX 0.18.2.
 The initial byte-parity comparison above applies to extraction before those
 updates; rendering libraries can change serialized output after an upgrade.
-The final release requires new build, content-check, and installed-tarball
-validation against the patched frozen graph.
+The final current-source Wisconsin build and complete checks passed against the
+patched frozen engine graph. This also includes Wrangler 4.149.0 and its official
+Miniflare 5.20261006.1-alpha dependency. All 1,662 emitted page JSON files remained
+byte-identical to the pre-upgrade extraction: no pages were added or removed,
+and neither HTML nor metadata changed. Browser rendering libraries and application
+bundles were upgraded; the complete KaTeX and Mermaid checks reported zero errors.
+
+The final public package contains 115 readable notes and 1,547 locked catalog
+stubs; every locked stub has empty HTML, Markdown, and description fields. The
+full package contains 1,662 readable notes and 7,110 source assets. Both editions
+retain 465 folders and 250 tags. All 10 R worksheet previews rendered successfully
+during patched validation using verified local R packages and normal system fonts;
+the final build reused their validated preview cache. Wisconsin content, nested
+course state, and course pointers were unchanged throughout validation.
+
+The current-source build completed in 156.61 seconds. This is local
+release validation with previously populated caches, not a fresh-runner or CI
+performance claim. Svelte and Worker type checks completed without errors,
+warnings, or a Svelte configuration fallback; all 15,810 local link targets,
+67,299 math expressions, and 248 Mermaid diagrams passed. Three focused regression
+cases also verify authentication configuration before Vite defines its environment,
+public-only hosting, and static hosting with GitHub authentication configured.

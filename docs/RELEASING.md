@@ -66,3 +66,24 @@ requiring 2FA and disallowing token-based publishing in the package settings.
 Publishing runs without dependency caches and uses the tarball produced by the
 validation job. A hash check binds it to that job; publishing does not rebuild
 or execute package lifecycle scripts. No Cloudflare resources are deployed.
+
+## Initial dependency audit
+
+The 0.1.0 frozen engine graph and an independently installed npm tarball passed
+the high/critical audit gate on 2026-10-09. Six underlying advisories remain below
+that threshold. npm also reports affected dependent packages, so its aggregate
+package count is larger than the number of underlying advisories.
+
+| Dependency path | Severity | Advisory |
+| --- | --- | --- |
+| SvelteKit → cookie 0.6.0 | Low | [Cookie field validation](https://github.com/advisories/GHSA-pxg6-pf52-xh8x) |
+| Mermaid/rehype/math → KaTeX 0.16.47 | Low | [Trust bypass after prototype pollution](https://github.com/advisories/GHSA-238p-pmpm-9mq7) |
+| Drizzle tooling → esbuild 0.18.20 | Moderate | [Development server access](https://github.com/advisories/GHSA-67mh-4wv8-2f99) |
+| Satori → fflate 0.7.3 | Moderate | [Malformed ZIP64 denial of service](https://github.com/advisories/GHSA-px8p-9vwx-vf98) |
+| Tailwind typography → postcss-selector-parser 6.0.10 | Moderate | [Selector parsing denial of service](https://github.com/advisories/GHSA-rj75-hqrm-r3gf) |
+| js-yaml → argparse → sprintf-js 1.0.3 | Moderate | [Precision parsing denial of service](https://github.com/advisories/GHSA-hp3w-g68c-fv3c) |
+
+Compatible updates were applied without overrides or advisory suppressions.
+Remaining updates require upstream dependency changes or separate compatibility
+work; sprintf-js had no published fix at the audit date. This inventory does not
+establish that every vulnerable code path is unreachable. Re-audit every release.
