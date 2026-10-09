@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
 
 permissions:
   contents: read
@@ -12,8 +12,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  validate:
+  release-please:
     if: github.repository == 'twangodev/twiki'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      sha: ${{ steps.release.outputs.sha }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  validate:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     outputs:
@@ -22,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ needs.release-please.outputs.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
@@ -36,22 +56,26 @@ jobs:
         run: npm install --global npm@11.21.0 --ignore-scripts
       - name: Verify release identity
         id: version
+        env:
+          RELEASE_SHA: ${{ needs.release-please.outputs.sha }}
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag_name }}
         run: |
           node --input-type=module <<'JS'
           import assert from 'node:assert/strict';
           import { appendFileSync, readFileSync } from 'node:fs';
           const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
           assert.equal(process.env.GITHUB_REPOSITORY, 'twangodev/twiki');
-          assert.equal(process.env.GITHUB_REF_TYPE, 'tag');
-          assert.match(process.env.GITHUB_SHA, /^[a-f0-9]{40}$/);
+          assert.equal(process.env.GITHUB_REF, 'refs/heads/main');
+          assert.match(process.env.RELEASE_SHA, /^[a-f0-9]{40}$/);
           assert.match(pkg.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/);
-          assert.equal(process.env.GITHUB_REF_NAME, 'v' + pkg.version);
+          assert.equal(process.env.RELEASE_TAG, 'v' + pkg.version);
           assert.equal(pkg.name, '@twango/twiki');
           assert.notEqual(pkg.private, true);
           assert.equal(pkg.repository.url, 'git+https://github.com/twangodev/twiki.git');
           appendFileSync(process.env.GITHUB_OUTPUT, 'dist-tag=' + (pkg.version.includes('-') ? 'next' : 'latest') + '\n');
           JS
-          test "$(git rev-parse HEAD)" = "$(git rev-parse "${GITHUB_SHA}^{commit}")"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "${RELEASE_SHA}^{commit}")"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")"
           git merge-base --is-ancestor HEAD refs/remotes/origin/main
       - run: bun install --frozen-lockfile
       - name: Audit release dependencies

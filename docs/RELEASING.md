@@ -1,9 +1,20 @@
 # Releasing @twango/twiki
 
-The `release.yml` workflow publishes tags such as `v0.1.1` from commits already
-on `main`. The tag must equal the package version. It validates the engine,
-CLI, both build targets and the installed npm tarball before publishing those
-same bytes. Stable versions use `latest`; prereleases use `next`.
+The single `release.yml` workflow runs on pushes to `main`. Release Please
+maintains a version/changelog PR using Conventional Commits. Merging that PR
+creates a GitHub release and `v<version>` tag, then the same workflow validates
+the tagged commit and publishes it through npm OIDC. Ordinary pushes only
+update the release PR; they do not publish.
+
+Validation checks the tag, package version, exact commit and ancestry on `main`,
+then tests the engine, CLI, both build targets and the installed npm tarball.
+The publishing job receives those same bytes. Stable versions use `latest`;
+prereleases use `next`.
+
+The manifest starts at `0.1.1`; `bootstrap-sha` excludes the imported history
+through that release from the first changelog. Later releases use Release Please's
+normal release discovery. The Node strategy updates the root `package.json`;
+Bun's root lockfile has no package version field to update.
 
 After the frozen install, `bun audit --audit-level high` blocks release validation
 on known high or critical dependency advisories. The gate has no ignored advisories.
@@ -22,7 +33,8 @@ the stable OIDC publication before directing users to an unversioned install.
 Version selection and this initial publication are separate maintainer actions.
 
 Create the GitHub environment `npm`. Restrict its deployment branches/tags to
-release tags (`v*`) and configure required reviewers if desired. Protect `main`
+`main` (the workflow ref, even when validation checks out a tag) and configure
+required reviewers if desired. Protect `main`
 and release tags against unauthorized changes.
 
 Configure the package's trusted publisher with these exact values:
@@ -52,18 +64,20 @@ requiring 2FA and disallowing token-based publishing in the package settings.
 
 ## Each release
 
-1. Update the package version and matching locked package metadata. Merge the
-   reviewed change to `main`.
-2. Create and push the matching tag from that exact commit. For example, after
-   the package version is `0.1.1`:
+1. Merge changes with Conventional Commit messages into `main`.
+2. Review and merge the Release Please PR containing the version and changelog.
+3. Watch `release-please`, `validate` and `publish` in the same Release workflow.
+   Confirm the npm version, dist-tag and provenance before updating consumers.
 
-   ```sh
-   git tag -a v0.1.1 -m "Release 0.1.1"
-   git push origin v0.1.1
-   ```
-
-3. Watch both `validate` and `publish` in the Release workflow. Confirm the npm
-   version, dist-tag and provenance before updating consumers.
+Enable **Allow GitHub Actions to create and approve pull requests** in repository
+Actions settings. Only the Release Please job receives GitHub write permissions;
+only the publishing job receives `id-token: write`. The default `GITHUB_TOKEN`
+is sufficient: publishing continues in the same run rather than relying on a
+second workflow triggered by the generated tag. No PAT or npm token is required.
+Bot-created release PRs do not automatically trigger other PR workflows with
+this token; validation runs after the reviewed release PR merges, before npm
+publication. If validation or publishing fails, rerun the failed jobs in the
+original workflow run to retain the release outputs; do not move a published tag.
 
 Publishing runs without dependency caches and uses the tarball produced by the
 validation job. A hash check binds it to that job; publishing does not rebuild

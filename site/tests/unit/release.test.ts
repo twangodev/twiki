@@ -74,20 +74,25 @@ test('actual release archive must exactly match its inspected inventory and cont
 	}
 });
 
-test('release grants OIDC only to publishing the validated tarball on protected release tags', () => {
+test('release grants OIDC only to publishing the validated tarball after Release Please creates a release on main', () => {
 	const workflow = parse(readFileSync(path.join(root, '.github/workflows/release.yml'), 'utf8'));
-	expect(workflow.on).toEqual({ push: { tags: ['v*'] } });
+	expect(workflow.on).toEqual({ push: { branches: ['main'] } });
 	expect(workflow.permissions).toEqual({ contents: 'read' });
 	expect(workflow.jobs.publish.permissions).toEqual({ contents: 'read', 'id-token': 'write' });
 	expect(workflow.jobs.publish.environment).toBe('npm');
 	expect(workflow.jobs.publish.needs).toBe('validate');
+	const release = workflow.jobs['release-please'];
+	expect(release.permissions).toEqual({ contents: 'write', issues: 'write', 'pull-requests': 'write' });
+	expect(workflow.jobs.validate.needs).toBe('release-please');
+	expect(workflow.jobs.validate.if).toBe("needs.release-please.outputs.release_created == 'true'");
 	const validate = workflow.jobs.validate.steps;
+	expect(validate[0].with.ref).toBe('${{ needs.release-please.outputs.sha }}');
 	const publish = workflow.jobs.publish.steps;
-	for (const step of [...validate, ...publish].filter((step) => step.uses)) {
+	for (const step of [...release.steps, ...validate, ...publish].filter((step) => step.uses)) {
 		expect(step.uses).toMatch(/@[a-f0-9]{40}$/);
 	}
 	const identity = validate.find((step) => step.id === 'version').run;
-	expect(identity).toContain("process.env.GITHUB_REF_NAME, 'v' + pkg.version");
+	expect(identity).toContain("process.env.RELEASE_TAG, 'v' + pkg.version");
 	expect(identity).toContain("assert.equal(pkg.name, '@twango/twiki')");
 	expect(identity).toContain('git merge-base --is-ancestor HEAD refs/remotes/origin/main');
 	const publishText = JSON.stringify(publish);
@@ -100,4 +105,47 @@ test('release grants OIDC only to publishing the validated tarball on protected 
 	expect(publishText).not.toMatch(
 		/NPM_TOKEN|NODE_AUTH_TOKEN|secrets\.|bun install|npm pack|actions\/checkout/
 	);
+});
+
+// Execute the real workflow guard against a temporary Git repository, so this
+// covers tag identity and ancestry rather than just matching YAML strings.
+test('release identity rejects mismatched versions, commits and refs', () => {
+	const directory = mkdtempSync(path.join(os.tmpdir(), 'twiki-release-identity-'));
+	const workflow = parse(readFileSync(path.join(root, '.github/workflows/release.yml'), 'utf8'));
+	const guard = workflow.jobs.validate.steps.find((step) => step.id === 'version').run;
+	const git = (...args: string[]) => execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim();
+	try {
+		git('init', '-b', 'main');
+		git('config', 'user.name', 'Release test');
+		git('config', 'user.email', 'release@example.invalid');
+		git('config', 'commit.gpgsign', 'false');
+		const pkg = { ...expected, repository: { url: 'git+https://github.com/twangodev/twiki.git' } };
+		writeFileSync(path.join(directory, 'package.json'), JSON.stringify(pkg));
+		git('add', 'package.json');
+		git('commit', '-m', 'fix: fixture');
+		const sha = git('rev-parse', 'HEAD');
+		git('tag', 'v1.2.3');
+		git('update-ref', 'refs/remotes/origin/main', sha);
+		const output = path.join(directory, 'output');
+		const env = { ...process.env, GITHUB_REPOSITORY: 'twangodev/twiki', GITHUB_REF: 'refs/heads/main',
+			RELEASE_SHA: sha, RELEASE_TAG: 'v1.2.3', GITHUB_OUTPUT: output };
+		const run = (overrides = {}) => execFileSync('bash', ['-e', '-o', 'pipefail', '-c', guard],
+			{ cwd: directory, env: { ...env, ...overrides }, stdio: 'pipe' });
+		expect(() => run()).not.toThrow();
+		expect(readFileSync(output, 'utf8')).toBe('dist-tag=latest\n');
+		for (const overrides of [
+			{ RELEASE_TAG: 'v1.2.4' }, { RELEASE_SHA: '0'.repeat(40) },
+			{ GITHUB_REF: 'refs/heads/other' }, { GITHUB_REPOSITORY: 'someone/twiki' }
+		]) expect(() => run(overrides)).toThrow();
+		git('update-ref', '-d', 'refs/tags/v1.2.3');
+		expect(() => run()).toThrow();
+		git('tag', 'v1.2.3');
+		git('checkout', '--orphan', 'unrelated');
+		git('commit', '-m', 'fix: unrelated history');
+		git('update-ref', 'refs/remotes/origin/main', git('rev-parse', 'HEAD'));
+		git('checkout', 'main');
+		expect(() => run()).toThrow();
+	} finally {
+		rmSync(directory, { recursive: true, force: true });
+	}
 });
