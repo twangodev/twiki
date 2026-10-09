@@ -135,4 +135,4 @@ jobs:
           NPM_DIST_TAG: ${{ needs.validate.outputs.dist-tag }}
         run: |
           case "$NPM_DIST_TAG" in latest|next) ;; *) exit 1 ;; esac
-          npm publish dist/twiki.tgz --access public --provenance --ignore-scripts --tag "$NPM_DIST_TAG" --registry https://registry.npmjs.org/
+          npm publish ./dist/twiki.tgz --access public --provenance --ignore-scripts --tag "$NPM_DIST_TAG" --registry https://registry.npmjs.org/

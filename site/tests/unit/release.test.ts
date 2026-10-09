@@ -93,8 +93,10 @@ test('release grants OIDC only to publishing the validated tarball on protected 
 	const publishText = JSON.stringify(publish);
 	expect(publishText).toContain('EXPECTED_SHA256');
 	expect(publishText).toContain(
-		'npm publish dist/twiki.tgz --access public --provenance --ignore-scripts'
+		'npm publish ./dist/twiki.tgz --access public --provenance --ignore-scripts'
 	);
+	// npm-package-arg treats bare owner/repo paths as GitHub shorthand.
+	expect(publishText).not.toContain('npm publish dist/twiki.tgz');
 	expect(publishText).not.toMatch(
 		/NPM_TOKEN|NODE_AUTH_TOKEN|secrets\.|bun install|npm pack|actions\/checkout/
 	);

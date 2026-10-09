@@ -1,6 +1,6 @@
 # Releasing @twango/twiki
 
-The `release.yml` workflow publishes tags such as `v0.1.0` from commits already
+The `release.yml` workflow publishes tags such as `v0.1.1` from commits already
 on `main`. The tag must equal the package version. It validates the engine,
 CLI, both build targets and the installed npm tarball before publishing those
 same bytes. Stable versions use `latest`; prereleases use `next`.
@@ -16,8 +16,10 @@ npm 11.15.0 or later. [npm trust prerequisites](https://docs.npmjs.com/cli/v11/c
 
 For the initial package only, a maintainer can publish the validated
 `0.1.0-rc.0` tarball interactively with `--access public --tag next --provenance=false`. This reserves
-the package without assigning a prerelease to `latest`. Version selection and
-this initial publication are separate maintainer actions.
+the package before configuring trust. Verify its dist-tags afterward: the registry
+may initialize `latest` for a new package even when `next` was requested. Complete
+the stable OIDC publication before directing users to an unversioned install.
+Version selection and this initial publication are separate maintainer actions.
 
 Create the GitHub environment `npm`. Restrict its deployment branches/tags to
 release tags (`v*`) and configure required reviewers if desired. Protect `main`
@@ -53,11 +55,11 @@ requiring 2FA and disallowing token-based publishing in the package settings.
 1. Update the package version and matching locked package metadata. Merge the
    reviewed change to `main`.
 2. Create and push the matching tag from that exact commit. For example, after
-   the package version is `0.1.0`:
+   the package version is `0.1.1`:
 
    ```sh
-   git tag -a v0.1.0 -m "Release 0.1.0"
-   git push origin v0.1.0
+   git tag -a v0.1.1 -m "Release 0.1.1"
+   git push origin v0.1.1
    ```
 
 3. Watch both `validate` and `publish` in the Release workflow. Confirm the npm
@@ -69,7 +71,7 @@ or execute package lifecycle scripts. No Cloudflare resources are deployed.
 
 ## Initial dependency audit
 
-The 0.1.0 frozen engine graph and an independently installed npm tarball passed
+The 0.1.1 frozen engine graph and an independently installed npm tarball passed
 the high/critical audit gate on 2026-10-09. Six underlying advisories remain below
 that threshold. npm also reports affected dependent packages, so its aggregate
 package count is larger than the number of underlying advisories.
@@ -87,3 +89,8 @@ Compatible updates were applied without overrides or advisory suppressions.
 Remaining updates require upstream dependency changes or separate compatibility
 work; sprintf-js had no published fix at the audit date. This inventory does not
 establish that every vulnerable code path is unreachable. Re-audit every release.
+
+New versions may not be installable immediately after a successful publish. npm
+scans packages before exposing them for installation; registry acceptance,
+provenance, and consumer installation are separate verification steps.
+[Publish-time scanning](https://github.blog/changelog/2026-07-28-npm-publish-time-malware-scanning-and-dual-use-metadata/)
