@@ -1,6 +1,6 @@
 # Demo deployment
 
-The `twiki` workflow tests the CLI and engine and builds both targets. On a push
+The `ci.yml` workflow tests the CLI and engine and builds both targets. On a push
 to `main` (or a manual run on `main`), a separate `deploy` job publishes the
 validated Cloudflare build to https://twiki.twango.dev. Pull requests never deploy.
 

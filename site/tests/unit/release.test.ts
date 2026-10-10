@@ -75,13 +75,14 @@ test('actual release archive must exactly match its inspected inventory and cont
 });
 
 test('release grants OIDC only to publishing the validated tarball after Release Please creates a release on main', () => {
-	const workflow = parse(readFileSync(path.join(root, '.github/workflows/release.yml'), 'utf8'));
-	expect(workflow.on).toEqual({ push: { branches: ['main'] } });
+	const workflow = parse(readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8'));
+	expect(workflow.on).toEqual({ push: { branches: ['main'] }, pull_request: null, workflow_dispatch: null });
 	expect(workflow.permissions).toEqual({ contents: 'read' });
 	expect(workflow.jobs.publish.permissions).toEqual({ contents: 'read', 'id-token': 'write' });
 	expect(workflow.jobs.publish.environment).toBe('npm');
 	expect(workflow.jobs.publish.needs).toBe('validate');
 	const release = workflow.jobs['release-please'];
+	expect(release.if).toBe("github.repository == 'twangodev/twiki' && github.ref == 'refs/heads/main' && github.event_name == 'push'");
 	expect(release.permissions).toEqual({ contents: 'write', issues: 'write', 'pull-requests': 'write' });
 	expect(workflow.jobs.validate.needs).toBe('release-please');
 	expect(workflow.jobs.validate.if).toBe("needs.release-please.outputs.release_created == 'true'");
@@ -111,7 +112,7 @@ test('release grants OIDC only to publishing the validated tarball after Release
 // covers tag identity and ancestry rather than just matching YAML strings.
 test('release identity rejects mismatched versions, commits and refs', () => {
 	const directory = mkdtempSync(path.join(os.tmpdir(), 'twiki-release-identity-'));
-	const workflow = parse(readFileSync(path.join(root, '.github/workflows/release.yml'), 'utf8'));
+	const workflow = parse(readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8'));
 	const guard = workflow.jobs.validate.steps.find((step) => step.id === 'version').run;
 	const git = (...args: string[]) => execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim();
 	try {

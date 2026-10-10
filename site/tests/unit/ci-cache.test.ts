@@ -8,7 +8,7 @@ import { parse } from 'yaml';
 import { compilerCacheFiles } from '../../tooling/lib/cache-selection';
 
 test('engine CI keeps credentials out of tests and deploys only its demo after validation', () => {
-	const raw = readFileSync('../.github/workflows/svelte.yml', 'utf8');
+	const raw = readFileSync('../.github/workflows/ci.yml', 'utf8');
 	for (const schema of ['core', 'yaml-1.1'] as const) {
 		const workflow = parse(raw, { schema }) as {
 			permissions: Record<string, string>;

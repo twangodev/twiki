@@ -1,21 +1,106 @@
-name: Release
+name: CI
 
 on:
   push:
     branches: [main]
+  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: twiki-npm-release
-  cancel-in-progress: false
-
 jobs:
-  release-please:
-    if: github.repository == 'twangodev/twiki'
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test
+      - run: bun run check
+      - run: bun run test
+        working-directory: site
+        env:
+          GIT_CONFIG_COUNT: 1
+          GIT_CONFIG_KEY_0: commit.gpgsign
+          GIT_CONFIG_VALUE_0: "false"
+      - run: bun ../../cli/twiki.ts build --target cloudflare
+        working-directory: examples/vault
+      - run: bun ../../cli/twiki.ts exec -- run check:types
+        working-directory: examples/vault
+      - name: Preserve the validated Cloudflare build
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        run: tar -cf "$RUNNER_TEMP/twiki-cloudflare.tar" -C examples/vault/.twiki/site build/.svelte-kit
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        with:
+          name: twiki-cloudflare
+          path: ${{ runner.temp }}/twiki-cloudflare.tar
+          if-no-files-found: error
+          retention-days: 3
+      - run: bun ../../cli/twiki.ts build --target static
+        working-directory: examples/vault
+
+  deploy:
+    needs: test
+    if: github.repository == 'twangodev/twiki' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    concurrency:
+      group: twiki-production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://twiki.twango.dev
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.4.2"
+      - run: bun install --frozen-lockfile
+      - name: Prepare the demo runtime
+        working-directory: examples/vault
+        run: bun ../../cli/twiki.ts prepare
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: twiki-cloudflare
+          path: ${{ runner.temp }}/twiki-cloudflare
+          digest-mismatch: error
+      - name: Restore the validated Cloudflare build
+        run: tar -xf "$RUNNER_TEMP/twiki-cloudflare/twiki-cloudflare.tar" -C examples/vault/.twiki/site
+      - name: Deploy the validated build
+        working-directory: examples/vault
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          bun ../../cli/twiki.ts deploy
+      - name: Verify the live content version
+        working-directory: examples/vault
+        env:
+          DEPLOYMENT_ORIGIN: https://twiki.twango.dev
+          DEPLOYMENT_EXPECTED_TEXT: Publish Obsidian notes to Cloudflare or a static site.
+        run: bun ../../cli/twiki.ts exec -- tooling/verify-deployment.ts
+
+  release-please:
+    if: github.repository == 'twangodev/twiki' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    concurrency:
+      group: twiki-release-please
+      cancel-in-progress: false
     permissions:
       contents: write
       issues: write
@@ -129,6 +214,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: npm
+    concurrency:
+      group: twiki-npm-publish
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write

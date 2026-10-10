@@ -1,6 +1,7 @@
 # Releasing @twango/twiki
 
-The single `release.yml` workflow runs on pushes to `main`. Release Please
+The single `ci.yml` workflow handles pull request checks, demo deployment and
+releases. Release Please runs only on pushes to `main` and
 maintains a version/changelog PR using Conventional Commits. Merging that PR
 creates a GitHub release and `v<version>` tag, then the same workflow validates
 the tagged commit and publishes it through npm OIDC. Ordinary pushes only
@@ -44,14 +45,14 @@ Configure the package's trusted publisher with these exact values:
 | Provider          | GitHub Actions                    |
 | Organization/user | `twangodev`                       |
 | Repository        | `twiki`                           |
-| Workflow filename | `release.yml`                     |
+| Workflow filename | `ci.yml`                     |
 | Environment       | `npm`                             |
 | Allowed action    | Direct publishing (`npm publish`) |
 
 With an authenticated npm 11.21.0 client, the equivalent command is:
 
 ```sh
-npm trust github @twango/twiki --repository twangodev/twiki --file release.yml --environment npm --allow-publish
+npm trust github @twango/twiki --repository twangodev/twiki --file ci.yml --environment npm --allow-publish
 npm trust list @twango/twiki
 ```
 

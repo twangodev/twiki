@@ -1,7 +1,7 @@
 # twiki
 
 [![npm](https://img.shields.io/npm/v/%40twango%2Ftwiki)](https://www.npmjs.com/package/@twango/twiki)
-[![CI](https://img.shields.io/github/actions/workflow/status/twangodev/twiki/svelte.yml?branch=main&label=CI)](https://github.com/twangodev/twiki/actions/workflows/svelte.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/twangodev/twiki/ci.yml?branch=main&label=CI)](https://github.com/twangodev/twiki/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/twangodev/twiki)](LICENSE)
 
 Publish Obsidian notes to Cloudflare or a static site.
