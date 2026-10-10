@@ -33,19 +33,22 @@
 		(course?.children ?? [])
 			.map((node) => ({
 				...node,
-				title:
-					node.segment === 'README'
-						? 'Overview'
-						: ((
-								{
-									lectures: 'Lectures',
-									homework: 'Homework',
-									exams: 'Exams',
-									projects: 'Projects'
-								} as Record<string, string>
-							)[node.title] ?? node.title)
+				title: ['README', 'index'].includes(node.segment)
+					? 'Overview'
+					: ((
+							{
+								lectures: 'Lectures',
+								homework: 'Homework',
+								exams: 'Exams',
+								projects: 'Projects'
+							} as Record<string, string>
+						)[node.title] ?? node.title)
 			}))
-			.sort((a, b) => Number(b.segment === 'README') - Number(a.segment === 'README'))
+			.sort(
+				(a, b) =>
+					Number(['README', 'index'].includes(b.segment)) -
+					Number(['README', 'index'].includes(a.segment))
+			)
 	);
 	let choosing = $state(false);
 	let explorer = $state<'notes' | 'files'>(
@@ -65,16 +68,23 @@
 		const match = /^(sp|su|fa|wi)(\d{2})-/.exec(node.segment);
 		return match
 			? `${{ sp: 'Spring', su: 'Summer', fa: 'Fall', wi: 'Winter' }[match[1]]} 20${match[2]}`
-			: 'Other';
+			: site.navigation.mode === 'sections'
+				? 'Documentation'
+				: 'Other';
 	}
 	function label(node: NavNode) {
+		if (site.navigation.mode === 'sections') return node.title;
 		return node.segment
 			.replace(/^(sp|su|fa|wi)\d{2}-/, '')
 			.replace(/([a-z])(\d)/, '$1 $2')
 			.toUpperCase();
 	}
 	function landing(node: NavNode) {
-		return node.children.find((child) => child.segment === 'README')?.route ?? node.route ?? '/';
+		return (
+			node.children.find((child) => ['README', 'index'].includes(child.segment))?.route ??
+			node.route ??
+			'/'
+		);
 	}
 	function semesterOrder(node: NavNode) {
 		const match = /^(sp|su|fa|wi)(\d{2})-/.exec(node.segment);
@@ -158,8 +168,8 @@
 		onclick={toggleCourses}
 	>
 		<span
-			><small>{course ? semester(course) : 'Workspace'}</small><strong
-				>{course ? label(course) : 'Browse courses'}</strong
+			><small>{course ? semester(course) : site.navigation.workspace}</small><strong
+				>{course ? label(course) : site.navigation.browse}</strong
 			></span
 		>
 		<ChevronsUpDown size={15} />
@@ -193,8 +203,8 @@
 				<input
 					bind:this={search}
 					bind:value={query}
-					aria-label="Find a course"
-					placeholder="Find a course…"
+					aria-label={site.navigation.find}
+					placeholder={`${site.navigation.find}…`}
 					onkeydown={(event) => {
 						if (event.key === 'Escape') {
 							choosing = false;
@@ -214,9 +224,9 @@
 						>
 					{/each}
 				{/each}
-				{#if !groups.length}<p class="empty">No courses match “{query}”.</p>{/if}
+				{#if !groups.length}<p class="empty">No matches for “{query}”.</p>{/if}
 				<div class="workspace-links">
-					<a class="course-option" href="/">Workspace home</a>
+					<a class="course-option" href="/">{site.navigation.home}</a>
 					{#each nav.filter((node) => !node.children.length && node.route) as node}<a
 							class="course-option"
 							href={node.route}>{node.title}</a

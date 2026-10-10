@@ -15,7 +15,8 @@
     ".": "./cli/runtime.ts",
     "./runtime": "./cli/runtime.ts",
     "./cli": "./cli/twiki.ts",
-    "./actions/product-cache": "./.github/actions/product-cache/index.mjs"
+    "./actions/product-cache": "./.github/actions/product-cache/index.mjs",
+    "./schema": "./cli/twiki.schema.json"
   },
   "engines": {
     "bun": ">=1.4.0",
@@ -48,7 +49,10 @@
     "test": "bun test ./cli",
     "check": "bunx tsc --noEmit --skipLibCheck --module esnext --moduleResolution bundler --target es2022 --types bun --allowJs cli/twiki.ts cli/runtime.ts",
     "dev": "bun cli/twiki.ts dev",
-    "build": "bun cli/twiki.ts build"
+    "build": "bun cli/twiki.ts build",
+    "docs:generate": "bun tooling/docs.ts",
+    "docs:check": "bun tooling/docs.ts --check && bun test ./tooling/docs.test.ts",
+    "docs:dev": "bun run docs:generate && bun cli/twiki.ts dev --project documentation"
   },
   "dependencies": {
     "@actions/cache": "6.3.0",
@@ -85,6 +89,7 @@
     "bits-ui": "2.18.1",
     "blake3-wasm": "2.1.5",
     "clsx": "2.1.1",
+    "commander": "15.0.0",
     "d3-drag": "3.0.0",
     "d3-force": "3.0.0",
     "d3-selection": "3.0.0",
@@ -135,6 +140,7 @@
     "vite": "8.0.16",
     "webr": "0.5.8",
     "wrangler": "4.149.0",
-    "yaml": "2.9.0"
+    "yaml": "2.9.0",
+    "zod": "4.6.5"
   }
 }

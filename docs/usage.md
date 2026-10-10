@@ -1,3 +1,5 @@
+[Full documentation](https://twiki.twango.dev) · [Documentation source](../documentation/notes/index.md)
+
 # Usage
 
 An Obsidian-compatible Markdown publishing engine with wikilinks,

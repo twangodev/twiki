@@ -1,9 +1,22 @@
 {
-	"name": "twiki",
-	"url": "http://localhost:5173",
-	"title": "twiki",
-	"description": "Notes, ideas, and reference material.",
-	"author": { "name": "", "url": "", "github": "", "email": "" },
-	"locale": "en_US",
-	"language": "en"
+  "name": "twiki",
+  "title": "twiki",
+  "url": "http://localhost:5173",
+  "description": "Notes, ideas, and reference material.",
+  "author": {
+    "name": "",
+    "url": "",
+    "github": "",
+    "email": ""
+  },
+  "locale": "en_US",
+  "language": "en",
+  "navigation": {
+    "mode": "courses",
+    "workspace": "Workspace",
+    "browse": "Browse courses",
+    "find": "Find a course",
+    "home": "Workspace home",
+    "all": "All courses"
+  }
 }

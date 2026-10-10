@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Command, Dialog } from 'bits-ui';
+	import { site } from '$lib/config';
 	import { goto } from '$app/navigation';
 	import Search from '@lucide/svelte/icons/search';
 	import {
@@ -110,7 +111,7 @@
 								aria-label="Filter by course"
 								class="max-w-[50%] cursor-pointer rounded-md border border-border bg-bg px-2 py-1 text-xs text-text/80 outline-none focus-visible:ring-2 focus-visible:ring-accent"
 							>
-								<option value="">All courses</option>
+								<option value="">{site.navigation.all}</option>
 								{#each courseOptions as [value, count] (value)}
 									<option {value}>{value} ({count})</option>
 								{/each}

@@ -5,90 +5,9 @@ import path from "node:path";
 import { prepareProject, publishOutput, type PreparedProject } from "./runtime";
 import { resolveProject } from "../site/tooling/lib/project-config";
 
-export const help = `twiki <command> [options]
-
-  dev                         Start the development server
-  check                       Check types, links, targets, and diagrams
-  build --target cloudflare   Build a complete Cloudflare Worker (default)
-  build --target static       Export public static pages
-  preview                     Preview the Cloudflare build locally
-  deploy                      Upload the existing Cloudflare build
-  prepare [--json]            Prepare the consumer-owned .twiki/site runtime
-  exec -- <Bun arguments>     Run engine tooling with the resolved configuration
-  init                        Create twiki.config.json (never overwrites)
-
-  --project <directory>       Consumer root (default: current directory)
-  --config <file>             Explicit declarative JSON configuration
-  --                          Pass remaining arguments to dev/preview/exec
-`;
-export function argumentsFor(argv: string[]): {
-  command: string;
-  projectRoot?: string;
-  configFile?: string;
-  target: "cloudflare" | "static";
-  json: boolean;
-  extra: string[];
-} {
-  const command = argv[0] ?? "help";
-  if (["--help", "-h", "help"].includes(command))
-    return {
-      command: "help",
-      target: "cloudflare" as const,
-      json: false,
-      extra: [] as string[],
-    };
-  if (["--version", "-v"].includes(command))
-    return {
-      command: "version",
-      target: "cloudflare" as const,
-      json: false,
-      extra: [] as string[],
-    };
-  if (
-    ![
-      "dev",
-      "check",
-      "build",
-      "preview",
-      "deploy",
-      "prepare",
-      "exec",
-      "init",
-    ].includes(command)
-  )
-    throw new Error("Unknown command; run twiki --help");
-  let projectRoot: string | undefined;
-  let configFile: string | undefined;
-  let target: "cloudflare" | "static" = "cloudflare";
-  let json = false;
-  const extra: string[] = [];
-  for (let i = 1; i < argv.length; i++) {
-    const arg = argv[i];
-    if (arg === "--") {
-      extra.push(...argv.slice(i + 1));
-      break;
-    }
-    if (arg === "--json" && command === "prepare") json = true;
-    else if (["--project", "--config", "--target"].includes(arg)) {
-      const value = argv[++i];
-      if (!value || value.startsWith("--"))
-        throw new Error("Missing option value");
-      if (arg === "--project") projectRoot = value;
-      else if (arg === "--config") configFile = value;
-      else {
-        if (command !== "build" || !["cloudflare", "static"].includes(value))
-          throw new Error("Build target must be cloudflare or static");
-        target = value as "cloudflare" | "static";
-      }
-    } else if (command === "dev" || command === "preview") extra.push(arg);
-    else throw new Error("Unsupported argument; run twiki --help");
-  }
-  if (extra.length && !["dev", "preview", "exec"].includes(command))
-    throw new Error("This command does not accept passthrough arguments");
-  if (command === "exec" && !extra.length)
-    throw new Error("Use twiki exec -- <Bun arguments>");
-  return { command, projectRoot, configFile, target, json, extra };
-}
+import { argumentsFor, createCLI } from "./commands";
+export { argumentsFor } from "./commands";
+export const help = createCLI().helpInformation();
 export function invocation(
   command: string,
   project: PreparedProject,
@@ -176,6 +95,9 @@ export function invocation(
         : ["--persist-to", "build/.wrangler/state"]),
       ...(option("--port") ? [] : ["--port", port]),
       ...(option("--ip") ? [] : ["--ip", ip]),
+      ...(option("--local-upstream")
+        ? []
+        : ["--local-upstream", origin.host]),
       ...(!explicitOrigin ? ["--var", `ORIGIN:${origin.origin}`] : []),
       ...extra,
     ];
@@ -225,7 +147,7 @@ async function run(binary: string, args: string[], project: PreparedProject) {
 export async function main(argv = process.argv.slice(2)) {
   const options = argumentsFor(argv);
   if (options.command === "help") {
-    console.log(help);
+    console.log(options.helpText ?? help);
     return;
   }
   if (options.command === "version") {

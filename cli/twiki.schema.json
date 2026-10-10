@@ -1,0 +1,168 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Optional JSON Schema URL or local path for editor completion.",
+      "type": "string"
+    },
+    "version": {
+      "type": "number",
+      "const": 1,
+      "description": "Configuration format version."
+    },
+    "contentDir": {
+      "description": "Content directory relative to the vault root. Explicit CLI projects default to the current directory.",
+      "type": "string",
+      "minLength": 1
+    },
+    "discovery": {
+      "description": "File discovery. Explicit CLI projects default to filesystem; legacy workspaces default to git.",
+      "type": "string",
+      "enum": [
+        "filesystem",
+        "git"
+      ]
+    },
+    "publication": {
+      "description": "Publication mode. Explicit CLI projects default to private. Static export requires public.",
+      "type": "string",
+      "enum": [
+        "private",
+        "public",
+        "policies"
+      ]
+    },
+    "site": {
+      "description": "Branding, canonical URL, author and navigation settings.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "default": "twiki",
+          "description": "Site name shown in navigation.",
+          "type": "string"
+        },
+        "title": {
+          "default": "twiki",
+          "description": "Default page title.",
+          "type": "string"
+        },
+        "url": {
+          "default": "http://localhost:5173",
+          "description": "Canonical HTTP or HTTPS origin.",
+          "type": "string",
+          "format": "uri"
+        },
+        "description": {
+          "default": "Notes, ideas, and reference material.",
+          "description": "Default site description.",
+          "type": "string"
+        },
+        "author": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "default": "",
+              "type": "string"
+            },
+            "url": {
+              "default": "",
+              "type": "string"
+            },
+            "github": {
+              "default": "",
+              "type": "string"
+            },
+            "email": {
+              "default": "",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "locale": {
+          "default": "en_US",
+          "description": "Open Graph locale.",
+          "type": "string"
+        },
+        "language": {
+          "default": "en",
+          "description": "HTML language.",
+          "type": "string"
+        },
+        "navigation": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "default": "courses",
+              "description": "Course navigation or general documentation sections.",
+              "type": "string",
+              "enum": [
+                "courses",
+                "sections"
+              ]
+            },
+            "workspace": {
+              "default": "Workspace",
+              "description": "Navigation switcher caption.",
+              "type": "string"
+            },
+            "browse": {
+              "default": "Browse courses",
+              "description": "Navigation switcher label.",
+              "type": "string"
+            },
+            "find": {
+              "default": "Find a course",
+              "description": "Section search label.",
+              "type": "string"
+            },
+            "home": {
+              "default": "Workspace home",
+              "description": "Link to the vault home.",
+              "type": "string"
+            },
+            "all": {
+              "default": "All courses",
+              "description": "Unfiltered search label.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "cloudflare": {
+      "description": "Wrangler resource settings. Twiki supplies generated main and assets paths. Never put credentials here.",
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    },
+    "analytics": {
+      "description": "Optional analytics site and endpoint. Disabled when omitted.",
+      "type": "object",
+      "properties": {
+        "siteId": {
+          "type": "string"
+        },
+        "scriptUrl": {
+          "type": "string"
+        },
+        "endpoint": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "siteId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "additionalProperties": {}
+}

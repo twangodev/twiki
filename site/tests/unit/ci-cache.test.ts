@@ -53,8 +53,8 @@ test('engine CI keeps credentials out of tests and deploys only its demo after v
 		expect(deploy.environment).toEqual({ name: 'production', url: 'https://twiki.twango.dev' });
 		expect(deploy.concurrency).toEqual({ group: 'twiki-production', 'cancel-in-progress': false });
 		const upload = deploy.steps.find((step) => step.env?.CLOUDFLARE_API_TOKEN);
-		expect(upload?.['working-directory']).toBe('examples/vault');
-		expect(upload?.run).toContain('bun ../../cli/twiki.ts deploy');
+		expect(upload?.['working-directory']).toBe('documentation');
+		expect(upload?.run).toContain('bun ../cli/twiki.ts deploy');
 		expect(deploy.steps.filter((step) => step.env?.CLOUDFLARE_API_TOKEN)).toHaveLength(1);
 		expect(deploy.steps.some((step) => step.run?.includes('build --target'))).toBe(false);
 		const download = deploy.steps.find((step) => step.uses?.startsWith('actions/download-artifact@'));

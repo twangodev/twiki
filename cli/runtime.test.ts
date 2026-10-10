@@ -315,6 +315,8 @@ test("preview derives a matching local origin and preserves explicit origin over
     "4173",
     "--ip",
     "127.0.0.1",
+    "--local-upstream",
+    "127.0.0.1:4173",
     "--var",
     "ORIGIN:http://127.0.0.1:4173",
   ]);
@@ -332,6 +334,7 @@ test("preview derives a matching local origin and preserves explicit origin over
   expect(invocation("preview", project, ["--ip=0.0.0.0"])).toContain(
     "ORIGIN:http://127.0.0.1:4173",
   );
+  expect(invocation("preview", project, ["--local-upstream", "custom.example"]).filter(value => value === "--local-upstream")).toHaveLength(1);
   for (const override of [
     ["--var", "OTHER:yes", "ORIGIN:https://custom.example"],
     ["--var=ORIGIN:https://custom.example"],

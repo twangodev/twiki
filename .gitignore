@@ -156,3 +156,6 @@ vite.config.ts.timestamp-*
 .dev.vars.*
 !.dev.vars.example
 !.env.example
+
+# Generated release history for the documentation build
+documentation/notes/reference/releases.md

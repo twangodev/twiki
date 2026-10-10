@@ -1,4 +1,4 @@
-# Demo deployment
+# Documentation deployment
 
 The `ci.yml` workflow tests the CLI and engine and builds both targets. On a push
 to `main` (or a manual run on `main`), a separate `deploy` job publishes the
@@ -18,4 +18,4 @@ The `production` environment allows only `main`. Cloudflare credentials are
 available only to the upload step, not to tests, builds or pull requests. The
 custom domain must already be provisioned; `twiki deploy` checks routing and
 refuses to silently change it. No database or OAuth application is required for
-this public demo. Its source vault and configuration are in `examples/vault`.
+this public documentation. Its source vault and configuration are in `documentation`.

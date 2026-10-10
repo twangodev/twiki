@@ -19,4 +19,4 @@ bunx twiki build --target cloudflare
 bunx twiki build --target static
 ```
 
-[Documentation](docs/usage.md)
+[Documentation](https://twiki.twango.dev)

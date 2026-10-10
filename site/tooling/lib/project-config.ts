@@ -4,24 +4,13 @@ import path from 'node:path';
 import { browsablePath } from './file-policy';
 import { writeChanged } from './output';
 
-export interface SiteMetadata {
-	name: string;
-	title: string;
-	url: string;
-	description: string;
-	author: { name: string; url: string; github: string; email: string };
-	locale: string;
-	language: string;
-}
-export interface ProjectConfig {
-	version: 1;
-	contentDir?: string;
-	discovery?: 'filesystem' | 'git';
-	publication?: 'private' | 'public' | 'policies';
-	site?: Partial<Omit<SiteMetadata, 'author'>> & { author?: Partial<SiteMetadata['author']> };
-	cloudflare?: Record<string, unknown>;
-	analytics?: { siteId: string; scriptUrl?: string; endpoint?: string };
-}
+import {
+	projectSchema,
+	siteDefaults as defaults,
+	type ProjectConfig,
+	type SiteMetadata
+} from './project-schema';
+export type { ProjectConfig, SiteMetadata } from './project-schema';
 export interface ResolvedProject {
 	root: string;
 	contentDir: string;
@@ -32,69 +21,16 @@ export interface ResolvedProject {
 	cloudflare?: Record<string, unknown>;
 	analytics?: ProjectConfig['analytics'];
 }
-const defaults: SiteMetadata = {
-	name: 'twiki',
-	title: 'twiki',
-	url: 'http://localhost:5173',
-	description: 'Notes, ideas, and reference material.',
-	author: { name: '', url: '', github: '', email: '' },
-	locale: 'en_US',
-	language: 'en'
-};
-const isObject = (value: unknown): value is Record<string, unknown> =>
-	!!value && typeof value === 'object' && !Array.isArray(value);
 export function parseProjectConfig(value: unknown): ProjectConfig {
-	if (!isObject(value) || value.version !== 1)
-		throw new Error('Twiki config must be a JSON object with version: 1');
-	if (value.contentDir !== undefined && (typeof value.contentDir !== 'string' || !value.contentDir))
-		throw new Error('contentDir must be a nonempty path');
-	if (
-		value.discovery !== undefined &&
-		(typeof value.discovery !== 'string' || !['filesystem', 'git'].includes(value.discovery))
-	)
-		throw new Error('discovery must be filesystem or git');
-	if (
-		value.publication !== undefined &&
-		(typeof value.publication !== 'string' ||
-			!['private', 'public', 'policies'].includes(value.publication))
-	)
-		throw new Error('publication must be private, public or policies');
-	if (value.site !== undefined) {
-		if (!isObject(value.site)) throw new Error('site must be an object');
-		for (const [name, field] of Object.entries(value.site)) {
-			if (name === 'author') {
-				if (
-					!isObject(field) ||
-					Object.entries(field).some(
-						([key, text]) =>
-							!['name', 'url', 'github', 'email'].includes(key) || typeof text !== 'string'
-					)
-				)
-					throw new Error('site.author must contain text fields');
-			} else if (
-				!['name', 'title', 'url', 'description', 'locale', 'language'].includes(name) ||
-				typeof field !== 'string'
-			)
-				throw new Error(`Unknown or invalid site field: ${name}`);
-		}
-		if (
-			value.site.url !== undefined &&
-			!['https:', 'http:'].includes(new URL(String(value.site.url)).protocol)
-		)
-			throw new Error('site.url must use HTTP or HTTPS');
-	}
-	if (value.cloudflare !== undefined && !isObject(value.cloudflare))
-		throw new Error('cloudflare must be an object');
-	if (
-		value.analytics !== undefined &&
-		(!isObject(value.analytics) ||
-			typeof value.analytics.siteId !== 'string' ||
-			[value.analytics.scriptUrl, value.analytics.endpoint].some(
-				(x) => x !== undefined && typeof x !== 'string'
-			))
-	)
-		throw new Error('analytics must contain a siteId and optional scriptUrl/endpoint');
-	return value as unknown as ProjectConfig;
+	const result = projectSchema.safeParse(value);
+	if (!result.success)
+		throw new Error(
+			'Invalid Twiki config: ' +
+				result.error.issues
+					.map((issue) => `${issue.path.join('.') || 'config'}: ${issue.message}`)
+					.join('; ')
+		);
+	return result.data;
 }
 /** All writable engine state belongs to siteDir; project/content roots are read-only inputs. */
 export function resolveProject(
@@ -135,7 +71,12 @@ export function resolveProject(
 		configFile,
 		discovery: config.discovery ?? (explicit ? 'filesystem' : 'git'),
 		publication: config.publication ?? (explicit ? 'private' : 'policies'),
-		site: { ...defaults, ...config.site, author: { ...defaults.author, ...config.site?.author } },
+		site: {
+			...defaults,
+			...config.site,
+			author: { ...defaults.author, ...config.site?.author },
+			navigation: { ...defaults.navigation, ...config.site?.navigation }
+		},
 		cloudflare: config.cloudflare,
 		analytics: config.analytics
 	};

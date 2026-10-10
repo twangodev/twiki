@@ -22,19 +22,20 @@ jobs:
       - run: bunx playwright install --with-deps chromium
       - run: bun run test
       - run: bun run check
+      - run: bun run docs:check
       - run: bun run test
         working-directory: site
         env:
           GIT_CONFIG_COUNT: 1
           GIT_CONFIG_KEY_0: commit.gpgsign
           GIT_CONFIG_VALUE_0: "false"
-      - run: bun ../../cli/twiki.ts build --target cloudflare
-        working-directory: examples/vault
-      - run: bun ../../cli/twiki.ts exec -- run check:types
-        working-directory: examples/vault
+      - run: bun ../cli/twiki.ts build --target cloudflare
+        working-directory: documentation
+      - run: bun ../cli/twiki.ts exec -- run check:types
+        working-directory: documentation
       - name: Preserve the validated Cloudflare build
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        run: tar -cf "$RUNNER_TEMP/twiki-cloudflare.tar" -C examples/vault/.twiki/site build/.svelte-kit
+        run: tar -cf "$RUNNER_TEMP/twiki-cloudflare.tar" -C documentation/.twiki/site build/.svelte-kit
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         with:
@@ -42,8 +43,8 @@ jobs:
           path: ${{ runner.temp }}/twiki-cloudflare.tar
           if-no-files-found: error
           retention-days: 3
-      - run: bun ../../cli/twiki.ts build --target static
-        working-directory: examples/vault
+      - run: bun ../cli/twiki.ts build --target static
+        working-directory: documentation
 
   deploy:
     needs: test
@@ -68,31 +69,31 @@ jobs:
         with:
           bun-version: "1.4.2"
       - run: bun install --frozen-lockfile
-      - name: Prepare the demo runtime
-        working-directory: examples/vault
-        run: bun ../../cli/twiki.ts prepare
+      - name: Prepare the documentation runtime
+        working-directory: documentation
+        run: bun ../cli/twiki.ts prepare
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: twiki-cloudflare
           path: ${{ runner.temp }}/twiki-cloudflare
           digest-mismatch: error
       - name: Restore the validated Cloudflare build
-        run: tar -xf "$RUNNER_TEMP/twiki-cloudflare/twiki-cloudflare.tar" -C examples/vault/.twiki/site
+        run: tar -xf "$RUNNER_TEMP/twiki-cloudflare/twiki-cloudflare.tar" -C documentation/.twiki/site
       - name: Deploy the validated build
-        working-directory: examples/vault
+        working-directory: documentation
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
-          bun ../../cli/twiki.ts deploy
+          bun ../cli/twiki.ts deploy
       - name: Verify the live content version
-        working-directory: examples/vault
+        working-directory: documentation
         env:
           DEPLOYMENT_ORIGIN: https://twiki.twango.dev
           DEPLOYMENT_EXPECTED_TEXT: Publish Obsidian notes to Cloudflare or a static site.
-        run: bun ../../cli/twiki.ts exec -- tooling/verify-deployment.ts
+        run: bun ../cli/twiki.ts exec -- tooling/verify-deployment.ts
 
   release-please:
     if: github.repository == 'twangodev/twiki' && github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -170,6 +171,7 @@ jobs:
         run: |
           bun run test
           bun run check
+          bun run docs:check
       - name: Validate the engine
         working-directory: site
         env:

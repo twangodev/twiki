@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "contentDir": "notes",
+  "discovery": "filesystem",
+  "publication": "public",
+  "site": {
+    "name": "twiki",
+    "title": "twiki documentation",
+    "url": "https://twiki.twango.dev",
+    "description": "Publish Obsidian notes to Cloudflare or a static site.",
+    "navigation": {
+      "mode": "sections",
+      "workspace": "Documentation",
+      "browse": "Browse documentation",
+      "find": "Find a section",
+      "home": "Documentation home",
+      "all": "All sections"
+    }
+  },
+  "cloudflare": {
+    "name": "twiki",
+    "account_id": "d7587e105d99951df1201b4601b41671",
+    "workers_dev": false,
+    "preview_urls": false,
+    "routes": [
+      {
+        "pattern": "twiki.twango.dev",
+        "custom_domain": true
+      }
+    ]
+  }
+}

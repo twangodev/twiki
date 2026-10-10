@@ -6,19 +6,7 @@
   "site": {
     "name": "twiki",
     "title": "twiki",
-    "url": "https://twiki.twango.dev",
+    "url": "https://notes.example.test",
     "description": "Publish Obsidian notes to Cloudflare or a static site."
-  },
-  "cloudflare": {
-    "name": "twiki",
-    "account_id": "d7587e105d99951df1201b4601b41671",
-    "workers_dev": false,
-    "preview_urls": false,
-    "routes": [
-      {
-        "pattern": "twiki.twango.dev",
-        "custom_domain": true
-      }
-    ]
   }
 }
