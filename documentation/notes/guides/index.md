@@ -5,6 +5,7 @@ title: Guides
 # Guides
 
 - [[guides/authoring|Write connected notes]]
+- [[guides/course-navigation|Group courses and sections]]
 - [[guides/static-hosting|Export a static site]]
 - [[guides/cloudflare|Deploy to Cloudflare]]
 - [[guides/ci|Automate deployment]]
