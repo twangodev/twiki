@@ -75,7 +75,11 @@ export function resolveProject(
 			...defaults,
 			...config.site,
 			author: { ...defaults.author, ...config.site?.author },
-			navigation: { ...defaults.navigation, ...config.site?.navigation }
+			navigation: {
+				...defaults.navigation,
+				...config.site?.navigation,
+				grouping: { ...defaults.navigation.grouping, ...config.site?.navigation?.grouping }
+			}
 		},
 		cloudflare: config.cloudflare,
 		analytics: config.analytics

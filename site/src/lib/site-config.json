@@ -13,6 +13,11 @@
   "language": "en",
   "navigation": {
     "mode": "courses",
+    "grouping": {
+      "mode": "semester",
+      "groups": [],
+      "fallback": "Other"
+    },
     "workspace": "Workspace",
     "browse": "Browse courses",
     "find": "Find a course",

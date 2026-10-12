@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { tick, untrack } from 'svelte';
+	import { afterNavigate } from '$app/navigation';
+	import { tick, onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import BookOpen from '@lucide/svelte/icons/book-open';
@@ -11,6 +12,7 @@
 	import { siGithub } from 'simple-icons';
 	const publicEdition = $derived(page.data.edition === 'public');
 	import type { NavNode } from '$lib/types';
+	import { courseGroup, courseLabel, groupCourses, isCourse } from '$lib/course-navigation';
 	import { isNotebookRoute } from '$lib/notebook-nav';
 	import { authEnabled, site } from '$lib/config';
 	import { ThemeToggle } from '$lib/components/ui';
@@ -27,10 +29,15 @@
 	const uid = $props.id();
 	const path = $derived(decodeURI(page.url.pathname));
 	const course = $derived(
-		nav.find((node) => node.children.length && path.split('/')[1] === node.segment)
+		nav.find((node) => isCourse(node, site.navigation) && path.split('/')[1] === node.segment)
 	);
 	const courseNodes = $derived(
-		(course?.children ?? [])
+		(course?.children.length
+			? course.children
+			: course
+				? [{ ...course, segment: 'index', children: [] }]
+				: []
+		)
 			.map((node) => ({
 				...node,
 				title: ['README', 'index'].includes(node.segment)
@@ -51,33 +58,19 @@
 			)
 	);
 	let choosing = $state(false);
-	let explorer = $state<'notes' | 'files'>(
-		untrack(() =>
-			page.data.kind === 'file-browser' && !isNotebookRoute(nav, path) ? 'files' : 'notes'
-		)
+	let explorer = $derived<'notes' | 'files'>(
+		page.data.kind === 'file-browser' && !isNotebookRoute(nav, path) ? 'files' : 'notes'
 	);
-	$effect(() => {
-		explorer = page.data.kind === 'file-browser' && !isNotebookRoute(nav, path) ? 'files' : 'notes';
-	});
 	let query = $state('');
-	let search = $state<HTMLInputElement>();
-	let switcher: HTMLButtonElement;
-	let viewport = $state<HTMLElement>();
+	let search: HTMLInputElement | undefined;
+	let switcher: HTMLButtonElement | undefined;
+	let viewport: HTMLElement | undefined;
 	let expanded = $state<Record<string, boolean>>({});
-	function semester(node: NavNode) {
-		const match = /^(sp|su|fa|wi)(\d{2})-/.exec(node.segment);
-		return match
-			? `${{ sp: 'Spring', su: 'Summer', fa: 'Fall', wi: 'Winter' }[match[1]]} 20${match[2]}`
-			: site.navigation.mode === 'sections'
-				? 'Documentation'
-				: 'Other';
+	function caption(node: NavNode) {
+		return courseGroup(node, site.navigation).label || site.navigation.workspace;
 	}
 	function label(node: NavNode) {
-		if (site.navigation.mode === 'sections') return node.title;
-		return node.segment
-			.replace(/^(sp|su|fa|wi)\d{2}-/, '')
-			.replace(/([a-z])(\d)/, '$1 $2')
-			.toUpperCase();
+		return courseLabel(node, site.navigation);
 	}
 	function landing(node: NavNode) {
 		return (
@@ -86,29 +79,7 @@
 			'/'
 		);
 	}
-	function semesterOrder(node: NavNode) {
-		const match = /^(sp|su|fa|wi)(\d{2})-/.exec(node.segment);
-		return match ? Number(match[2]) * 10 + ['wi', 'sp', 'su', 'fa'].indexOf(match[1]) : -1;
-	}
-	const groups = $derived.by(() => {
-		const result = new Map<string, NavNode[]>();
-		for (const node of [...nav].sort(
-			(a, b) =>
-				semesterOrder(b) - semesterOrder(a) ||
-				label(a).localeCompare(label(b), undefined, { numeric: true })
-		)) {
-			if (
-				!node.children.length ||
-				!`${label(node)} ${semester(node)} ${node.title}`
-					.toLowerCase()
-					.includes(query.toLowerCase().trim())
-			)
-				continue;
-			const group = semester(node);
-			result.set(group, [...(result.get(group) ?? []), node]);
-		}
-		return [...result];
-	});
+	const groups = $derived(groupCourses(nav, site.navigation, query));
 	async function toggleCourses() {
 		choosing = !choosing;
 		query = '';
@@ -117,29 +88,11 @@
 			search?.focus();
 		}
 	}
-	$effect(() => {
-		const current = path;
-		untrack(() => {
-			choosing = false;
-			query = '';
-			const next = { ...expanded };
-			function reveal(nodes: NavNode[]): boolean {
-				let found = false;
-				for (const node of nodes) {
-					const childActive = reveal(node.children);
-					if (childActive && node.route) next[node.route] = true;
-					if (childActive || node.route === current) found = true;
-				}
-				return found;
-			}
-			reveal(nav);
-			expanded = next;
-		});
-	});
-	$effect(() => {
-		path;
+	let scrollTimer: ReturnType<typeof setTimeout> | undefined;
+	function revealActiveLink() {
+		clearTimeout(scrollTimer);
 		if (!viewport || explorer !== 'notes') return;
-		const timer = setTimeout(() => {
+		scrollTimer = setTimeout(() => {
 			const link = viewport?.querySelector<HTMLElement>('[aria-current="page"]');
 			if (!link || !viewport || !link.getClientRects().length) return;
 			const bounds = viewport.getBoundingClientRect(),
@@ -151,8 +104,25 @@
 					behavior: prefersReducedMotion.current ? 'instant' : 'smooth'
 				});
 		}, 200);
-		return () => clearTimeout(timer);
+	}
+	afterNavigate(() => {
+		choosing = false;
+		query = '';
+		const next = { ...expanded };
+		function reveal(nodes: NavNode[]): boolean {
+			let found = false;
+			for (const node of nodes) {
+				const childActive = reveal(node.children);
+				if (childActive && node.route) next[node.route] = true;
+				if (childActive || node.route === path) found = true;
+			}
+			return found;
+		}
+		reveal(nav);
+		expanded = next;
+		revealActiveLink();
 	});
+	onDestroy(() => clearTimeout(scrollTimer));
 </script>
 
 <div class="doc-sidebar-content flex h-full min-h-0 flex-col gap-3">
@@ -162,13 +132,15 @@
 	<SearchButton />
 	<button
 		class="course-switcher"
-		bind:this={switcher}
+		{@attach (element) => {
+			switcher = element as HTMLButtonElement;
+		}}
 		aria-expanded={choosing || !course}
 		aria-controls={`${uid}-courses`}
 		onclick={toggleCourses}
 	>
 		<span
-			><small>{course ? semester(course) : site.navigation.workspace}</small><strong
+			><small>{course ? caption(course) : site.navigation.workspace}</small><strong
 				>{course ? label(course) : site.navigation.browse}</strong
 			></span
 		>
@@ -180,12 +152,15 @@
 			role="group"
 			aria-label="Explorer view"
 		>
-			{#each ['notes', 'files'] as view}
+			{#each ['notes', 'files'] as view (view)}
 				<button
 					class="flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.6875rem] leading-4 text-muted aria-pressed:bg-bg aria-pressed:text-text"
 					aria-pressed={explorer === view}
 					aria-controls={`${uid}-courses`}
-					onclick={() => (explorer = view as 'notes' | 'files')}
+					onclick={() => {
+						explorer = view as 'notes' | 'files';
+						revealActiveLink();
+					}}
 				>
 					{#if view === 'notes'}<BookOpen size={12} />Notes{:else}<FolderCode size={12} />Files{/if}
 				</button>
@@ -196,12 +171,16 @@
 		id={`${uid}-courses`}
 		class="course-navigation min-h-0 flex-1 overflow-y-auto"
 		aria-label="Documentation"
-		bind:this={viewport}
+		{@attach (element) => {
+			viewport = element;
+		}}
 	>
 		{#if choosing || !course}
 			<div>
 				<input
-					bind:this={search}
+					{@attach (element) => {
+						search = element as HTMLInputElement;
+					}}
 					bind:value={query}
 					aria-label={site.navigation.find}
 					placeholder={`${site.navigation.find}…`}
@@ -209,13 +188,13 @@
 						if (event.key === 'Escape') {
 							choosing = false;
 							query = '';
-							switcher.focus();
+							switcher?.focus();
 						}
 					}}
 				/>
-				{#each groups as [name, courses]}
-					<p class="group-label">{name}</p>
-					{#each courses as item}
+				{#each groups as [name, courses] (name)}
+					{#if name}<p class="group-label">{name}</p>{/if}
+					{#each courses as item (item.segment)}
 						<a
 							class="course-option"
 							href={landing(item)}
@@ -227,7 +206,7 @@
 				{#if !groups.length}<p class="empty">No matches for “{query}”.</p>{/if}
 				<div class="workspace-links">
 					<a class="course-option" href="/">{site.navigation.home}</a>
-					{#each nav.filter((node) => !node.children.length && node.route) as node}<a
+					{#each nav.filter((node) => !isCourse(node, site.navigation) && node.route) as node (node.segment)}<a
 							class="course-option"
 							href={node.route}>{node.title}</a
 						>{/each}

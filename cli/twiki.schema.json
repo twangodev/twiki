@@ -102,6 +102,66 @@
                 "sections"
               ]
             },
+            "grouping": {
+              "default": {
+                "mode": "semester",
+                "groups": [],
+                "fallback": "Other"
+              },
+              "description": "Course grouping independent of folder organization.",
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "default": "semester",
+                  "description": "Semester grouping, ordered custom groups, or a flat course list.",
+                  "type": "string",
+                  "enum": [
+                    "semester",
+                    "patterns",
+                    "none"
+                  ]
+                },
+                "groups": {
+                  "default": [],
+                  "description": "Custom groups in display order. The first matching group wins.",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Heading shown above matching courses."
+                      },
+                      "courses": {
+                        "description": "Exact top-level course folder names.",
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "match": {
+                        "description": "Regular expression matched against course folder names.",
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "label"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "fallback": {
+                  "default": "Other",
+                  "description": "Heading for courses that do not match a group.",
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
+            },
             "workspace": {
               "default": "Workspace",
               "description": "Navigation switcher caption.",

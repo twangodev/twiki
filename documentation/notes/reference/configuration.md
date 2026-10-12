@@ -31,6 +31,10 @@ For editor completion, add `"$schema": "./node_modules/@twango/twiki/cli/twiki.s
 | `site.language` | string | No | `"en"` | HTML language. |
 | `site.navigation` | object | No | — |  |
 | `site.navigation.mode` | `courses`, `sections` | No | `"courses"` | Course navigation or general documentation sections. |
+| `site.navigation.grouping` | object | No | `{"mode":"semester","groups":[],"fallback":"Other"}` | Course grouping independent of folder organization. |
+| `site.navigation.grouping.mode` | `semester`, `patterns`, `none` | No | `"semester"` | Semester grouping, ordered custom groups, or a flat course list. |
+| `site.navigation.grouping.groups` | array | No | `[]` | Custom groups in display order. The first matching group wins. |
+| `site.navigation.grouping.fallback` | string | No | `"Other"` | Heading for courses that do not match a group. |
 | `site.navigation.workspace` | string | No | `"Workspace"` | Navigation switcher caption. |
 | `site.navigation.browse` | string | No | `"Browse courses"` | Navigation switcher label. |
 | `site.navigation.find` | string | No | `"Find a course"` | Section search label. |

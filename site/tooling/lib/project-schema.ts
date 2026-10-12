@@ -1,10 +1,53 @@
 import { z } from 'zod';
 
+const courseGroupSchema = z
+	.strictObject({
+		label: z.string().trim().min(1).describe('Heading shown above matching courses.'),
+		courses: z.array(z.string().min(1)).optional().describe('Exact top-level course folder names.'),
+		match: z
+			.string()
+			.min(1)
+			.refine((pattern) => {
+				try {
+					new RegExp(pattern);
+					return true;
+				} catch {
+					return false;
+				}
+			}, 'Must be a valid regular expression')
+			.optional()
+			.describe('Regular expression matched against course folder names.')
+	})
+	.refine(
+		(group) => !!group.courses?.length || !!group.match,
+		'A group needs courses or a match pattern'
+	);
+
+const groupingSchema = z.strictObject({
+	mode: z
+		.enum(['semester', 'patterns', 'none'])
+		.default('semester')
+		.describe('Semester grouping, ordered custom groups, or a flat course list.'),
+	groups: z
+		.array(courseGroupSchema)
+		.default([])
+		.describe('Custom groups in display order. The first matching group wins.'),
+	fallback: z
+		.string()
+		.trim()
+		.min(1)
+		.default('Other')
+		.describe('Heading for courses that do not match a group.')
+});
+
 export const navigationSchema = z.strictObject({
 	mode: z
 		.enum(['courses', 'sections'])
 		.default('courses')
 		.describe('Course navigation or general documentation sections.'),
+	grouping: groupingSchema
+		.default(groupingSchema.parse({}))
+		.describe('Course grouping independent of folder organization.'),
 	workspace: z.string().default('Workspace').describe('Navigation switcher caption.'),
 	browse: z.string().default('Browse courses').describe('Navigation switcher label.'),
 	find: z.string().default('Find a course').describe('Section search label.'),
@@ -88,5 +131,6 @@ export const projectSchema = z
 	.passthrough();
 export type ProjectConfig = z.infer<typeof projectSchema>;
 export type SiteMetadata = z.infer<typeof siteSchema>;
+export type NavigationSettings = z.infer<typeof navigationSchema>;
 export const projectJSONSchema = () =>
 	z.toJSONSchema(projectSchema, { io: 'input', target: 'draft-07' });
