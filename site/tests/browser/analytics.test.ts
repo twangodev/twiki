@@ -1,19 +1,36 @@
 import { afterAll, beforeAll, expect, test } from 'bun:test';
-import { chromium, expect as browserExpect, type Browser } from '@playwright/test';
-import { proxyAnalytics } from '../worker/analytics';
+import { expect as browserExpect, type Browser } from '@playwright/test';
+import { proxyAnalytics } from '../../worker/analytics';
+import { launchBrowser } from '../../tooling/lib/browser';
 
 let browser: Browser;
 let script: string;
+const analyticsOptions = { siteId: '1', endpoint: 'https://analytics.example.test/api' };
 
 beforeAll(async () => {
 	const bundle = await Bun.build({
 		entrypoints: ['./src/lib/analytics.ts'],
 		target: 'browser',
-		external: ['rrweb']
+		external: ['rrweb'],
+		plugins: [
+			{
+				name: 'test-configuration',
+				setup(build) {
+					build.onLoad({ filter: /\/analytics-config\.json$/ }, () => ({
+						contents: JSON.stringify({ siteId: analyticsOptions.siteId }),
+						loader: 'json'
+					}));
+					build.onLoad({ filter: /\/auth-config\.json$/ }, () => ({
+						contents: JSON.stringify({ enabled: true }),
+						loader: 'json'
+					}));
+				}
+			}
+		]
 	});
 	expect(bundle.success).toBe(true);
 	script = await bundle.outputs[0].text();
-	browser = await chromium.launch();
+	browser = await launchBrowser();
 });
 
 afterAll(async () => {
@@ -65,7 +82,8 @@ test.each([
 				return Response.json({ githubUsername: username }, { status: status || 503 });
 			if (path === '/analytics.js')
 				return new Response(script, { headers: { 'Content-Type': 'text/javascript' } });
-			if (path.startsWith('/api/analytics/')) return proxyAnalytics(request, relayFetch);
+			if (path.startsWith('/api/analytics/'))
+				return proxyAnalytics(request, relayFetch, analyticsOptions);
 			return new Response(
 				`<script type="module">
 				import { initializeAnalytics } from '/analytics.js';

@@ -29,8 +29,6 @@ jobs:
           GIT_CONFIG_COUNT: 1
           GIT_CONFIG_KEY_0: commit.gpgsign
           GIT_CONFIG_VALUE_0: "false"
-      - run: bun test ./tests/browser-diagrams.test.ts
-        working-directory: site
       - run: bun ../cli/twiki.ts build --target cloudflare
         working-directory: documentation
       - run: bun ../cli/twiki.ts exec -- run check:types
@@ -180,9 +178,7 @@ jobs:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: commit.gpgsign
           GIT_CONFIG_VALUE_0: "false"
-        run: |
-          bun run test
-          bun test ./tests/browser-diagrams.test.ts
+        run: bun run test
       - name: Build and type-check the example
         working-directory: examples/vault
         run: |

@@ -13,7 +13,8 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { visit } from 'unist-util-visit';
 import katex, { type KatexOptions } from 'katex';
-import { chromium, type Browser, type Page } from '@playwright/test';
+import { type Browser, type Page } from '@playwright/test';
+import { launchBrowser } from './lib/browser';
 
 export interface Expression {
 	kind: 'math' | 'mermaid';
@@ -66,63 +67,29 @@ export function checkMath(
 
 export async function mermaidPage(browser: Browser): Promise<Page> {
 	const page = await browser.newPage();
-	try {
-		// Notes need no network access to render. Keep any diagram links local/inert.
-		await page.route('**/*', (route) => route.abort());
-		await page.setContent('<!doctype html><html><body></body></html>');
-		const hasFonts = await page.evaluate(() => {
-			const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-			const text = document.createElementNS(svg.namespaceURI, 'text') as SVGTextElement;
-			text.textContent = 'Twiki';
-			text.style.fontFamily = 'sans-serif';
-			svg.appendChild(text);
-			document.body.appendChild(svg);
-			const box = text.getBBox();
-			svg.remove();
-			return box.width > 0 && box.height > 0;
-		});
-		if (!hasFonts) throw new BrowserFontError();
-		const entry = import.meta.resolve('mermaid');
-		await page.addScriptTag({
-			path: path.join(path.dirname(fileURLToPath(entry)), 'mermaid.min.js')
-		});
-		return page;
-	} catch (error) {
-		await page.close();
-		throw error;
-	}
-}
-
-class BrowserFontError extends Error {
-	constructor() {
-		super(
+	// Notes need no network access to render. Keep any diagram links local/inert.
+	await page.route('**/*', (route) => route.abort());
+	await page.setContent('<!doctype html><html><body></body></html>');
+	const hasFonts = await page.evaluate(() => {
+		const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+		const text = document.createElementNS(svg.namespaceURI, 'text') as SVGTextElement;
+		text.textContent = 'Twiki';
+		text.style.fontFamily = 'sans-serif';
+		svg.appendChild(text);
+		document.body.appendChild(svg);
+		const box = text.getBBox();
+		svg.remove();
+		return box.width > 0 && box.height > 0;
+	});
+	if (!hasFonts)
+		throw new Error(
 			'Chromium cannot measure SVG text. Install system fonts and Playwright browser dependencies before validating diagrams.'
 		);
-	}
-}
-
-/** Preserve working font overrides; recover from stale IDE Fontconfig settings. */
-export async function mermaidBrowser(environment: NodeJS.ProcessEnv = process.env) {
-	const env = Object.fromEntries(
-		Object.entries(environment).filter((entry): entry is [string, string] => entry[1] !== undefined)
-	);
-	const open = async (browserEnv: Record<string, string>) => {
-		const browser = await chromium.launch({ env: browserEnv });
-		try {
-			return { browser, page: await mermaidPage(browser) };
-		} catch (error) {
-			await browser.close();
-			throw error;
-		}
-	};
-	try {
-		return { ...(await open(env)), usedSystemFontConfig: false };
-	} catch (error) {
-		const overrides = ['FONTCONFIG_FILE', 'FONTCONFIG_PATH', 'FONTCONFIG_SYSROOT'];
-		if (!(error instanceof BrowserFontError) || !overrides.some((key) => key in env)) throw error;
-		for (const key of overrides) delete env[key];
-		return { ...(await open(env)), usedSystemFontConfig: true };
-	}
+	const entry = import.meta.resolve('mermaid');
+	await page.addScriptTag({
+		path: path.join(path.dirname(fileURLToPath(entry)), 'mermaid.min.js')
+	});
+	return page;
 }
 
 export async function checkMermaid(page: Page, source: string): Promise<void> {
@@ -158,12 +125,8 @@ async function main() {
 			for (const expression of expressions(readFileSync(file, 'utf8'))) {
 				if (expression.kind === 'mermaid' && !browser) {
 					// Browser setup failures are infrastructure errors, not errors in every note.
-					const started = await mermaidBrowser();
-					({ browser, page } = started);
-					if (started.usedSystemFontConfig)
-						console.warn(
-							'Chromium could not use inherited Fontconfig settings; using system fonts for diagram validation.'
-						);
+					browser = await launchBrowser();
+					page = await mermaidPage(browser);
 				}
 				try {
 					if (expression.kind === 'math') {
