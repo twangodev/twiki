@@ -86,6 +86,12 @@
 .prose :where(h1, h2, h3, h4, h5, h6) {
 	position: relative;
 }
+@media screen {
+	.prose :where(h1, h2, h3, h4, h5, h6) {
+		/* Reserve room for the permalink when the last line fills the article. */
+		padding-inline-end: 1.5em;
+	}
+}
 .prose :where(h1, h2, h3, h4, h5, h6):hover > .heading-anchor,
 .prose .heading-anchor:focus-visible {
 	opacity: 1;
@@ -416,7 +422,21 @@
 .prose .katex-display {
 	overflow-x: auto;
 	overflow-y: hidden;
-	padding: 0.25rem 0;
+	padding: 0.5em 0;
+}
+
+@media screen {
+	.prose .katex-display > .katex {
+		/* Center short expressions; keep both ends of wide expressions scrollable. */
+		width: max-content;
+		min-width: 100%;
+	}
+
+	.prose table {
+		display: block;
+		max-width: 100%;
+		overflow-x: auto;
+	}
 }
 
 .prose input[type='checkbox'] {
