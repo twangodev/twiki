@@ -60,7 +60,7 @@ test('engine CI keeps credentials out of tests and deploys only its demo after v
 		const download = deploy.steps.find((step) => step.uses?.startsWith('actions/download-artifact@'));
 		expect(download?.with?.name).toBe('twiki-cloudflare');
 		expect(download?.with?.['digest-mismatch']).toBe('error');
-		expect(deploy.steps.at(-1)?.run).toContain('tooling/verify-deployment.ts');
+		expect(deploy.steps.at(-1)).toBe(upload);
 	}
 });
 

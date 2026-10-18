@@ -6,8 +6,7 @@ validated Cloudflare build to https://twiki.twango.dev. Pull requests never depl
 
 The Cloudflare build is archived before static export, transferred as a verified
 Actions artifact, and deployed without rebuilding. Production deployments run
-one at a time. The final step checks the live application and content versions
-against the uploaded build descriptor.
+one at a time. The deployment job finishes after uploading the validated build.
 
 Configure these GitHub Actions values:
 

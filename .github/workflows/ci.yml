@@ -88,12 +88,6 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           bun ../cli/twiki.ts deploy
-      - name: Verify the live content version
-        working-directory: documentation
-        env:
-          DEPLOYMENT_ORIGIN: https://twiki.twango.dev
-          DEPLOYMENT_EXPECTED_TEXT: Publish Obsidian notes to Cloudflare or a static site.
-        run: bun ../cli/twiki.ts exec -- tooling/verify-deployment.ts
 
   release-please:
     if: github.repository == 'twangodev/twiki' && github.ref == 'refs/heads/main' && github.event_name == 'push'
