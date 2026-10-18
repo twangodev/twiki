@@ -149,7 +149,7 @@ export function validateDeploymentConfig(value: unknown): DeploymentConfig {
 	if (
 		typeof value.workers_dev !== 'boolean' ||
 		value.preview_urls !== false ||
-		(value.workers_dev && value.vars.TWIKI_AUTH_MODE !== 'none')
+		(value.workers_dev && value.vars.AUTH_MODE !== 'none')
 	)
 		deploymentError('public development endpoints must be disabled');
 	if (!Array.isArray(value.routes) || (!value.routes.length && !value.workers_dev))

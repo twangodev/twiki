@@ -10,11 +10,11 @@ export interface AuthEnv {
 	DB: D1Database;
 	ORIGIN: string;
 	DISABLE_ANALYTICS?: string;
-	TWIKI_AUTH_MODE?: 'none' | 'github';
-	TWIKI_SITE_NAME?: string;
-	TWIKI_SITE_DESCRIPTION?: string;
-	TWIKI_ANALYTICS_SITE_ID?: string;
-	TWIKI_ANALYTICS_ENDPOINT?: string;
+	AUTH_MODE?: 'none' | 'github';
+	SITE_NAME?: string;
+	SITE_DESCRIPTION?: string;
+	ANALYTICS_SITE_ID?: string;
+	ANALYTICS_ENDPOINT?: string;
 	GITHUB_CLIENT_ID: string;
 	GITHUB_CLIENT_SECRET: string;
 	BETTER_AUTH_SECRET: string;
@@ -34,7 +34,7 @@ export function createAuth(env: AuthEnv) {
 		throw new Error('Authentication configuration is incomplete');
 	}
 	return betterAuth({
-		appName: env.TWIKI_SITE_NAME ?? 'twiki',
+		appName: env.SITE_NAME ?? 'twiki',
 		baseURL: env.ORIGIN,
 		secret: env.BETTER_AUTH_SECRET,
 		database: drizzleAdapter(database(env.DB), { provider: 'sqlite' }),

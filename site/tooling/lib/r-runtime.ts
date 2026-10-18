@@ -193,7 +193,7 @@ function renderProfile(runtime: string): RRenderProfile {
 
 export function readRRenderProfile(site: string, environment: NodeJS.ProcessEnv = process.env) {
 	const file = path.resolve(
-		environment.WISCONSIN_R_RENDER_PROFILE_FILE ?? path.join(site, 'tooling/r-render-profile.json')
+		environment.R_RENDER_PROFILE_FILE ?? path.join(site, 'tooling/r-render-profile.json')
 	);
 	if (!existsSync(file)) return;
 	if (!lstatSync(file).isFile() || realpathSync(file) !== file)
@@ -218,7 +218,7 @@ export function verifyRRenderProfile(
 	runtime: string,
 	environment: NodeJS.ProcessEnv = process.env
 ) {
-	if (environment.WISCONSIN_R_CACHE_ONLY !== '1' && environment.WISCONSIN_R_REQUIRE_PROFILE !== '1')
+	if (environment.R_CACHE_ONLY !== '1' && environment.R_REQUIRE_PROFILE !== '1')
 		return;
 	const expected = readRRenderProfile(site, environment);
 	if (!expected) throw new Error('A verified R render profile lock is required by this build');

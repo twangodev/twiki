@@ -57,7 +57,7 @@ test('restored stage caches reproduce cold public and full output and honor publ
 				cwd: site,
 				env: {
 					...process.env,
-					WISCONSIN_CONTENT_REPO: fixture.repo,
+					TWIKI_CONTENT_REPO: fixture.repo,
 					VITE_PUBLIC_EDITION: String(publicEdition)
 				},
 				encoding: 'utf8',

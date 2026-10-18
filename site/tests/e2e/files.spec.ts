@@ -7,7 +7,7 @@ import { publicationFilter } from '../../tooling/lib/publishing';
 const course = 'fa24-cs300';
 const files: CourseFile[] = JSON.parse(readFileSync(`static/_files/index/${course}.json`, 'utf8'));
 const java = files.find((file) => file.path.endsWith('/ElectionManager.java'))!;
-const isPublic = publicationFilter(path.resolve(process.env.WISCONSIN_CONTENT_REPO ?? '..'));
+const isPublic = publicationFilter(path.resolve(process.env.TWIKI_CONTENT_REPO ?? '..'));
 const publicPaths = files
 	.filter((file) => isPublic(`${course}/${file.path}`))
 	.map((file) => file.path)

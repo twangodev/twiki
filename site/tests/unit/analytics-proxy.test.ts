@@ -80,8 +80,8 @@ test('anonymous analytics configuration bypasses auth without exposing other rou
 			request('/site/tracking-config/4'),
 			{
 				ORIGIN: origin,
-				TWIKI_ANALYTICS_SITE_ID: analytics.siteId,
-				TWIKI_ANALYTICS_ENDPOINT: analytics.endpoint
+				ANALYTICS_SITE_ID: analytics.siteId,
+				ANALYTICS_ENDPOINT: analytics.endpoint
 			} as AuthEnv,
 			async () => {
 				throw new Error('Analytics must not reach private assets');

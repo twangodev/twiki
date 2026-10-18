@@ -31,12 +31,12 @@ export async function buildRmdPreviews(
 		(file) => !file.locked && file.download && /\.rmd$/i.test(file.path)
 	);
 	if (!worksheets.length) return;
-	const cacheOnly = process.env.WISCONSIN_R_CACHE_ONLY === '1';
+	const cacheOnly = process.env.R_CACHE_ONLY === '1';
 	let runtime: string;
 	try {
 		runtime = cacheOnly ? lockedRRuntime(site) : rRuntimeVersion();
 	} catch (error) {
-		if (cacheOnly || process.env.WISCONSIN_R_REQUIRE_PROFILE === '1')
+		if (cacheOnly || process.env.R_REQUIRE_PROFILE === '1')
 			throw new Error(
 				'Verified R previews are unavailable; install the locked R renderer before building',
 				{ cause: error }

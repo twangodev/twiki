@@ -6,7 +6,7 @@ import type { AuthEnv } from '../../worker/auth';
 const origin = 'https://vault.example.test';
 const env = {
 	ORIGIN: origin,
-	TWIKI_AUTH_MODE: 'none',
+	AUTH_MODE: 'none',
 	get DB() {
 		throw Error('Public-only hosting must not query D1');
 	}

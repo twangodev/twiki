@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs';
 import { applicationVersion } from './tooling/lib/app-version.js';
 import { emptyTagRoute } from './tooling/lib/empty-tag-route.js';
 
-const prerenderConcurrency = Number(process.env.WISCONSIN_PRERENDER_CONCURRENCY ?? 1);
+const prerenderConcurrency = Number(process.env.PRERENDER_CONCURRENCY ?? 1);
 if (!Number.isInteger(prerenderConcurrency) || prerenderConcurrency < 1)
-	throw new Error('WISCONSIN_PRERENDER_CONCURRENCY must be a positive integer');
+	throw new Error('PRERENDER_CONCURRENCY must be a positive integer');
 
 /** @param {string} filename @param {string} value */
 function expectedDiagnostic(filename, value) {
@@ -30,7 +30,7 @@ const config = {
 	kit: {
 		paths: { relative: process.env.VITE_STATIC_EXPORT === 'true' },
 		outDir: 'build/.svelte-kit',
-		files: { assets: process.env.WISCONSIN_APP_STATIC_DIR ?? staticDirectory(process.cwd()) },
+		files: { assets: process.env.TWIKI_APP_STATIC_DIR ?? staticDirectory(process.cwd()) },
 		adapter: adapter(),
 		// Content is served separately. Rebuilding it should not change the
 		// application version, hydration IDs, and every prerendered HTML asset.

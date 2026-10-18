@@ -125,9 +125,9 @@ async function withEnvironment<T>(environment: NodeJS.ProcessEnv, callback: () =
 	const names = [
 		'PATH',
 		'RSCRIPT',
-		'WISCONSIN_R_CACHE_ONLY',
-		'WISCONSIN_R_REQUIRE_PROFILE',
-		'WISCONSIN_R_RENDER_PROFILE_FILE'
+		'R_CACHE_ONLY',
+		'R_REQUIRE_PROFILE',
+		'R_RENDER_PROFILE_FILE'
 	];
 	const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
 	for (const name of names)
@@ -164,7 +164,7 @@ test('restored previews pass exact public/full preflight and build without any R
 			worksheets: 2,
 			reason: 'verified'
 		});
-		await withEnvironment({ ...environment, WISCONSIN_R_CACHE_ONLY: '1' }, async () => {
+		await withEnvironment({ ...environment, R_CACHE_ONLY: '1' }, async () => {
 			const retained: string[] = [];
 			await buildRmdPreviews(
 				restored,
@@ -212,7 +212,7 @@ test('corruption, dependency membership changes, unverified fonts and missing lo
 		const bytes = readFileSync(previewFile);
 		writeFileSync(previewFile, Buffer.alloc(bytes.length, 32));
 		expect((await preflightRmdPreviews(site, repo, environment)).requiresR).toBe(true);
-		await withEnvironment({ ...environment, WISCONSIN_R_CACHE_ONLY: '1' }, async () => {
+		await withEnvironment({ ...environment, R_CACHE_ONLY: '1' }, async () => {
 			await expect(buildRmdPreviews(site, 'test-course', files, output, () => {})).rejects.toThrow(
 				'missing or stale'
 			);
@@ -254,7 +254,7 @@ test('CI requires its pinned renderer while normal local R can use a different a
 		);
 		const runtime = rRuntimeVersion(environment, true);
 		expect(() =>
-			verifyRRenderProfile(site, runtime, { ...environment, WISCONSIN_R_REQUIRE_PROFILE: '1' })
+			verifyRRenderProfile(site, runtime, { ...environment, R_REQUIRE_PROFILE: '1' })
 		).toThrow('does not match');
 		expect(() => verifyRRenderProfile(site, runtime, environment)).not.toThrow();
 		await withEnvironment(environment, async () => {
@@ -286,8 +286,8 @@ test('profile capture and GitHub preflight CLI emit only verified dependency ide
 			execFileSync('bun', [cli, 'preflight', '--github-output'], {
 				env: {
 					...environment,
-					WISCONSIN_CONTENT_REPO: repo,
-					WISCONSIN_R_RENDER_PROFILE_FILE: captured,
+					TWIKI_CONTENT_REPO: repo,
+					R_RENDER_PROFILE_FILE: captured,
 					GITHUB_OUTPUT: githubOutput
 				},
 				encoding: 'utf8'
@@ -301,7 +301,7 @@ test('profile capture and GitHub preflight CLI emit only verified dependency ide
 		expect(() =>
 			verifyRRenderProfile(site, rRuntimeVersion(environment), {
 				...environment,
-				WISCONSIN_R_REQUIRE_PROFILE: '1'
+				R_REQUIRE_PROFILE: '1'
 			})
 		).toThrow('incompatible');
 	} finally {
@@ -365,7 +365,7 @@ test('locked catalog additions invalidate rendered wikilinks while authorized so
 		expect((await preflightRmdPreviews(site, repo, environment)).requiresR).toBe(false);
 		expect(preview().html).toContain(`src="/_files/blobs/${imageBlob}"`);
 		expect(preview().html).toContain('href="/test-course/private"');
-		await withEnvironment({ ...environment, WISCONSIN_R_CACHE_ONLY: '1' }, async () => {
+		await withEnvironment({ ...environment, R_CACHE_ONLY: '1' }, async () => {
 			await buildRmdPreviews(site, 'test-course', published, output, () => {});
 		});
 		const before = JSON.parse(rmdCourseInputs(published));
@@ -385,7 +385,7 @@ test('locked catalog additions invalidate rendered wikilinks while authorized so
 		expect(JSON.parse(rmdCourseInputs(published)).available).toEqual(before.available);
 		expect(rmdCourseInputs(published)).not.toBe(JSON.stringify(before));
 		expect((await preflightRmdPreviews(site, repo, environment)).requiresR).toBe(true);
-		await withEnvironment({ ...environment, WISCONSIN_R_CACHE_ONLY: '1' }, async () => {
+		await withEnvironment({ ...environment, R_CACHE_ONLY: '1' }, async () => {
 			await expect(
 				buildRmdPreviews(site, 'test-course', published, output, () => {})
 			).rejects.toThrow('missing or stale');
@@ -404,7 +404,7 @@ test('locked catalog additions invalidate rendered wikilinks while authorized so
 			requiresR: true,
 			verified: 0
 		});
-		await withEnvironment({ ...environment, WISCONSIN_R_CACHE_ONLY: '1' }, async () => {
+		await withEnvironment({ ...environment, R_CACHE_ONLY: '1' }, async () => {
 			await expect(
 				buildRmdPreviews(site, 'test-course', published, output, () => {})
 			).rejects.toThrow('missing or stale');

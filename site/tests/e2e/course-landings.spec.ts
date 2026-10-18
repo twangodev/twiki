@@ -6,7 +6,7 @@ import type { CourseFile } from '../../src/lib/files';
 import { parseGitmodules } from '../../tooling/lib/lastmod';
 import { publicationFilter } from '../../tooling/lib/publishing';
 
-const repo = path.resolve(process.env.WISCONSIN_CONTENT_REPO ?? '..');
+const repo = path.resolve(process.env.TWIKI_CONTENT_REPO ?? '..');
 const isPublic = publicationFilter(repo);
 
 const manifest: ContentManifest = JSON.parse(

@@ -50,9 +50,9 @@ export function applicationEnvironment(
 		NODE_ENV: environment.NODE_ENV ?? 'production',
 		VITE_PUBLIC_EDITION: 'false',
 		VITE_STATIC_EXPORT: 'false',
-		WISCONSIN_SKIP_CONTENT: '1'
+		TWIKI_SKIP_CONTENT: '1'
 	};
-	delete selected.WISCONSIN_APPLICATION_VERSION;
+	delete selected.APPLICATION_VERSION;
 	return selected;
 }
 
@@ -93,7 +93,7 @@ export function applicationCacheIdentity(
 			schema,
 			applicationVersion: sourceVersion,
 			runtime,
-			prerenderConcurrency: selected.WISCONSIN_PRERENDER_CONCURRENCY ?? '1'
+			prerenderConcurrency: selected.PRERENDER_CONCURRENCY ?? '1'
 		})
 	);
 	return { identity, applicationVersion: sourceVersion, runtime };

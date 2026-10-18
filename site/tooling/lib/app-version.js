@@ -36,10 +36,10 @@ const environmentFiles = [
  */
 export function applicationVersion(site, environment = process.env) {
 	// Isolated edition snapshots use the canonical maintained-source inventory.
-	const snapshotVersion = environment.WISCONSIN_APPLICATION_VERSION;
+	const snapshotVersion = environment.APPLICATION_VERSION;
 	if (snapshotVersion !== undefined) {
 		if (!/^[a-f0-9]{64}$/.test(snapshotVersion))
-			throw new Error('WISCONSIN_APPLICATION_VERSION must be a SHA-256 application version');
+			throw new Error('APPLICATION_VERSION must be a SHA-256 application version');
 		return snapshotVersion;
 	}
 	const files = new Set(configFiles);

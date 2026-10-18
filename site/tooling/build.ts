@@ -14,8 +14,8 @@ if (
 	throw new Error('Use --app, --content, --static, or no option for the complete SSR build');
 if (options[0] === '--static') {
 	process.env.VITE_STATIC_EXPORT = 'true';
-	delete process.env.WISCONSIN_APP_STATIC_DIR;
-	delete process.env.WISCONSIN_SKIP_CONTENT;
+	delete process.env.TWIKI_APP_STATIC_DIR;
+	delete process.env.TWIKI_SKIP_CONTENT;
 	const mode = buildMode();
 	if (mode !== 'serial') await isolatedBuild(mode);
 	else serialBuild();
@@ -122,8 +122,8 @@ async function runtimeBuild(appOnly: boolean) {
 					['x', 'vite', 'build'],
 					{
 						...environment,
-						WISCONSIN_APP_STATIC_DIR: path.join(temporary, 'static'),
-						WISCONSIN_APPLICATION_VERSION: identity.applicationVersion
+						TWIKI_APP_STATIC_DIR: path.join(temporary, 'static'),
+						APPLICATION_VERSION: identity.applicationVersion
 					},
 					abort.signal
 				);
@@ -179,7 +179,7 @@ async function runtimeBuild(appOnly: boolean) {
 			const editionStarted = performance.now();
 			const selected = {
 				...environment,
-				WISCONSIN_CONTENT_REPO: contentRepo,
+				TWIKI_CONTENT_REPO: contentRepo,
 				VITE_PUBLIC_EDITION: String(edition === 'public')
 			};
 			await command('bun', ['tooling/prepare.ts'], selected, abort.signal);
@@ -324,7 +324,7 @@ async function isolatedBuild(mode: 'parallel' | 'isolated-serial') {
 			...process.env,
 			NODE_ENV: process.env.NODE_ENV ?? 'production'
 		};
-		delete versionEnvironment.WISCONSIN_APPLICATION_VERSION;
+		delete versionEnvironment.APPLICATION_VERSION;
 		const version = applicationVersion(site, versionEnvironment);
 		const contentInputs = contentInputFingerprint(contentRepo, version);
 		abort.signal.throwIfAborted();

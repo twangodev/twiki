@@ -5,7 +5,7 @@ import { publicationFixture } from './publication-fixture';
 const fixture = publicationFixture();
 const environment = {
 	...process.env,
-	WISCONSIN_CONTENT_REPO: fixture.repo,
+	TWIKI_CONTENT_REPO: fixture.repo,
 	PUBLICATION_TEST: 'true'
 };
 function buildAndTest(mode: string, specification: string) {

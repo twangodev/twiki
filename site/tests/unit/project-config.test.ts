@@ -35,7 +35,7 @@ function withEnvironment<T>(environment: NodeJS.ProcessEnv, run: () => T): T {
 		'TWIKI_PROJECT_ROOT',
 		'TWIKI_CONFIG_FILE',
 		'TWIKI_CONTENT_DIR',
-		'WISCONSIN_CONTENT_REPO'
+		'TWIKI_CONTENT_REPO'
 	];
 	const saved = Object.fromEntries(names.map((name) => [name, process.env[name]]));
 	try {

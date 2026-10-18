@@ -47,7 +47,7 @@ export async function prepareContent(
 	if (
 		!development &&
 		reuse &&
-		process.env.WISCONSIN_PREPARED_CONTENT === key &&
+		process.env.TWIKI_PREPARED_CONTENT_KEY === key &&
 		existsSync('build/generated/content-manifest.json')
 	)
 		return;
@@ -61,7 +61,7 @@ export async function prepareContent(
 	rmSync(marker, { force: true });
 	// A changed renderer or configuration must reconcile all courses, including unchanged worksheets.
 	const build = runPipeline(
-		development && process.env.WISCONSIN_PREPARED_CONTENT !== key ? undefined : changedInputs,
+		development && process.env.TWIKI_PREPARED_CONTENT_KEY !== key ? undefined : changedInputs,
 		development
 	);
 	builds.set(key, build);
@@ -76,11 +76,11 @@ export async function prepareContent(
 			}
 			writeChanged(marker, JSON.stringify({ inputs, outputs: contentOutputFingerprint(site) }));
 		}
-		process.env.WISCONSIN_PREPARED_CONTENT = key;
+		process.env.TWIKI_PREPARED_CONTENT_KEY = key;
 		return changed;
 	} catch (error) {
 		builds.delete(key);
-		delete process.env.WISCONSIN_PREPARED_CONTENT;
+		delete process.env.TWIKI_PREPARED_CONTENT_KEY;
 		throw error;
 	}
 }

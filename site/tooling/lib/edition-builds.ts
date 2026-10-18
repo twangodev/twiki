@@ -4,10 +4,10 @@ import path from 'node:path';
 
 export type BuildMode = 'serial' | 'parallel' | 'isolated-serial';
 
-export function buildMode(value = process.env.WISCONSIN_BUILD_MODE): BuildMode {
+export function buildMode(value = process.env.BUILD_MODE): BuildMode {
 	if (value === undefined || value === 'serial') return 'serial';
 	if (value === 'parallel' || value === 'isolated-serial') return value;
-	throw new Error('WISCONSIN_BUILD_MODE must be serial, parallel or isolated-serial');
+	throw new Error('BUILD_MODE must be serial, parallel or isolated-serial');
 }
 
 interface BuildOptions {
@@ -91,8 +91,8 @@ export async function runEditionBuilds(
 				env: {
 					...process.env,
 					NODE_ENV: process.env.NODE_ENV ?? 'production',
-					WISCONSIN_CONTENT_REPO: options.contentRepo,
-					WISCONSIN_APPLICATION_VERSION: options.applicationVersion,
+					TWIKI_CONTENT_REPO: options.contentRepo,
+					APPLICATION_VERSION: options.applicationVersion,
 					VITE_PUBLIC_EDITION: String(publicEdition)
 				}
 			});

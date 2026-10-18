@@ -92,7 +92,7 @@ function startServer(publicEdition = true) {
 			cwd: siteDirectory,
 			env: {
 				...process.env,
-				WISCONSIN_CONTENT_REPO: fixture.repo,
+				TWIKI_CONTENT_REPO: fixture.repo,
 				VITE_PUBLIC_EDITION: String(publicEdition)
 			},
 			stdio: ['ignore', 'pipe', 'pipe']

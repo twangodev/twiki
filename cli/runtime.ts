@@ -190,9 +190,9 @@ export function wranglerConfiguration(project: ResolvedProject) {
     : [];
   const vars = {
     ORIGIN: project.site.url,
-    TWIKI_SITE_NAME: project.site.name,
-    TWIKI_SITE_DESCRIPTION: project.site.description,
-    TWIKI_AUTH_MODE: bindings.some(
+    SITE_NAME: project.site.name,
+    SITE_DESCRIPTION: project.site.description,
+    AUTH_MODE: bindings.some(
       (binding) =>
         binding &&
         typeof binding === "object" &&
@@ -203,8 +203,8 @@ export function wranglerConfiguration(project: ResolvedProject) {
     DISABLE_ANALYTICS: project.analytics ? "false" : "true",
     ...(project.analytics
       ? {
-          TWIKI_ANALYTICS_SITE_ID: project.analytics.siteId,
-          TWIKI_ANALYTICS_ENDPOINT: project.analytics.endpoint ?? "",
+          ANALYTICS_SITE_ID: project.analytics.siteId,
+          ANALYTICS_ENDPOINT: project.analytics.endpoint ?? "",
         }
       : {}),
     ...(rawVars as Record<string, string> | undefined),
@@ -214,7 +214,7 @@ export function wranglerConfiguration(project: ResolvedProject) {
     compatibility_date: "2026-06-07",
     compatibility_flags: ["nodejs_compat"],
     d1_databases: [],
-    workers_dev: vars.TWIKI_AUTH_MODE === "none",
+    workers_dev: vars.AUTH_MODE === "none",
     preview_urls: false,
     routes: [],
     ...supplied,
@@ -322,7 +322,7 @@ export function prepareProject(options: PrepareOptions = {}): PreparedProject {
       workDir,
       "src/lib/auth-config.json",
       JSON.stringify(
-        { enabled: wrangler.vars.TWIKI_AUTH_MODE === "github" },
+        { enabled: wrangler.vars.AUTH_MODE === "github" },
         null,
         2,
       ) + "\n",

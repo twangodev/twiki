@@ -204,7 +204,7 @@ test("consumer Cloudflare resources and bindings are preserved while generated p
   expect(config.vars).toMatchObject({
     ...resources.vars,
     ORIGIN: "https://notes.example.com",
-    TWIKI_AUTH_MODE: "github",
+    AUTH_MODE: "github",
     DISABLE_ANALYTICS: "true",
   });
   expect(config.main).toBe("build/.svelte-kit/worker.js");
@@ -375,7 +375,7 @@ test("browser authentication matches the final Worker mode without changing pack
         d1_databases: [
           { binding: "DB", database_name: "notes", database_id: "fixture" },
         ],
-        vars: { TWIKI_AUTH_MODE: "none" },
+        vars: { AUTH_MODE: "none" },
       },
       false,
     ],

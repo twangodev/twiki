@@ -45,7 +45,7 @@ export function resolveProject(
 	const requestedRoot = path.resolve(
 		repoOverride ??
 			environment.TWIKI_PROJECT_ROOT ??
-			environment.WISCONSIN_CONTENT_REPO ??
+			environment.TWIKI_CONTENT_REPO ??
 			path.dirname(siteDir)
 	);
 	const root = existsSync(requestedRoot) ? realpathSync(requestedRoot) : requestedRoot;

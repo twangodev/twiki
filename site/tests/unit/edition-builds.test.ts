@@ -45,8 +45,8 @@ const wait = async file => {
  }
 };
 writeFileSync(path.join(shared, edition + '-start'), JSON.stringify({
- pid: process.pid, cwd: process.cwd(), contentRepo: process.env.WISCONSIN_CONTENT_REPO,
- version: process.env.WISCONSIN_APPLICATION_VERSION, nodeEnv: process.env.NODE_ENV
+ pid: process.pid, cwd: process.cwd(), contentRepo: process.env.TWIKI_CONTENT_REPO,
+ version: process.env.APPLICATION_VERSION, nodeEnv: process.env.NODE_ENV
 }));
 if (scenario === 'parallel') {
  await wait('public-start'); await wait('full-start');
@@ -112,8 +112,8 @@ test('unknown build modes fail before starting work', () => {
 	expect(buildMode('serial')).toBe('serial');
 	expect(buildMode('parallel')).toBe('parallel');
 	expect(buildMode('isolated-serial')).toBe('isolated-serial');
-	expect(() => buildMode('typo')).toThrow('WISCONSIN_BUILD_MODE');
-	expect(() => buildMode('')).toThrow('WISCONSIN_BUILD_MODE');
+	expect(() => buildMode('typo')).toThrow('BUILD_MODE');
+	expect(() => buildMode('')).toThrow('BUILD_MODE');
 });
 
 test.each(['unset', 'development'])(

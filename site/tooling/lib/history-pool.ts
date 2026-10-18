@@ -16,10 +16,10 @@ export async function buildHistories(
 ) {
 	if (!jobs.length) return;
 	const requested = Number(
-		process.env.WISCONSIN_HISTORY_WORKERS ?? Math.min(8, availableParallelism())
+		process.env.HISTORY_WORKERS ?? Math.min(8, availableParallelism())
 	);
 	if (!Number.isInteger(requested) || requested < 1 || requested > 48)
-		throw new Error('WISCONSIN_HISTORY_WORKERS must be an integer from 1 to 48');
+		throw new Error('HISTORY_WORKERS must be an integer from 1 to 48');
 	const started = performance.now();
 	let next = 0;
 	let failure: unknown;

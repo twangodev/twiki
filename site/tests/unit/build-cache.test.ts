@@ -53,7 +53,7 @@ test('course cache survives processes, repairs missing outputs and invalidates e
 					`import { buildCourseFiles } from ${JSON.stringify(module)}; await buildCourseFiles(${JSON.stringify(site)}, new Set(${JSON.stringify(notes)}));`
 				],
 				{
-					env: { ...process.env, WISCONSIN_CONTENT_REPO: root, VITE_PUBLIC_EDITION: edition },
+					env: { ...process.env, TWIKI_CONTENT_REPO: root, VITE_PUBLIC_EDITION: edition },
 					encoding: 'utf8'
 				}
 			);

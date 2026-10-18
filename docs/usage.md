@@ -91,6 +91,46 @@ disabled and private assets remain unavailable. Analytics is disabled by default
 configure `analytics: {"siteId": "…", "endpoint": "https://analytics.example.com/api"}`
 to use your own endpoint.
 
+## Environment variables
+
+Twiki-specific runtime paths retain the `TWIKI_` prefix. Build controls and
+Worker settings use generic names. Previous environment variable names are no
+longer supported; update shell scripts, CI settings, and Cloudflare `vars` when
+upgrading. Standard Cloudflare, GitHub OAuth, Better Auth, Node, and R names are
+unchanged.
+
+| Variable | Purpose / default |
+| --- | --- |
+| `BUILD_MODE` | `serial` (default), `parallel`, or `isolated-serial` |
+| `PRERENDER_CONCURRENCY` | Prerender concurrency; default `1` |
+| `HISTORY_WORKERS` | Git history workers, `1`–`48`; default available CPUs capped at `8` |
+| `R_CACHE_ONLY` | `1` requires cached R previews |
+| `R_REQUIRE_PROFILE` | `1` requires a verified R render profile |
+| `R_RENDER_PROFILE_FILE` | R render profile path override |
+| `BENCHMARK_STATIC` | `true` benchmarks static export |
+| `APPLICATION_VERSION` | Internal SHA-256 application version for isolated builds |
+| `TWIKI_CONTENT_REPO` | Root for automatic project discovery; distinct from the content-directory override |
+| `TWIKI_APP_STATIC_DIR` | Internal static asset staging directory |
+| `TWIKI_SKIP_CONTENT` | Internal `1` switch to skip content preparation |
+| `TWIKI_PREPARED_CONTENT_KEY` | Internal prepared-content fingerprint |
+
+Deployed Worker variables are separate from the build shell environment. Twiki
+generates `ORIGIN`, `SITE_NAME`, `SITE_DESCRIPTION`, `AUTH_MODE`,
+`DISABLE_ANALYTICS`, `ANALYTICS_SITE_ID`, and `ANALYTICS_ENDPOINT` from project
+configuration. Explicit `cloudflare.vars` override generated values. `AUTH_MODE`
+is `github` when a D1 binding named `DB` exists, otherwise `none`.
+
+GitHub authentication also requires `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`,
+`BETTER_AUTH_SECRET` (at least 32 characters), and numeric `OWNER_GITHUB_ID`.
+Store secrets using Cloudflare secrets. Build-shell values are not automatically
+uploaded as Worker variables.
+
+Existing generic controls retain their names: `BUILD_CACHE_KEY`, `ORIGIN`,
+`DISABLE_ANALYTICS`, `OWNER_GITHUB_ID`, `DEPLOYMENT_ORIGIN`,
+`DEPLOYMENT_EXPECTED_TEXT`, `DEPLOYMENT_STARTED_AT`, `ROLLBACK_VERSION`, and
+`BENCHMARK_TIMEOUT_SECONDS`. Existing project and dependency paths retain their
+`TWIKI_` names; Vite edition/export switches retain their `VITE_` names.
+
 ## Git and nested courses
 
 ```json

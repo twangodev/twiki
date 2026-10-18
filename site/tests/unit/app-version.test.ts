@@ -88,12 +88,12 @@ test('isolated snapshots preserve the canonical maintained static inventory vers
 	write(canonical, 'static/custom.svg', '<svg/>');
 	const version = applicationVersion(canonical, { NODE_ENV: 'production' });
 	expect(applicationVersion(snapshot, { NODE_ENV: 'production' })).not.toBe(version);
-	expect(applicationVersion(snapshot, { WISCONSIN_APPLICATION_VERSION: version })).toBe(version);
+	expect(applicationVersion(snapshot, { APPLICATION_VERSION: version })).toBe(version);
 });
 
 test('invalid isolated application versions fail before compilation', () => {
 	for (const version of ['', '../version', 'a'.repeat(63), 'A'.repeat(64)])
-		expect(() => applicationVersion(fixture(), { WISCONSIN_APPLICATION_VERSION: version })).toThrow(
-			'WISCONSIN_APPLICATION_VERSION'
+		expect(() => applicationVersion(fixture(), { APPLICATION_VERSION: version })).toThrow(
+			'APPLICATION_VERSION'
 		);
 });

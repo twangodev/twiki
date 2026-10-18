@@ -482,9 +482,9 @@ above, which performs two builds and includes cold fingerprint priming.
 From `site/`, keep normal font settings and use locked dependencies:
 
 ```sh
-WISCONSIN_BUILD_MODE=serial bun tooling/benchmark.ts build native-comparison
-WISCONSIN_BUILD_MODE=isolated-serial bun tooling/benchmark.ts build isolated-comparison
-WISCONSIN_BUILD_MODE=parallel bun tooling/benchmark.ts build parallel-comparison
+BUILD_MODE=serial bun tooling/benchmark.ts build native-comparison
+BUILD_MODE=isolated-serial bun tooling/benchmark.ts build isolated-comparison
+BUILD_MODE=parallel bun tooling/benchmark.ts build parallel-comparison
 bun tooling/benchmark.ts dev dev-comparison
 ```
 
