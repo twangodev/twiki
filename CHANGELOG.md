@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.0](https://github.com/twangodev/twiki/compare/v0.2.0...v0.3.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* standardize environment variable names
+
+### Features
+
+* **navigation:** support configurable course groups ([9a0e342](https://github.com/twangodev/twiki/commit/9a0e342a496aa9d934ad55f4f3dea51de060da7a))
+
+
+### Bug Fixes
+
+* **rendering:** keep article content within narrow viewports ([56c9ec1](https://github.com/twangodev/twiki/commit/56c9ec101a57cda89244de759d936eade11b0a9f))
+
+
+### Code Refactoring
+
+* standardize environment variable names ([5f2f094](https://github.com/twangodev/twiki/commit/5f2f0945d78fce4d36837ffe5a61d7902a17584d))
+
 ## [0.2.0](https://github.com/twangodev/twiki/compare/v0.1.1...v0.2.0) (2026-10-12)
 
 
