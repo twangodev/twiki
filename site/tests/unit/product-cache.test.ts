@@ -507,74 +507,15 @@ test('portable metadata selection excludes R and old records and rejects incompl
 	expect((await planProductCaches(source.site)).groups).toEqual([]);
 }, 30_000);
 
-test('benchmark keys and authenticated envelopes remain separate from production caches', async () => {
+test('production products use generic keys and reject retired experiment namespaces', async () => {
 	const source = fixture();
-	const target = fixture();
 	content(source.cache);
-	const secret = randomBytes(32).toString('hex');
 	const production = await planProductCaches(source.site, { group: 'global-full' });
-	const benchmark = await planProductCaches(source.site, {
-		group: 'global-full',
-		namespace: 'benchmark'
-	});
-	expect(benchmark.runtime).toBe(production.runtime);
-	expect(benchmark.groups[0].key).toContain('wisconsin-products-benchmark-v1-');
-	expect(production.groups[0].key).toContain('wisconsin-products-v1-');
-	expect(benchmark.groups[0].key).not.toBe(production.groups[0].key);
-	expect(benchmark.groups[0].archive).not.toBe(production.groups[0].archive);
-	expect(benchmark.groups[0].restoreKeys[0]).not.toBe(production.groups[0].restoreKeys[0]);
-	expect(
-		(
-			await transferProductCaches(source.site, 'save', secret, {
-				namespace: 'benchmark',
-				group: 'global-full'
-			})
-		).results[0].ready
-	).toBe(true);
-	copyArchives(source.site, target.site);
-	expect(
-		(await transferProductCaches(target.site, 'restore', secret, { group: 'global-full' }))
-			.results[0].reason
-	).toBe('miss');
-	const prodTarget = (await planProductCaches(target.site, { restore: true, group: 'global-full' }))
-		.groups[0];
-	const benchTarget = (
-		await planProductCaches(target.site, {
-			restore: true,
-			namespace: 'benchmark',
-			group: 'global-full'
-		})
-	).groups[0];
-	cpSync(benchTarget.archive, prodTarget.archive);
-	expect(
-		(await transferProductCaches(target.site, 'restore', secret, { group: 'global-full' }))
-			.results[0].reason
-	).toBe('invalid');
-	expect(existsSync(path.join(target.cache, 'content-current-full.json'))).toBe(false);
-	expect(
-		(
-			await transferProductCaches(target.site, 'restore', secret, {
-				namespace: 'benchmark',
-				group: 'global-full'
-			})
-		).results[0].ready
-	).toBe(true);
-	const prior = readFileSync(path.join(target.cache, 'content-current-full.json'));
-	expect(
-		(await transferProductCaches(source.site, 'save', secret, { group: 'global-full' })).results[0]
-			.ready
-	).toBe(true);
-	cpSync(production.groups[0].archive, benchTarget.archive);
-	expect(
-		(
-			await transferProductCaches(target.site, 'restore', secret, {
-				namespace: 'benchmark',
-				group: 'global-full'
-			})
-		).results[0].reason
-	).toBe('invalid');
-	expect(readFileSync(path.join(target.cache, 'content-current-full.json'))).toEqual(prior);
-}, 30_000);
+	expect(production.groups[0].key).toStartWith('twiki-products-v1-');
+	await expect(planProductCaches(source.site, { namespace: 'benchmark' as never })).rejects.toThrow(
+		'Invalid product namespace'
+	);
+});
 
 test('authenticated segments restore globals then exact course closure into a fresh relocated cache', async () => {
 	const source = fixture();
@@ -750,7 +691,7 @@ function crafted(
 	const input = path.join(root, 'payload.gz');
 	writeFileSync(
 		input,
-		gzipSync(Buffer.concat([Buffer.from('WISCONSIN_PRODUCT_CACHE_1\n'), length, metadata, bytes]))
+		gzipSync(Buffer.concat([Buffer.from('TWIKI_PRODUCT_CACHE_1\n'), length, metadata, bytes]))
 	);
 	mkdirSync(path.dirname(group.archive), { recursive: true });
 	const environment = { ...process.env, GNUPGHOME: root };

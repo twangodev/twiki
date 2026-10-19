@@ -32,37 +32,22 @@ const mode = process.env.INPUT_MODE;
 if (!["restore", "save"].includes(mode))
   throw new Error("Expected restore or save mode");
 const namespace = process.env.INPUT_NAMESPACE || "production";
-if (!["production", "benchmark"].includes(namespace))
+if (namespace !== "production")
   throw new Error("Unsupported product cache namespace");
-const transport = process.env.INPUT_TRANSPORT || "groups";
-if (!["groups", "bundle"].includes(transport))
+const transport = process.env.INPUT_TRANSPORT || "bundle";
+if (transport !== "bundle")
   throw new Error("Unsupported product cache transport");
-if (
-  transport === "bundle" &&
-  !/^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA ?? "")
-)
+if (!/^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA ?? ""))
   throw new Error("Bundle caches require an exact Git commit");
 if (
-  namespace === "benchmark" &&
-  (process.env.GITHUB_REF !== "refs/heads/perf/build-performance" ||
-    process.env.GITHUB_EVENT_NAME !== "workflow_dispatch")
-)
-  throw new Error(
-    "Benchmark caches require an explicit trusted manual branch run",
-  );
-if (
   mode === "save" &&
-  namespace === "production" &&
   (process.env.GITHUB_REF !== "refs/heads/main" ||
     !["push", "workflow_dispatch"].includes(process.env.GITHUB_EVENT_NAME))
 )
   throw new Error(
     "Only trusted main builds may publish production product caches",
   );
-const prefix =
-  namespace === "benchmark"
-    ? "wisconsin-products-benchmark-v1-"
-    : "wisconsin-products-v1-";
+const prefix = "twiki-products-v1-";
 const counts = {
   requested: 0,
   hits: 0,
@@ -184,12 +169,6 @@ if (!process.env.BUILD_CACHE_KEY) {
     }
   }
   async function archiveHit(group, archive) {
-    if (transport === "groups")
-      return !!(await restoreCache(
-        [archive],
-        group.key,
-        group.restoreKeys ?? [],
-      ));
     await loadBundle();
     selectedBundleGroups.add(group.id);
     const source = path.join(bundleDirectory, `${group.id}.gpg`);
@@ -246,14 +225,12 @@ if (!process.env.BUILD_CACHE_KEY) {
       !Array.isArray(value.groups)
     )
       throw new Error("Invalid product cache plan");
-    if (transport === "bundle") {
-      if (
-        !/^[a-f0-9]{64}$/.test(value.runtime ?? "") ||
-        (runtime && runtime !== value.runtime)
-      )
-        throw new Error("Invalid bundle runtime identity");
-      runtime = value.runtime;
-    }
+    if (
+      !/^[a-f0-9]{64}$/.test(value.runtime ?? "") ||
+      (runtime && runtime !== value.runtime)
+    )
+      throw new Error("Invalid bundle runtime identity");
+    runtime = value.runtime;
     for (const group of value.groups) {
       if (
         typeof group.id !== "string" ||
@@ -267,12 +244,11 @@ if (!process.env.BUILD_CACHE_KEY) {
         )
       )
         throw new Error("Product cache plan crosses its selected namespace");
-      if (transport === "bundle" && !bundleGroupId.test(group.id))
+      if (!bundleGroupId.test(group.id))
         throw new Error("Unsupported bundle group");
       const expectedArchive = path.join(
         site,
         "build/generated/product-caches",
-        ...(namespace === "benchmark" ? ["benchmark"] : []),
         `${group.id}.gpg`,
       );
       if (
@@ -368,7 +344,6 @@ if (!process.env.BUILD_CACHE_KEY) {
     await restore("search");
     await restore("course");
     if (
-      transport === "bundle" &&
       bundleAvailable &&
       [...bundleGroups].some((id) => !selectedBundleGroups.has(id))
     ) {
@@ -380,7 +355,7 @@ if (!process.env.BUILD_CACHE_KEY) {
   } else {
     const groups = await plan();
     const prepared = [];
-    if (transport === "bundle") cleanBundleDirectory();
+    cleanBundleDirectory();
     await limited(groups, async (group) => {
       try {
         const result = await transfer(group, "save");
@@ -394,14 +369,9 @@ if (!process.env.BUILD_CACHE_KEY) {
           counts.skipped++;
           groupDiagnostic(group, false, "archive-missing");
         } else if (!regular(archive)) throw new Error("Unsafe product archive");
-        else if (transport === "bundle") {
+        else {
           copyFileSync(archive, path.join(bundleDirectory, `${group.id}.gpg`));
           prepared.push(group);
-        } else if ((await saveCache([archive], group.key)) >= 0)
-          counts.published++;
-        else {
-          counts.skipped++;
-          groupDiagnostic(group, true, "cache-not-created");
         }
       } catch {
         counts.failed++;
@@ -409,7 +379,7 @@ if (!process.env.BUILD_CACHE_KEY) {
         console.log("Optional encrypted product save failed");
       }
     });
-    if (transport === "bundle" && prepared.length) {
+    if (prepared.length) {
       writeFileSync(
         path.join(bundleDirectory, "bundle.json"),
         JSON.stringify({

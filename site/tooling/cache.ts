@@ -25,8 +25,7 @@ if (mode === 'plan' || mode === 'save-products' || mode === 'restore-products') 
 		else if (argument === '--group') options.group = process.argv[++i];
 		else if (argument === '--namespace') {
 			const namespace = process.argv[++i];
-			if (!['production', 'benchmark'].includes(namespace))
-				throw new Error('Invalid product namespace');
+			if (namespace !== 'production') throw new Error('Invalid product namespace');
 			options.namespace = namespace as import('./lib/product-cache').ProductNamespace;
 		} else if (argument === '--kind') {
 			const kind = process.argv[++i];
@@ -69,7 +68,7 @@ if (mode === 'restore' && !existsSync(encrypted)) {
 	process.exit(0);
 }
 
-const temporary = mkdtempSync(path.join(tmpdir(), 'wisconsin-cache-'));
+const temporary = mkdtempSync(path.join(tmpdir(), 'twiki-cache-'));
 const archive = path.join(temporary, 'cache.tar.gz');
 const status = path.join(temporary, 'status');
 const env = { ...process.env, GNUPGHOME: temporary };

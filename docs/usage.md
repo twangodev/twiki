@@ -106,7 +106,6 @@ unchanged.
 | `R_CACHE_ONLY` | `1` requires cached R previews |
 | `R_REQUIRE_PROFILE` | `1` requires a verified R render profile |
 | `R_RENDER_PROFILE_FILE` | R render profile path override |
-| `BENCHMARK_STATIC` | `true` benchmarks static export |
 | `APPLICATION_VERSION` | Internal SHA-256 application version for isolated builds |
 | `TWIKI_CONTENT_REPO` | Root for automatic project discovery; distinct from the content-directory override |
 | `TWIKI_APP_STATIC_DIR` | Internal static asset staging directory |
@@ -125,9 +124,7 @@ Store secrets using Cloudflare secrets. Build-shell values are not automatically
 uploaded as Worker variables.
 
 Existing generic controls retain their names: `BUILD_CACHE_KEY`, `ORIGIN`,
-`DISABLE_ANALYTICS`, `OWNER_GITHUB_ID`, `DEPLOYMENT_ORIGIN`,
-`DEPLOYMENT_EXPECTED_TEXT`, `DEPLOYMENT_STARTED_AT`, `ROLLBACK_VERSION`, and
-`BENCHMARK_TIMEOUT_SECONDS`. Existing project and dependency paths retain their
+`DISABLE_ANALYTICS`, and `OWNER_GITHUB_ID`. Existing project and dependency paths retain their
 `TWIKI_` names; Vite edition/export switches retain their `VITE_` names.
 
 ## Publication report
@@ -169,6 +166,12 @@ cannot change the engine compiler. Repeated preparation reuses that installation
 `TWIKI_*` environment paths. It does not serialize inherited credentials.
 `exec` runs Bun arguments from that runtime, including cache tools, migrations,
 and verification scripts.
+
+The product-cache action uses bundled production products; its `transport` and
+`namespace` inputs default to `bundle` and `production`. Group-by-group SDK
+transport and benchmark namespaces are no longer supported. Product keys use
+`twiki-products-v1-`; old keys cause a cold rebuild. Compiler archive `save` and
+`restore` remain available because they cover compiler and R reuse separately.
 
 The package exports `@twango/twiki/actions/product-cache` for Node action bootstraps,
 `@twango/twiki/cli` for locating the executable, and `@twango/twiki/runtime` for Bun scripts.

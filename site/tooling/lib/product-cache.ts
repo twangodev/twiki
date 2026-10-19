@@ -38,13 +38,13 @@ import { wranglerAssetHash } from './deployment-manifest';
 
 const digest = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const sha = /^[a-f0-9]{64}$/;
-const magic = Buffer.from('WISCONSIN_PRODUCT_CACHE_1\n');
+const magic = Buffer.from('TWIKI_PRODUCT_CACHE_1\n');
 const maximumManifest = 8 * 1024 * 1024;
 const maximumEntry = 128 * 1024 * 1024;
 const maximumPayload = 512 * 1024 * 1024;
 const maximumFiles = 100_000;
 export type ProductKind = 'global' | 'course' | 'search' | 'application';
-export type ProductNamespace = 'production' | 'benchmark';
+export type ProductNamespace = 'production';
 export interface ProductGroup {
 	id: string;
 	key: string;
@@ -249,8 +249,7 @@ export function productRuntimeIdentity(site: string) {
 
 async function selections(site: string, options: ProductOptions = {}) {
 	const namespace = options.namespace ?? 'production';
-	if (!['production', 'benchmark'].includes(namespace))
-		throw new Error('Invalid product namespace');
+	if (namespace !== 'production') throw new Error('Invalid product namespace');
 	const runtime = productRuntimeIdentity(site);
 	const cache = path.resolve(site, 'build/generated/cache');
 	if (existsSync(cache) && realpathSync(cache) !== cache) throw new Error('Nonregular cache root');
@@ -265,7 +264,7 @@ async function selections(site: string, options: ProductOptions = {}) {
 		const kind = idKind(id);
 		if (!kind || !sha.test(inputs) || !files.every((file) => ownedFile(id, file)))
 			throw new Error('Invalid product selection');
-		const prefix = `wisconsin-products-${namespace === 'production' ? '' : 'benchmark-'}v1-${runtime}-${id}-`;
+		const prefix = `twiki-products-v1-${runtime}-${id}-`;
 		groups.push({
 			id,
 			kind,
@@ -273,12 +272,7 @@ async function selections(site: string, options: ProductOptions = {}) {
 			inputs,
 			key: prefix + inputs,
 			restoreKeys: exact ? [] : [prefix],
-			archive: path.resolve(
-				site,
-				'build/generated/product-caches',
-				...(namespace === 'benchmark' ? ['benchmark'] : []),
-				`${id}.gpg`
-			),
+			archive: path.resolve(site, 'build/generated/product-caches', `${id}.gpg`),
 			files: [...new Set(files)].sort()
 		});
 	};
@@ -465,7 +459,7 @@ export async function planProductCaches(
 
 function gpgSession(secret: string) {
 	if (!secret || /[\r\n]/.test(secret)) throw new Error('Invalid cache secret');
-	const directory = mkdtempSync(path.join(tmpdir(), 'wisconsin-product-cache-'));
+	const directory = mkdtempSync(path.join(tmpdir(), 'twiki-product-cache-'));
 	const env = { ...process.env, GNUPGHOME: directory };
 	const args = [
 		'--batch',

@@ -42,7 +42,7 @@ interface FixtureOptions {
 	siteOverride?: 'relative' | 'symlink';
 }
 function saveFixture(transfer: unknown, options: FixtureOptions = {}) {
-	const root = mkdtempSync(path.join(tmpdir(), 'wisconsin-product-action-'));
+	const root = mkdtempSync(path.join(tmpdir(), 'twiki-product-action-'));
 	try {
 		execFileSync('git', ['init', '--quiet', root], { stdio: 'pipe' });
 		const action = path.join(root, '.github/actions/product-cache/index.mjs');
@@ -98,7 +98,7 @@ export async function restoreCache(files,key,restoreKeys) {
 		);
 		const namespace = options.namespace ?? 'production';
 		const prefix =
-			namespace === 'benchmark' ? 'wisconsin-products-benchmark-v1-' : 'wisconsin-products-v1-';
+			namespace === 'benchmark' ? 'twiki-products-benchmark-v1-' : 'twiki-products-v1-';
 		const group = {
 			id: 'search-public',
 			namespace: options.planNamespace ?? namespace,
@@ -200,7 +200,7 @@ if(args[1]==='plan') {
 				...(siteOverride ? { TWIKI_SITE_DIR: siteOverride } : {}),
 				INPUT_MODE: options.mode ?? 'save',
 				INPUT_NAMESPACE: namespace,
-				INPUT_TRANSPORT: options.transport ?? 'groups',
+				INPUT_TRANSPORT: options.transport ?? 'bundle',
 				GITHUB_SHA: options.sha ?? '1'.repeat(40),
 				BUILD_CACHE_KEY: 'synthetic-fixture-key',
 				GITHUB_REF: options.ref ?? 'refs/heads/main',
@@ -276,10 +276,12 @@ describe('product cache action save readiness', () => {
 		const result = saveFixture({ schema: 1, results: [{ id: 'search-public', ready: true }] });
 		expect(result.sdkCalls).toHaveLength(1);
 		expect(result.sdkCalls[0].method).toBe('saveCache');
-		expect(result.sdkCalls[0].key).toBe(result.group.key);
+		expect(result.sdkCalls[0].key).toBe(
+			`twiki-products-v1-bundle-${'a'.repeat(64)}-${'1'.repeat(40)}`
+		);
 		expect(result.sdkCalls[0].files).toHaveLength(1);
 		expect(result.sdkCalls[0].files[0]).toEndWith(
-			'/site/build/generated/product-caches/search-public.gpg'
+			'/site/build/generated/product-caches/bundles/production'
 		);
 	});
 	test.each([
@@ -308,44 +310,27 @@ describe('product cache action save readiness', () => {
 const readyTransfer = { schema: 1, results: [{ id: 'search-public', ready: true }] };
 
 describe('product cache action trust boundaries', () => {
-	test.each(['save', 'restore'] as const)(
-		'manual benchmark branch can %s isolated products',
-		(mode) => {
-			const result = saveFixture(readyTransfer, {
-				mode,
-				namespace: 'benchmark',
-				ref: 'refs/heads/perf/build-performance'
-			});
-			expect(result.status).toBe(0);
-			expect(result.sdkCalls).toHaveLength(1);
-			expect(result.sdkCalls[0].key).toStartWith('wisconsin-products-benchmark-v1-');
-			expect(result.sdkCalls[0].files[0]).toEndWith('/product-caches/benchmark/search-public.gpg');
-			for (const call of result.transportCalls as string[][])
-				expect(call[call.indexOf('--namespace') + 1]).toBe('benchmark');
-			expect(result.counts.namespace).toBe('benchmark');
-			expect(result.counts[mode === 'save' ? 'published' : 'restored']).toBe(1);
+	test.each(['benchmark', 'other'])(
+		'rejects unsupported namespace %s before SDK or transport use',
+		(namespace) => {
+			for (const mode of ['restore', 'save'] as const) {
+				const result = saveFixture(readyTransfer, { mode, namespace, allowFailure: true });
+				expect(result.status).not.toBe(0);
+				expect(result.stderr).toContain('Unsupported product cache namespace');
+				expect(result.sdkCalls).toEqual([]);
+				expect(result.transportCalls).toEqual([]);
+			}
 		}
 	);
-	test.each([
-		['refs/heads/main', 'workflow_dispatch'],
-		['refs/heads/perf/build-performance', 'push'],
-		['refs/heads/perf/build-performance', 'pull_request'],
-		['refs/pull/48/merge', 'workflow_dispatch']
-	])('benchmark namespace rejects %s on %s before SDK or transport use', (ref, event) => {
-		for (const mode of ['restore', 'save'] as const) {
-			const result = saveFixture(readyTransfer, {
-				mode,
-				namespace: 'benchmark',
-				ref,
-				event,
-				allowFailure: true
-			});
+	test.each(['groups', 'other'])(
+		'rejects unsupported transport %s before SDK or transport use',
+		(transport) => {
+			const result = saveFixture(readyTransfer, { transport, allowFailure: true });
 			expect(result.status).not.toBe(0);
-			expect(result.stderr).toContain('explicit trusted manual branch run');
 			expect(result.sdkCalls).toEqual([]);
 			expect(result.transportCalls).toEqual([]);
 		}
-	});
+	);
 	test.each([
 		['refs/heads/main', 'pull_request'],
 		['refs/heads/perf/build-performance', 'workflow_dispatch'],
@@ -360,7 +345,7 @@ describe('product cache action trust boundaries', () => {
 	test('main push remains a production publisher', () => {
 		const result = saveFixture(readyTransfer, { event: 'push' });
 		expect(result.counts.published).toBe(1);
-		expect(result.sdkCalls[0].key).toStartWith('wisconsin-products-v1-');
+		expect(result.sdkCalls[0].key).toStartWith('twiki-products-v1-');
 	});
 	test('pull requests can still restore production products', () => {
 		const result = saveFixture(readyTransfer, {
@@ -373,7 +358,7 @@ describe('product cache action trust boundaries', () => {
 	});
 	test.each([
 		{ planNamespace: 'benchmark' },
-		{ planKey: 'wisconsin-products-benchmark-v1-cross-namespace' },
+		{ planKey: 'twiki-products-benchmark-v1-cross-namespace' },
 		{ planArchive: 'build/generated/product-caches/benchmark/search-public.gpg' }
 	])('rejects a production plan crossing the namespace: %j', (options) => {
 		const result = saveFixture(readyTransfer, { ...options, allowFailure: true });
@@ -594,16 +579,10 @@ describe('product cache action bundled transport', () => {
 		const result = saveFixture(readyTransfer, {
 			mode: 'restore',
 			transport: 'bundle',
-			namespace: 'benchmark',
-			ref: 'refs/heads/perf/build-performance',
 			sha
 		});
-		expect(result.sdkCalls[0].key).toBe(
-			`wisconsin-products-benchmark-v1-bundle-${'a'.repeat(64)}-${sha}`
-		);
-		expect(result.sdkCalls[0].restoreKeys).toEqual([
-			`wisconsin-products-benchmark-v1-bundle-${'a'.repeat(64)}-`
-		]);
+		expect(result.sdkCalls[0].key).toBe(`twiki-products-v1-bundle-${'a'.repeat(64)}-${sha}`);
+		expect(result.sdkCalls[0].restoreKeys).toEqual([`twiki-products-v1-bundle-${'a'.repeat(64)}-`]);
 		expect(result.counts.restored).toBe(1);
 	});
 	test('an inner archive absent from a hit bundle is a group miss', () => {

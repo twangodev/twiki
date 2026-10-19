@@ -5,11 +5,11 @@ inputs:
     description: restore or save
     required: true
   namespace:
-    description: Production caches, or isolated caches for trusted manual benchmarks
+    description: Cache namespace (production)
     default: production
   transport:
-    description: Individual group caches, or one bundle of independently encrypted groups
-    default: groups
+    description: One bundle of independently encrypted product groups
+    default: bundle
 outputs:
   requested:
     description: Product groups requested
