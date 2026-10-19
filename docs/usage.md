@@ -131,6 +131,13 @@ Existing generic controls retain their names: `BUILD_CACHE_KEY`, `ORIGIN`,
 `BENCHMARK_TIMEOUT_SECONDS`. Existing project and dependency paths retain their
 `TWIKI_` names; Vite edition/export switches retain their `VITE_` names.
 
+## Publication report
+
+`bunx twiki exec -- tooling/publish.ts` lists files selected by the configured
+publication policy. Add a content-relative file or folder path to inspect both
+public and private decisions. Discovery matches the build, including plain
+folders and declared Git submodules; normal draft and renderer filters still apply.
+
 ## Git and nested courses
 
 ```json

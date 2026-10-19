@@ -1,28 +1,22 @@
-import { execFileSync } from 'node:child_process';
-import path from 'node:path';
-import { coursePolicies, publicationDecision } from './lib/publishing';
+import { discoverSourceFiles, resolveProject, type ResolvedProject } from './lib/project-config';
+import { publicationResolver } from './lib/publishing';
 
-const repo = path.resolve(import.meta.dir, '../..');
-const policies = coursePolicies(repo);
-const files = execFileSync(
-	'git',
-	['-C', repo, 'ls-files', '-z', '--recurse-submodules', '--', 'content'],
-	{ maxBuffer: 1 << 28 }
-)
-	.toString()
-	.split('\0')
-	.filter(Boolean);
-const requested = process.argv[2]?.replace(/^content\//, '');
-let count = 0;
-for (const tracked of files) {
-	const relative = tracked.slice(8);
-	if (requested && relative !== requested && !relative.startsWith(requested + '/')) continue;
-	const [course, ...segments] = relative.split('/');
-	const decision = publicationDecision(segments.join('/'), policies.get(course));
-	if (decision.public) count++;
-	if (requested || decision.public)
-		console.log(`${decision.public ? 'PUBLIC ' : 'PRIVATE'} ${relative} — ${decision.reason}`);
+/** Report policy decisions using the same configuration and discovery as the compiler. */
+export function publicationReport(project: ResolvedProject, requested?: string) {
+	const decide = publicationResolver(project.root, project);
+	return discoverSourceFiles(project)
+		.filter((file) => !requested || file === requested || file.startsWith(requested + '/'))
+		.map((file) => ({ path: file, ...decide(file) }));
 }
-console.log(
-	`${count} files selected for publication; normal content and file safety filters still apply.`
-);
+
+if (import.meta.main) {
+	const requested = process.argv[2]?.replace(/\/$/, '');
+	const entries = publicationReport(resolveProject(), requested);
+	for (const entry of entries) {
+		if (requested || entry.public)
+			console.log(`${entry.public ? 'PUBLIC ' : 'PRIVATE'} ${entry.path} — ${entry.reason}`);
+	}
+	console.log(
+		`${entries.filter((entry) => entry.public).length} files selected for publication; normal content and file safety filters still apply.`
+	);
+}
