@@ -9,9 +9,9 @@ const site = path.resolve(import.meta.dir, '..');
 const options = process.argv.slice(2);
 if (
 	options.length > 1 ||
-	options.some((value) => !['--app', '--content', '--static'].includes(value))
+	options.some((value) => !['--app', '--static'].includes(value))
 )
-	throw new Error('Use --app, --content, --static, or no option for the complete SSR build');
+	throw new Error('Use --app, --static, or no option for the complete SSR build');
 if (options[0] === '--static') {
 	process.env.VITE_STATIC_EXPORT = 'true';
 	delete process.env.TWIKI_APP_STATIC_DIR;

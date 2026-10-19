@@ -28,7 +28,6 @@
     "lint": "prettier --check .",
     "format": "prettier --write .",
     "build:app": "bun tooling/build.ts --app",
-    "build:content": "bun tooling/build.ts --content",
     "build:static": "bun tooling/build.ts --static",
     "deploy:incremental": "bun tooling/deploy.ts --upload"
   },

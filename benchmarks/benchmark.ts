@@ -6,7 +6,7 @@ import path from 'node:path';
 
 const [mode, requestedLabel] = process.argv.slice(2);
 if (mode !== 'build' && mode !== 'dev') {
-	console.error('Usage: bun tooling/benchmark.ts <build|dev> [label]');
+	console.error('Usage: bun benchmarks/benchmark.ts <build|dev> [label]');
 	process.exit(2);
 }
 const label = requestedLabel ?? `${mode}-${new Date().toISOString().replaceAll(':', '-')}`;
@@ -17,7 +17,7 @@ const timeoutSeconds = Number(process.env.BENCHMARK_TIMEOUT_SECONDS ?? '300');
 if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
 	throw new Error('BENCHMARK_TIMEOUT_SECONDS must be positive');
 }
-const site = path.resolve(import.meta.dirname, '..');
+const site = path.resolve(import.meta.dirname, '../site');
 const directory = path.join(site, 'build/benchmarks');
 mkdirSync(directory, { recursive: true });
 const logPath = path.join(directory, `${label}.log`);

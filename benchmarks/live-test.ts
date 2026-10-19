@@ -1,6 +1,6 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolveProject } from './lib/project-config';
-import { CloudflareDeploymentAPI } from './lib/deployment-upload';
+import { resolveProject } from '../site/tooling/lib/project-config';
+import { CloudflareDeploymentAPI } from '../site/tooling/lib/deployment-upload';
 
 const mode = process.argv[2];
 const project = resolveProject();
