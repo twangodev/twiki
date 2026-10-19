@@ -117,6 +117,10 @@ jobs:
           ref: ${{ needs.release-please.outputs.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          package-manager-cache: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.2"
@@ -149,9 +153,10 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v7
         with:
-          bun-version: "1.4.2"
+          node-version: "24"
+          package-manager-cache: false
       - uses: actions/download-artifact@v8
         with:
           name: npm-release-tarball
@@ -160,4 +165,4 @@ jobs:
       - name: Publish with npm OIDC
         env:
           NPM_DIST_TAG: ${{ needs.validate.outputs.dist-tag }}
-        run: bunx --bun npm@latest publish ./dist/twiki.tgz --access public --provenance --ignore-scripts --tag "$NPM_DIST_TAG" --registry https://registry.npmjs.org/
+        run: npm publish ./dist/twiki.tgz --access public --provenance --ignore-scripts --tag "$NPM_DIST_TAG" --registry https://registry.npmjs.org/

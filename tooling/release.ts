@@ -61,11 +61,8 @@ function pack() {
   mkdirSync(dist, { recursive: true });
   const plan = JSON.parse(
     execFileSync(
-      "bun",
+      "npm",
       [
-        "x",
-        "--bun",
-        "npm@latest",
         "pack",
         "--ignore-scripts",
         "--json",

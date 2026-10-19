@@ -114,15 +114,21 @@ test('release grants OIDC only to publishing the validated tarball after Release
 	}
 	for (const job of Object.values(workflow.jobs) as { 'runs-on': string }[])
 		expect(job['runs-on']).toBe('ubuntu-latest');
+	for (const steps of [validate, publish]) {
+		const node = steps.find((step) => step.uses === 'actions/setup-node@v7');
+		expect(node.with['node-version']).toBe('24');
+		expect(node.with['package-manager-cache']).toBe(false);
+	}
 	const publishText = JSON.stringify(publish);
-	expect(JSON.stringify(workflow)).not.toMatch(/setup-node|npm install --global|npm@\d/);
+	expect(publish.some((step) => step.uses?.startsWith('oven-sh/setup-bun'))).toBe(false);
+	expect(JSON.stringify(workflow)).not.toMatch(/npm install --global|npm@(?:\d|latest)/);
 	expect(
 		publish.find((step) => step.uses?.startsWith('actions/download-artifact@')).with[
 			'digest-mismatch'
 		]
 	).toBe('error');
 	expect(publishText).toContain(
-		'bunx --bun npm@latest publish ./dist/twiki.tgz --access public --provenance --ignore-scripts'
+		'npm publish ./dist/twiki.tgz --access public --provenance --ignore-scripts'
 	);
 	// npm-package-arg treats bare owner/repo paths as GitHub shorthand.
 	expect(publishText).not.toContain('npm publish dist/twiki.tgz');
