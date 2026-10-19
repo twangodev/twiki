@@ -482,11 +482,13 @@ above, which performs two builds and includes cold fingerprint priming.
 The serial/isolated/parallel comparisons above are historical. The engine now
 uses one public-only static build; `BUILD_MODE` is no longer a build setting.
 
-From `site/`, keep normal font settings and use locked dependencies:
+From the repository root, keep normal font settings and use locked dependencies.
+The developer benchmark prepares a consumer runtime for `examples/vault`; set
+`TWIKI_PROJECT_ROOT` to measure another configured vault:
 
 ```sh
-BENCHMARK_STATIC=true bun ../benchmarks/benchmark.ts build public-static
-bun ../benchmarks/benchmark.ts dev dev-comparison
+BENCHMARK_STATIC=true bun benchmarks/benchmark.ts build public-static
+bun benchmarks/benchmark.ts dev dev-comparison
 ```
 
 For fair comparison, freeze the source/content/runtime pins, restore the same
@@ -497,8 +499,9 @@ terminates only its own process group. Local timeout is 300s; override
 `BENCHMARK_TIMEOUT_SECONDS` when appropriate. Actual Node version is separate
 from Bun's Node compatibility version.
 
-The optional manual workflow runs benchmarks only, with production/check jobs
-disabled. `build_mode` defaults to serial and affects only that job:
+Historical measurements used a manual performance-branch workflow with
+production/check jobs disabled. The following command documents that experiment;
+it is not a workflow provided by the current engine:
 
 ```sh
 gh workflow run svelte.yml --ref perf/build-performance -f performance=true -f build_mode=parallel

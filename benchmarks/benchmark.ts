@@ -3,6 +3,7 @@ import { createWriteStream, mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { availableParallelism, cpus, totalmem } from "node:os";
 import path from "node:path";
+import { prepareProject } from "../cli/runtime";
 
 const [mode, requestedLabel] = process.argv.slice(2);
 if (mode !== "build" && mode !== "dev") {
@@ -20,7 +21,12 @@ const timeoutSeconds = Number(process.env.BENCHMARK_TIMEOUT_SECONDS ?? "300");
 if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
   throw new Error("BENCHMARK_TIMEOUT_SECONDS must be positive");
 }
-const site = path.resolve(import.meta.dirname, "../site");
+const project = prepareProject({
+  projectRoot:
+    process.env.TWIKI_PROJECT_ROOT ??
+    path.resolve(import.meta.dirname, "../examples/vault"),
+});
+const site = project.workDir;
 const directory = path.join(site, "build/benchmarks");
 mkdirSync(directory, { recursive: true });
 const logPath = path.join(directory, `${label}.log`);
@@ -69,7 +75,7 @@ const args =
 const command = process.versions.bun ? process.execPath : "bun";
 const child = spawn(command, args, {
   cwd: site,
-  env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
+  env: { ...process.env, ...project.env, FORCE_COLOR: "0", NO_COLOR: "1" },
   detached: process.platform !== "win32",
   stdio: ["ignore", "pipe", "pipe"],
 });
