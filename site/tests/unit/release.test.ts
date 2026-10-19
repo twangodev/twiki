@@ -112,14 +112,17 @@ test('release grants OIDC only to publishing the validated tarball after Release
 	for (const job of Object.values(workflow.jobs) as { steps: { run?: string }[] }[]) {
 		for (const step of job.steps) expect(step.run ?? '').not.toContain('\n');
 	}
+	for (const job of Object.values(workflow.jobs) as { 'runs-on': string }[])
+		expect(job['runs-on']).toBe('ubuntu-latest');
 	const publishText = JSON.stringify(publish);
+	expect(JSON.stringify(workflow)).not.toMatch(/setup-node|npm install --global|npm@\d/);
 	expect(
 		publish.find((step) => step.uses?.startsWith('actions/download-artifact@')).with[
 			'digest-mismatch'
 		]
 	).toBe('error');
 	expect(publishText).toContain(
-		'npm publish ./dist/twiki.tgz --access public --provenance --ignore-scripts'
+		'bunx --bun npm@latest publish ./dist/twiki.tgz --access public --provenance --ignore-scripts'
 	);
 	// npm-package-arg treats bare owner/repo paths as GitHub shorthand.
 	expect(publishText).not.toContain('npm publish dist/twiki.tgz');

@@ -61,8 +61,17 @@ function pack() {
   mkdirSync(dist, { recursive: true });
   const plan = JSON.parse(
     execFileSync(
-      "npm",
-      ["pack", "--ignore-scripts", "--json", "--pack-destination", dist],
+      "bun",
+      [
+        "x",
+        "--bun",
+        "npm@latest",
+        "pack",
+        "--ignore-scripts",
+        "--json",
+        "--pack-destination",
+        dist,
+      ],
       {
         cwd: root,
         encoding: "utf8",
@@ -70,7 +79,10 @@ function pack() {
       },
     ),
   );
-  const entry = validatePackagePlan(plan, pkg);
+  const entry = validatePackagePlan(
+    Array.isArray(plan) ? plan : Object.values(plan),
+    pkg,
+  );
   const archive = path.join(dist, entry.filename);
   verifyArchive(
     archive,

@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -49,7 +49,7 @@ jobs:
   deploy:
     needs: test
     if: github.repository == 'twangodev/twiki' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     concurrency:
       group: twiki-production
@@ -61,10 +61,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          package-manager-cache: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.2"
@@ -88,7 +84,7 @@ jobs:
 
   release-please:
     if: github.repository == 'twangodev/twiki' && github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     concurrency:
       group: twiki-release-please
@@ -111,7 +107,7 @@ jobs:
   validate:
     needs: [test, release-please]
     if: needs.release-please.outputs.release_created == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
       dist-tag: ${{ steps.package.outputs.dist-tag }}
@@ -121,10 +117,6 @@ jobs:
           ref: ${{ needs.release-please.outputs.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          package-manager-cache: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.2"
@@ -147,7 +139,7 @@ jobs:
 
   publish:
     needs: validate
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: npm
     concurrency:
@@ -157,11 +149,9 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/setup-node@v7
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: "24"
-          package-manager-cache: false
-      - run: npm install --global npm@11.21.0 --ignore-scripts
+          bun-version: "1.4.2"
       - uses: actions/download-artifact@v8
         with:
           name: npm-release-tarball
@@ -170,4 +160,4 @@ jobs:
       - name: Publish with npm OIDC
         env:
           NPM_DIST_TAG: ${{ needs.validate.outputs.dist-tag }}
-        run: npm publish ./dist/twiki.tgz --access public --provenance --ignore-scripts --tag "$NPM_DIST_TAG" --registry https://registry.npmjs.org/
+        run: bunx --bun npm@latest publish ./dist/twiki.tgz --access public --provenance --ignore-scripts --tag "$NPM_DIST_TAG" --registry https://registry.npmjs.org/
