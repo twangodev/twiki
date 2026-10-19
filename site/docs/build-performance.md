@@ -479,12 +479,13 @@ above, which performs two builds and includes cold fingerprint priming.
 
 ## Reproduction
 
+The serial/isolated/parallel comparisons above are historical. The engine now
+uses one public-only static build; `BUILD_MODE` is no longer a build setting.
+
 From `site/`, keep normal font settings and use locked dependencies:
 
 ```sh
-BUILD_MODE=serial bun ../benchmarks/benchmark.ts build native-comparison
-BUILD_MODE=isolated-serial bun ../benchmarks/benchmark.ts build isolated-comparison
-BUILD_MODE=parallel bun ../benchmarks/benchmark.ts build parallel-comparison
+BENCHMARK_STATIC=true bun ../benchmarks/benchmark.ts build public-static
 bun ../benchmarks/benchmark.ts dev dev-comparison
 ```
 

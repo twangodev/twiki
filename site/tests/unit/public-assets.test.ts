@@ -1,67 +1,5 @@
-import { afterAll, expect, test } from 'bun:test';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-import { publicAssetManifest } from '../../tooling/lib/public-assets';
-import { publicResponse, publicTarget, fileBrowserTarget } from '../../worker/publication';
-
-const directory = mkdtempSync(path.join(tmpdir(), 'wisconsin-public-assets-'));
-afterAll(() => rmSync(directory, { recursive: true, force: true }));
-
-test('only exact generated public URLs are eligible for anonymous serving', () => {
-	mkdirSync(path.join(directory, '_app'), { recursive: true });
-	for (const file of [
-		'index.html',
-		'note.html',
-		'404.html',
-		'_headers',
-		'_redirects',
-		'_app/public.js',
-		'graph.json'
-	])
-		writeFileSync(path.join(directory, file), 'fixture');
-	const assets = publicAssetManifest(directory, {
-		'/': 'index.html',
-		'/note': 'note.html',
-		'/files/Résumé Test.java': 'files/Résumé Test.java.html',
-		'/404': '404.html'
-	});
-	const request = (url: string, method = 'GET') =>
-		new Request(`https://example.com${url}`, { method });
-	expect(publicTarget(request('/note'), assets)).toBe('/_published/note');
-	expect(publicTarget(request('/'), assets)).toBe('/_published');
-	expect(publicTarget(request('/files/R%C3%A9sum%C3%A9%20Test.java'), assets)).toBe(
-		'/_published/files/R%C3%A9sum%C3%A9%20Test.java'
-	);
-	expect(publicTarget(request('/graph.json?x=1', 'HEAD'), assets)).toBe('/_published/graph.json');
-	for (const url of [
-		'/note.html',
-		'/note/',
-		'/%6eote',
-		'/_published/note',
-		'/_app/private.js',
-		'/_headers',
-		'/404',
-		'/toString'
-	])
-		expect(publicTarget(request(url), assets)).toBeUndefined();
-	expect(publicTarget(request('/note', 'POST'), assets)).toBeUndefined();
-	expect(publicTarget(request('/note'), {})).toBeUndefined();
-});
-
-test('published HTML assets support explicit filenames and their existing clean URLs', () => {
-	const assets = publicAssetManifest(directory, {
-		'/course/assets/demo': 'course/assets/demo.html',
-		'/course/assets/demo.html': 'course/assets/demo.html'
-	});
-	for (const route of ['/course/assets/demo', '/course/assets/demo.html'])
-		expect(publicTarget(new Request(`https://example.com${route}`), assets)).toBe(
-			'/_published/course/assets/demo'
-		);
-	expect(
-		publicTarget(new Request('https://example.com/course/assets/private.html'), assets)
-	).toBeUndefined();
-});
+import { expect, test } from 'bun:test';
+import { publicResponse } from '../../worker/publication';
 
 test('public responses remain indexable without caching cookies or personalized variants', async () => {
 	const response = publicResponse(
@@ -80,37 +18,4 @@ test('public responses remain indexable without caching cookies or personalized 
 		new Request('https://example.com/note', { method: 'HEAD' })
 	);
 	expect(await head.text()).toBe('');
-});
-
-test('catalog URLs share one shell without widening asset or route access', () => {
-	const assets = publicAssetManifest(directory, {}, [
-		{ course: 'test-course', file: '' },
-		{ course: 'test-course', file: 'src/Résumé #1?.java' }
-	]);
-	const request = (url: string, method = 'GET') =>
-		new Request(`https://example.com${url}`, { method });
-	for (const route of [
-		'/test-course/files',
-		'/test-course/files/src/R%C3%A9sum%C3%A9%20%231%3F.java'
-	]) {
-		expect(publicTarget(request(route), assets)).toBe('/_published/_file-browser');
-		expect(fileBrowserTarget(request(route), assets)).toBe('/_file-browser');
-		expect(fileBrowserTarget(request(route, 'HEAD'), assets)).toBe('/_file-browser');
-		expect(fileBrowserTarget(request(route, 'POST'), assets)).toBeUndefined();
-	}
-	for (const route of [
-		'/test-course/files/nope',
-		'/test-course/files/',
-		'/test-course/files/src/Résumé%20%231%3F.java/__data.json'
-	]) {
-		expect(publicTarget(request(route), assets)).toBeUndefined();
-		expect(fileBrowserTarget(request(route), assets)).toBeNull();
-	}
-	for (const route of [
-		'/_published/_file-browser',
-		'/_file-browser',
-		'/_files/history/private.json'
-	])
-		expect(publicTarget(request(route), assets)).toBeUndefined();
-	expect(fileBrowserTarget(request('/test-course/README'), assets)).toBeUndefined();
 });

@@ -96,7 +96,6 @@ export function contentOutputFingerprint(site: string) {
 		'build/generated/expected-404.json',
 		'build/generated/expected-missing-id.json',
 		'build/generated/public-routes.json',
-		'build/generated/public-assets.json',
 		'build/generated/pages',
 		'build/generated/assets',
 		'src/lib/generated',

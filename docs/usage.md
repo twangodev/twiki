@@ -101,7 +101,6 @@ unchanged.
 
 | Variable | Purpose / default |
 | --- | --- |
-| `BUILD_MODE` | `serial` (default), `parallel`, or `isolated-serial` |
 | `PRERENDER_CONCURRENCY` | Prerender concurrency; default `1` |
 | `HISTORY_WORKERS` | Git history workers, `1`–`48`; default available CPUs capped at `8` |
 | `R_CACHE_ONLY` | `1` requires cached R previews |

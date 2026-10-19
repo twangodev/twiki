@@ -15,7 +15,7 @@ client application; no R2 service is required.
   content and search products.
 - `bun run build:app`: prepare/cache the application without replacing a complete
   deployment with an application-only tree.
-- `bun run build:static`: produce the two static editions for static hosting.
+- `bun run build:static`: compile only the public edition for static hosting.
 - `bun run deploy:incremental`: explicitly upload the prepared deployment using
   Cloudflare's asset manifest API. Requires the account and API credentials.
 

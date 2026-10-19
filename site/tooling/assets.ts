@@ -46,10 +46,6 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 			if (existsSync(source)) cpSync(source, path.join(STATIC_DIR, name), { recursive: true });
 		}
 	}
-	if (!existsSync(path.join(GENERATED, 'public-assets.json'))) {
-		mkdirSync(GENERATED, { recursive: true });
-		writeChanged(path.join(GENERATED, 'public-assets.json'), '{}');
-	}
 
 	if (!existsSync(path.join(GENERATED, 'content-manifest.json'))) {
 		throw new Error('Content must be compiled before preparing assets');

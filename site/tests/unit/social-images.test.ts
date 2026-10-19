@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildSocialImages, renderSocialImage, socialCard } from '../../tooling/lib/social-images';
 import { Resvg } from '@resvg/resvg-js';
-import { publicAssetManifest } from '../../tooling/lib/public-assets';
 import type { ManifestPage } from '../../src/lib/types';
 
 test('share cards use the dark site palette and keep background linework off the title margin', async () => {
@@ -79,10 +78,7 @@ test('title-only share cards cover locked notes without exposing their content',
 			pages: { [note.slug]: { ...note, publication: { public: false } } }
 		});
 		expect(readFileSync(filename)).toEqual(png);
-		expect(publicAssetManifest(path.join(directory, 'static'), {})).toEqual({
-			'/_og/default.png': '/_published/_og/default.png',
-			'/_og/notes/course/note.png': '/_published/_og/notes/course/note.png'
-		});
+
 		await buildSocialImages(directory, {
 			pages: { [note.slug]: { ...note, locked: true, description: 'private description canary' } }
 		});
