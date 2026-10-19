@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
@@ -36,7 +36,7 @@ jobs:
       - name: Preserve the validated Cloudflare build
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: tar -cf "$RUNNER_TEMP/twiki-cloudflare.tar" -C documentation/.twiki/site build/.svelte-kit
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+      - uses: actions/upload-artifact@v7
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         with:
           name: twiki-cloudflare
@@ -58,21 +58,21 @@ jobs:
       name: production
       url: https://twiki.twango.dev
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           package-manager-cache: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.2"
       - run: bun install --frozen-lockfile
       - name: Prepare the documentation runtime
         working-directory: documentation
         run: bun ../cli/twiki.ts prepare
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+      - uses: actions/download-artifact@v8
         with:
           name: twiki-cloudflare
           path: ${{ runner.temp }}/twiki-cloudflare
@@ -84,10 +84,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          test -n "$CLOUDFLARE_API_TOKEN"
-          test -n "$CLOUDFLARE_ACCOUNT_ID"
-          bun ../cli/twiki.ts deploy
+        run: bun ../cli/twiki.ts deploy
 
   release-please:
     if: github.repository == 'twangodev/twiki' && github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -105,100 +102,43 @@ jobs:
       sha: ${{ steps.release.outputs.sha }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+      - uses: googleapis/release-please-action@v5
         id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
   validate:
-    needs: release-please
+    needs: [test, release-please]
     if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     outputs:
-      sha256: ${{ steps.package.outputs.sha256 }}
-      dist-tag: ${{ steps.version.outputs.dist-tag }}
+      dist-tag: ${{ steps.package.outputs.dist-tag }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           package-manager-cache: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.2"
-      - name: Install the pinned npm client
-        run: npm install --global npm@11.21.0 --ignore-scripts
-      - name: Verify release identity
-        id: version
+      - run: bun install --frozen-lockfile
+      - run: bun audit --audit-level high
+      - name: Pack and inspect the release
+        id: package
         env:
           RELEASE_SHA: ${{ needs.release-please.outputs.sha }}
           RELEASE_TAG: ${{ needs.release-please.outputs.tag_name }}
-        run: |
-          node --input-type=module <<'JS'
-          import assert from 'node:assert/strict';
-          import { appendFileSync, readFileSync } from 'node:fs';
-          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-          assert.equal(process.env.GITHUB_REPOSITORY, 'twangodev/twiki');
-          assert.equal(process.env.GITHUB_REF, 'refs/heads/main');
-          assert.match(process.env.RELEASE_SHA, /^[a-f0-9]{40}$/);
-          assert.match(pkg.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/);
-          assert.equal(process.env.RELEASE_TAG, 'v' + pkg.version);
-          assert.equal(pkg.name, '@twango/twiki');
-          assert.notEqual(pkg.private, true);
-          assert.equal(pkg.repository.url, 'git+https://github.com/twangodev/twiki.git');
-          appendFileSync(process.env.GITHUB_OUTPUT, 'dist-tag=' + (pkg.version.includes('-') ? 'next' : 'latest') + '\n');
-          JS
-          test "$(git rev-parse HEAD)" = "$(git rev-parse "${RELEASE_SHA}^{commit}")"
-          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")"
-          git merge-base --is-ancestor HEAD refs/remotes/origin/main
-      - run: bun install --frozen-lockfile
-      - name: Audit release dependencies
-        run: bun audit --audit-level high
-      - run: bunx playwright install --with-deps chromium
-      - name: Validate the CLI
-        run: |
-          bun run test
-          bun run check
-          bun run docs:check
-      - name: Validate the engine
-        working-directory: site
-        env:
-          GIT_CONFIG_COUNT: "1"
-          GIT_CONFIG_KEY_0: commit.gpgsign
-          GIT_CONFIG_VALUE_0: "false"
-        run: bun run test
-      - name: Build and type-check the example
-        working-directory: examples/vault
-        run: |
-          bun ../../cli/twiki.ts build --target cloudflare
-          bun ../../cli/twiki.ts exec -- run check:types
-          bun ../../cli/twiki.ts build --target static
-      - name: Pack and inspect the exact release payload
-        id: package
-        run: |
-          git diff --exit-code
-          mkdir -p dist
-          npm pack --ignore-scripts --json --pack-destination dist > dist/pack.json
-          node .github/scripts/verify-package.mjs dist/pack.json
-      - name: Smoke-test the installed release tarball
-        run: |
-          TWIKI_SMOKE_ROOT=$(mktemp -d "$RUNNER_TEMP/twiki-package.XXXXXX")
-          trap 'rm -rf "$TWIKI_SMOKE_ROOT"' EXIT
-          git archive HEAD examples/vault | tar -x -C "$TWIKI_SMOKE_ROOT" --strip-components=2
-          cd "$TWIKI_SMOKE_ROOT"
-          printf '{"name":"twiki-release-smoke","private":true,"type":"module"}\n' > package.json
-          bun add --exact --ignore-scripts "$GITHUB_WORKSPACE/dist/twiki.tgz"
-          ./node_modules/.bin/twiki --version
-          ./node_modules/.bin/twiki build --target cloudflare
-          ./node_modules/.bin/twiki exec -- run check:types
-          ./node_modules/.bin/twiki build --target static
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        run: bun run release:pack
+      - name: Test the installed package
+        run: bun run release:smoke
+      - uses: actions/upload-artifact@v7
         with:
           name: npm-release-tarball
           path: dist/twiki.tgz
@@ -217,30 +157,17 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           package-manager-cache: false
       - run: npm install --global npm@11.21.0 --ignore-scripts
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+      - uses: actions/download-artifact@v8
         with:
           name: npm-release-tarball
           path: dist
           digest-mismatch: error
-      - name: Verify the validated tarball
-        env:
-          EXPECTED_SHA256: ${{ needs.validate.outputs.sha256 }}
-        run: |
-          node --input-type=module <<'JS'
-          import assert from 'node:assert/strict';
-          import { createHash } from 'node:crypto';
-          import { readFileSync } from 'node:fs';
-          assert.match(process.env.EXPECTED_SHA256, /^[a-f0-9]{64}$/);
-          assert.equal(createHash('sha256').update(readFileSync('dist/twiki.tgz')).digest('hex'), process.env.EXPECTED_SHA256);
-          JS
       - name: Publish with npm OIDC
         env:
           NPM_DIST_TAG: ${{ needs.validate.outputs.dist-tag }}
-        run: |
-          case "$NPM_DIST_TAG" in latest|next) ;; *) exit 1 ;; esac
-          npm publish ./dist/twiki.tgz --access public --provenance --ignore-scripts --tag "$NPM_DIST_TAG" --registry https://registry.npmjs.org/
+        run: npm publish ./dist/twiki.tgz --access public --provenance --ignore-scripts --tag "$NPM_DIST_TAG" --registry https://registry.npmjs.org/

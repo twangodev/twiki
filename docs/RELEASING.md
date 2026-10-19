@@ -8,7 +8,9 @@ the tagged commit and publishes it through npm OIDC. Ordinary pushes only
 update the release PR; they do not publish.
 
 Validation checks the tag, package version, exact commit and ancestry on `main`,
-then tests the engine, CLI, both build targets and the installed npm tarball.
+and waits for the shared CLI, engine, documentation, and build checks. Release
+validation audits dependencies, inspects the package, and smoke-tests both build
+targets and types from the installed npm tarball.
 The publishing job receives those same bytes. Stable versions use `latest`;
 prereleases use `next`.
 
@@ -75,14 +77,13 @@ Actions settings. Only the Release Please job receives GitHub write permissions;
 only the publishing job receives `id-token: write`. The default `GITHUB_TOKEN`
 is sufficient: publishing continues in the same run rather than relying on a
 second workflow triggered by the generated tag. No PAT or npm token is required.
-Bot-created release PRs do not automatically trigger other PR workflows with
-this token; validation runs after the reviewed release PR merges, before npm
-publication. If validation or publishing fails, rerun the failed jobs in the
+Release validation runs after the reviewed release PR merges and the shared
+test job succeeds, before npm publication. If validation or publishing fails, rerun the failed jobs in the
 original workflow run to retain the release outputs; do not move a published tag.
 
 Publishing runs without dependency caches and uses the tarball produced by the
-validation job. A hash check binds it to that job; publishing does not rebuild
-or execute package lifecycle scripts. No Cloudflare resources are deployed.
+validation job. GitHub artifact digest verification checks the transfer; publishing does not
+rebuild or execute package lifecycle scripts. No Cloudflare resources are deployed.
 
 ## Initial dependency audit
 
@@ -109,3 +110,13 @@ New versions may not be installable immediately after a successful publish. npm
 scans packages before exposing them for installation; registry acceptance,
 provenance, and consumer installation are separate verification steps.
 [Publish-time scanning](https://github.blog/changelog/2026-07-28-npm-publish-time-malware-scanning-and-dual-use-metadata/)
+
+## Local release tooling
+
+`bun run release:pack` creates and inspects `dist/twiki.tgz` using
+`tooling/release.ts` and `tooling/package.mjs`. In CI, `RELEASE_TAG` and
+`RELEASE_SHA` must match the checked-out commit and package version.
+`bun run release:smoke` installs that archive in a temporary vault, builds both
+targets, and checks the installed engine types. It cleans up the vault afterward.
+
+Actions use major version tags, with Dependabot managing version updates.

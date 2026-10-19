@@ -51,6 +51,8 @@
     "dev": "bun cli/twiki.ts dev",
     "dev:host": "bun cli/twiki.ts dev -- --host",
     "build": "bun cli/twiki.ts build",
+    "release:pack": "bun tooling/release.ts pack",
+    "release:smoke": "bun tooling/release.ts smoke",
     "docs:generate": "bun tooling/docs.ts",
     "docs:check": "bun tooling/docs.ts --check && bun test ./tooling/docs.test.ts",
     "docs:dev": "bun run docs:generate && bun cli/twiki.ts dev --project documentation"

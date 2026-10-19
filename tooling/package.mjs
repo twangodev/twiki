@@ -1,9 +1,5 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { appendFileSync, copyFileSync, readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 export const requiredFiles = [
   "package.json",
@@ -136,36 +132,5 @@ export function verifyArchive(archive, paths) {
       .split("\n")
       .every((line) => line.startsWith("-")),
     "Archive contains nonregular files",
-  );
-}
-
-if (
-  process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
-  const planFile = path.resolve(process.argv[2] ?? "dist/pack.json");
-  const expected = JSON.parse(readFileSync("package.json", "utf8"));
-  const entry = validatePackagePlan(
-    JSON.parse(readFileSync(planFile, "utf8")),
-    expected,
-  );
-  const archive = path.join(path.dirname(planFile), entry.filename);
-  verifyArchive(
-    archive,
-    entry.files.map((file) => file.path),
-  );
-  const bytes = readFileSync(archive);
-  const sha256 = createHash("sha256").update(bytes).digest("hex");
-  copyFileSync(archive, path.join(path.dirname(planFile), "twiki.tgz"));
-  if (process.env.GITHUB_OUTPUT)
-    appendFileSync(process.env.GITHUB_OUTPUT, `sha256=${sha256}\n`);
-  console.log(
-    JSON.stringify({
-      name: entry.name,
-      version: entry.version,
-      files: entry.files.length,
-      bytes: bytes.length,
-      sha256,
-    }),
   );
 }
