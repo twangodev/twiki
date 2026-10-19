@@ -15,7 +15,6 @@
     ".": "./cli/runtime.ts",
     "./runtime": "./cli/runtime.ts",
     "./cli": "./cli/twiki.ts",
-    "./actions/product-cache": "./integrations/github-cache/dist/index.js",
     "./schema": "./cli/twiki.schema.json"
   },
   "engines": {
@@ -40,15 +39,13 @@
     "site/wrangler.jsonc",
     "site/_headers",
     "site/_redirects",
-    "integrations/github-cache",
     "site/database",
     "site/drizzle.config.ts",
     "bun.lock"
   ],
   "scripts": {
-    "test": "bun test ./cli ./integrations",
-    "check": "bunx tsc --noEmit --skipLibCheck --module esnext --moduleResolution bundler --target es2022 --types bun --allowJs cli/twiki.ts cli/runtime.ts && bunx tsc -p integrations/github-cache/tsconfig.json --noEmit",
-    "integrations:build": "bunx tsc -p integrations/github-cache/tsconfig.json",
+    "test": "bun test ./cli",
+    "check": "bunx tsc --noEmit --skipLibCheck --module esnext --moduleResolution bundler --target es2022 --types bun --allowJs cli/twiki.ts cli/runtime.ts",
     "dev": "bun cli/twiki.ts dev",
     "dev:host": "bun cli/twiki.ts dev -- --host",
     "build": "bun cli/twiki.ts build",
@@ -59,7 +56,6 @@
     "docs:dev": "bun run docs:generate && bun cli/twiki.ts dev --project documentation"
   },
   "dependencies": {
-    "@actions/cache": "6.3.0",
     "@better-auth/drizzle-adapter": "1.7.2",
     "@cloudflare/workers-types": "5.20261006.1",
     "@codemirror/commands": "6.11.0",

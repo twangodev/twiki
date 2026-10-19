@@ -9,9 +9,6 @@ export const requiredFiles = [
   "cli/runtime.ts",
   "cli/commands.ts",
   "cli/twiki.schema.json",
-  "integrations/github-cache/dist/index.js",
-  "integrations/github-cache/src/index.ts",
-  "integrations/github-cache/action.yml",
   "site/package.json",
   "site/bun.lock",
   "site/svelte.config.js",
@@ -30,7 +27,6 @@ export const requiredFiles = [
 const files = new Set(requiredFiles);
 const prefixes = [
   "cli/",
-  "integrations/github-cache/",
   "site/src/",
   "site/tooling/",
   "site/worker/",

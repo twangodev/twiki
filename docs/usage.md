@@ -167,18 +167,14 @@ cannot change the engine compiler. Repeated preparation reuses that installation
 `exec` runs Bun arguments from that runtime, including cache tools, migrations,
 and verification scripts.
 
-The product-cache action uses bundled production products; its `transport` and
-`namespace` inputs default to `bundle` and `production`. Group-by-group SDK
-transport and benchmark namespaces are no longer supported. Product keys use
-`twiki-products-v1-`; old keys cause a cold rebuild. Compiler archive `save` and
-`restore` remain available because they cover compiler and R reuse separately.
+Use official `actions/cache/restore` and `actions/cache/save` steps to transfer
+`.twiki/site/build/generated/compiler-cache.gpg`. Set `BUILD_CACHE_KEY` for the
+restore and save commands; missing or invalid archives fall back to a cold build.
+Compiler archives retain parser, social-image, history and worksheet inputs.
+Application and search products are rebuilt in CI and reused locally when valid.
 
-The optional GitHub adapter is maintained in TypeScript under
-`integrations/github-cache/src/`. Run `bun run integrations:build` after editing
-it; the distributed Node entry point is generated JavaScript.
-
-The package exports `@twango/twiki/actions/product-cache` for Node action bootstraps,
-`@twango/twiki/cli` for locating the executable, and `@twango/twiki/runtime` for Bun scripts.
+The package exports `@twango/twiki/cli` for locating the executable and
+`@twango/twiki/runtime` for Bun scripts.
 
 ## Engine development
 

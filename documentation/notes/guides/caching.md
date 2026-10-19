@@ -21,20 +21,9 @@ bunx twiki exec -- tooling/cache.ts save
 
 Encrypted cache transport requires `BUILD_CACHE_KEY`; do not cache private compilation products in plaintext. A missing or invalid cache must recover through a normal build. Treat caches as an optimization, never the only copy of notes or a replacement for validation.
 
-Product caching uses the exported `@twango/twiki/actions/product-cache` action
-with `mode: restore` or `mode: save`. Its transport is a single bundle of
-independently encrypted and verified products; `namespace: production` and
-`transport: bundle` are the supported settings and defaults. Cache publication is
-restricted to trusted `main` pushes or manual runs; pull requests can restore.
+Use official `actions/cache/restore` and `actions/cache/save` steps to transfer `.twiki/site/build/generated/compiler-cache.gpg`. Set `BUILD_CACHE_KEY` for the engine's restore and save commands.
 
-Compiler archives retain parser, social-image, history and worksheet inputs.
-Product bundles retain independently reusable application, content, file and
-search products. Consumers using both can keep both: they cover different reuse
-boundaries. Missing or rejected data is rebuilt normally.
-
-Product cache keys now start with `twiki-products-v1-`. Old Wisconsin-prefixed
-keys and benchmark namespaces are retired, so the first build after upgrading
-may run cold. The compiler archive commands above remain supported.
+Compiler archives retain parser, social-image, history and worksheet inputs. Application and search products are rebuilt in CI; local builds continue to reuse valid products from consumer-owned state.
 
 R worksheets require a local renderer and their declared packages. Rendering does not download missing packages. Their cache also depends on the renderer and font environment.
 

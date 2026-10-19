@@ -32,7 +32,6 @@
     "deploy:incremental": "bun tooling/deploy.ts --upload"
   },
   "dependencies": {
-    "@actions/cache": "6.3.0",
     "@better-auth/drizzle-adapter": "1.7.2",
     "@cloudflare/workers-types": "5.20261006.1",
     "@codemirror/commands": "6.11.0",

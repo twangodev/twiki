@@ -159,7 +159,3 @@ vite.config.ts.timestamp-*
 
 # Generated release history for the documentation build
 documentation/notes/reference/releases.md
-
-# Distributed Node entry point generated from the TypeScript integration
-!integrations/github-cache/dist/
-!integrations/github-cache/dist/index.js
