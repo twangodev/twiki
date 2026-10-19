@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.4.0](https://github.com/twangodev/twiki/compare/v0.3.0...v0.4.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cache:** remove custom remote product integration
+* **cache:** standardize bundled production product transport
+* **build:** compile static exports as one public edition
+
+### Features
+
+* **branding:** use a knowledge graph favicon ([7d34839](https://github.com/twangodev/twiki/commit/7d348396b89ea3bdbbe46570479689eea30caec5))
+
+
+### Bug Fixes
+
+* **branding:** serve a multi-resolution ICO favicon ([635d8fe](https://github.com/twangodev/twiki/commit/635d8fe25d46dc2ae5c3135554cb9a89eb24a1ba))
+* **publication:** report configured vault discovery and policies ([93e41c3](https://github.com/twangodev/twiki/commit/93e41c3b75b46c068e17a6ae123666530ca92c76))
+
+
+### Code Refactoring
+
+* **build:** compile static exports as one public edition ([e472190](https://github.com/twangodev/twiki/commit/e4721906552c28d43f1a19b9e7c272b4402a50b8))
+* **cache:** remove custom remote product integration ([89ff99a](https://github.com/twangodev/twiki/commit/89ff99a680bdaa83628ff4e249e067cf9f88d4a2))
+* **cache:** standardize bundled production product transport ([b02e110](https://github.com/twangodev/twiki/commit/b02e110dbb946388a505ca3fff6b277002b56f92))
+
 ## [0.3.0](https://github.com/twangodev/twiki/compare/v0.2.0...v0.3.0) (2026-10-18)
 
 
