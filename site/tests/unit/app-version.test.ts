@@ -11,8 +11,8 @@ function fixture() {
 	fixtures.push(site);
 	write(site, 'src/routes/+page.svelte', '<p>Hello</p>');
 	write(site, 'bun.lock', 'locked dependencies');
-	write(site, 'static/.gitignore', '*\n!.gitignore\n!favicon.png\n!fonts/\n!fonts/**\n');
-	write(site, 'static/favicon.png', 'maintained icon');
+	write(site, 'static/.gitignore', '*\n!.gitignore\n!favicon.ico\n!fonts/\n!fonts/**\n');
+	write(site, 'static/favicon.ico', 'maintained icon');
 	return site;
 }
 function write(site: string, file: string, value: string) {
@@ -47,7 +47,7 @@ test('application source, dependency lock, maintained assets, and environment in
 	for (const [file, contents] of [
 		['src/routes/+page.svelte', '<p>Changed</p>'],
 		['bun.lock', 'updated dependencies'],
-		['static/favicon.png', 'updated icon'],
+		['static/favicon.ico', 'updated icon'],
 		['.env.production', 'VITE_ORIGIN=https://example.com'],
 		['.env.development', 'VITE_ORIGIN=https://development.example.com'],
 		['.env.development.local', 'VITE_ORIGIN=https://local-development.example.com'],
@@ -71,7 +71,7 @@ test('application source, dependency lock, maintained assets, and environment in
 test('Git-maintained additional static assets are included without synced course files', () => {
 	const site = fixture();
 	execFileSync('git', ['init', '-q', site]);
-	write(site, 'static/.gitignore', '*\n!.gitignore\n!favicon.png\n!custom.svg\n');
+	write(site, 'static/.gitignore', '*\n!.gitignore\n!favicon.ico\n!custom.svg\n');
 	write(site, 'static/custom.svg', '<svg/>');
 	const initial = applicationVersion(site, {});
 	write(site, 'static/course/note.png', 'synced content');
@@ -84,7 +84,7 @@ test('isolated snapshots preserve the canonical maintained static inventory vers
 	const canonical = fixture();
 	const snapshot = fixture();
 	execFileSync('git', ['init', '-q', canonical]);
-	write(canonical, 'static/.gitignore', '*\n!.gitignore\n!favicon.png\n!custom.svg\n');
+	write(canonical, 'static/.gitignore', '*\n!.gitignore\n!favicon.ico\n!custom.svg\n');
 	write(canonical, 'static/custom.svg', '<svg/>');
 	const version = applicationVersion(canonical, { NODE_ENV: 'production' });
 	expect(applicationVersion(snapshot, { NODE_ENV: 'production' })).not.toBe(version);

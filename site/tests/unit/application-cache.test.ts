@@ -38,8 +38,8 @@ function fixture() {
 	write(site, 'node_modules/vite/package.json', '{"version":"8.0.16"}');
 	write(site, 'src/routes/+page.svelte', '<p>Application</p>');
 	write(site, 'worker/index.ts', 'export default {};');
-	write(site, 'static/.gitignore', '*\n!.gitignore\n!favicon.png\n!fonts/\n!fonts/**\n');
-	write(site, 'static/favicon.png', 'favicon');
+	write(site, 'static/.gitignore', '*\n!.gitignore\n!favicon.ico\n!fonts/\n!fonts/**\n');
+	write(site, 'static/favicon.ico', 'favicon');
 	write(site, 'static/fonts/font.woff2', 'font');
 	for (const [file, bytes] of Object.entries({
 		'worker.js': 'wrapper',
@@ -184,5 +184,5 @@ test('neutral app static assets contain maintained files without generated cours
 	expect(readFileSync(path.join(destination, 'fonts/new.woff2'), 'utf8')).toBe(
 		'new maintained font'
 	);
-	expect(readFileSync(path.join(destination, 'favicon.png'), 'utf8')).toBe('favicon');
+	expect(readFileSync(path.join(destination, 'favicon.ico'), 'utf8')).toBe('favicon');
 });

@@ -30,7 +30,7 @@
     "site/worker",
     "site/assets",
     "site/static/fonts",
-    "site/static/favicon.png",
+    "site/static/favicon.ico",
     "site/migrations",
     "site/package.json",
     "site/bun.lock",

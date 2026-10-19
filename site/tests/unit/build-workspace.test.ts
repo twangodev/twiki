@@ -30,8 +30,8 @@ function fixture() {
 	write(site, 'src/routes/+page.svelte', '<p>Maintained application</p>');
 	write(site, 'tooling/compiler.ts', 'export const current = true;');
 	write(site, 'worker/index.ts', 'export default {};');
-	write(site, 'static/.gitignore', '*\n!.gitignore\n!favicon.png\n!fonts/\n!fonts/**\n');
-	write(site, 'static/favicon.png', 'favicon');
+	write(site, 'static/.gitignore', '*\n!.gitignore\n!favicon.ico\n!fonts/\n!fonts/**\n');
+	write(site, 'static/favicon.ico', 'favicon');
 	write(site, 'static/fonts/font.woff2', 'font');
 	return { root, site };
 }
@@ -106,7 +106,7 @@ test('Git snapshot captures maintained dirty/untracked source and env once, with
 			expect(read(snapshot, 'tooling/new-helper.ts')).toContain('untracked');
 			expect(read(snapshot, '.env.production')).toContain('fixture.example');
 			expect(read(snapshot, 'static/fonts/font.woff2')).toBe('font');
-			expect(read(snapshot, 'static/favicon.png')).toBe('favicon');
+			expect(read(snapshot, 'static/favicon.ico')).toBe('favicon');
 			for (const missing of [
 				'src/lib/generated',
 				'static/course',

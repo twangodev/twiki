@@ -58,7 +58,7 @@ export function applicationVersion(site, environment = process.env) {
 	for (const directory of directories) walk(directory);
 	// These maintained assets are also present in Git-free content-test copies.
 	files.add('static/.gitignore');
-	files.add('static/favicon.png');
+	files.add('static/favicon.ico');
 	walk('static/fonts');
 	try {
 		// Respect static/.gitignore: synced course blobs must not change the app

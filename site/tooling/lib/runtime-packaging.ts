@@ -207,7 +207,7 @@ export function packageRuntime(
 			const routeFile = path.join(edition.metadata, 'routing.json');
 			const routing = JSON.parse(readFileSync(routeFile, 'utf8'));
 			for (const [name, value] of Object.entries(appInventory.assets)) {
-				if (!name.startsWith('/_app/') && !name.startsWith('/fonts/') && name !== '/favicon.png')
+				if (!name.startsWith('/_app/') && !name.startsWith('/fonts/') && name !== '/favicon.ico')
 					continue;
 				const key = urlPath(name.slice(1));
 				const inherited = edition.staticAssets[name.slice(1)];

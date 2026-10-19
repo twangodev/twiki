@@ -57,7 +57,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href="/favicon.png" />
+	<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 	<link
 		rel="alternate"
 		type="application/rss+xml"

@@ -41,7 +41,7 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	const STATIC_DIR = staticDirectory(SITE_DIR);
 	mkdirSync(STATIC_DIR, { recursive: true });
 	if (process.env.VITE_PUBLIC_EDITION === 'true') {
-		for (const name of ['fonts', 'favicon.png']) {
+		for (const name of ['fonts', 'favicon.ico']) {
 			const source = path.join(SITE_DIR, 'static', name);
 			if (existsSync(source)) cpSync(source, path.join(STATIC_DIR, name), { recursive: true });
 		}
@@ -162,7 +162,7 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 		wanted.add(file);
 
 	// Prune stale synced files (never touch the hand-placed statics).
-	const KEEP = new Set(['.gitignore', 'favicon.png']);
+	const KEEP = new Set(['.gitignore', 'favicon.ico']);
 	let pruned = 0;
 	for (const file of walk(STATIC_DIR)) {
 		const rel = path.relative(STATIC_DIR, file).split(path.sep).join('/');
@@ -237,7 +237,7 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	valid.add('/index.xml');
 	valid.add('/sitemap.xml');
 	valid.add('/404');
-	valid.add('/favicon.png');
+	valid.add('/favicon.ico');
 
 	const expected404 = new Set<string>();
 	const attrRe = /(?:href|src)="([^"]*)"/g;

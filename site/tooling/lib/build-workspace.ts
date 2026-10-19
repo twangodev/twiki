@@ -68,7 +68,7 @@ function sourceFiles(site: string) {
 		for (const entry of readdirSync(site, { withFileTypes: true }))
 			if (entry.isFile() && maintained(entry.name) && !entry.name.startsWith('.dev.vars'))
 				files.push(entry.name);
-		files.push('.dev.vars.example', 'static/.gitignore', 'static/favicon.png');
+		files.push('.dev.vars.example', 'static/.gitignore', 'static/favicon.ico');
 		walk('static/fonts');
 	}
 	// Vite loads ignored environment files too. Both editions must see the same bytes.

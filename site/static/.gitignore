@@ -2,6 +2,6 @@
 # build/generated/assets by tooling/assets.ts — never commit synced content.
 *
 !.gitignore
-!favicon.png
+!favicon.ico
 !fonts/
 !fonts/**

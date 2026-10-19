@@ -65,7 +65,7 @@ export default mergeConfig(config, {
 `
 );
 mkdirSync(path.join(siteDirectory, 'static'));
-for (const file of ['fonts', 'favicon.png', '.gitignore'])
+for (const file of ['fonts', 'favicon.ico', '.gitignore'])
 	cpSync(path.join(source, 'static', file), path.join(siteDirectory, 'static', file), {
 		recursive: true
 	});

@@ -28,7 +28,7 @@ export const requiredFiles = [
   "site/tooling/lib/project-schema.ts",
   "site/worker/index.ts",
   "site/src/app.html",
-  "site/static/favicon.png",
+  "site/static/favicon.ico",
 ];
 const files = new Set(requiredFiles);
 const prefixes = [

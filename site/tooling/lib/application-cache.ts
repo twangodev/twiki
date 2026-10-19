@@ -239,7 +239,7 @@ export function prepareApplicationStatic(site: string, destination: string) {
 			.split('\0')
 			.filter(Boolean);
 	} catch {
-		files = ['static/.gitignore', 'static/favicon.png'];
+		files = ['static/.gitignore', 'static/favicon.ico'];
 		const fonts = path.join(site, 'static/fonts');
 		if (existsSync(fonts))
 			for (const entry of readdirSync(fonts, { recursive: true, withFileTypes: true }))
@@ -248,7 +248,7 @@ export function prepareApplicationStatic(site: string, destination: string) {
 	}
 	// Packaged runtimes often live under a Git-ignored .twiki directory; an empty
 	// git inventory there does not mean the engine's maintained fonts disappeared.
-	files.push('static/.gitignore', 'static/favicon.png');
+	files.push('static/.gitignore', 'static/favicon.ico');
 	const fonts = path.join(site, 'static/fonts');
 	if (existsSync(fonts))
 		for (const entry of readdirSync(fonts, { recursive: true, withFileTypes: true }))
