@@ -173,6 +173,10 @@ transport and benchmark namespaces are no longer supported. Product keys use
 `twiki-products-v1-`; old keys cause a cold rebuild. Compiler archive `save` and
 `restore` remain available because they cover compiler and R reuse separately.
 
+The optional GitHub adapter is maintained in TypeScript under
+`integrations/github-cache/src/`. Run `bun run integrations:build` after editing
+it; the distributed Node entry point is generated JavaScript.
+
 The package exports `@twango/twiki/actions/product-cache` for Node action bootstraps,
 `@twango/twiki/cli` for locating the executable, and `@twango/twiki/runtime` for Bun scripts.
 

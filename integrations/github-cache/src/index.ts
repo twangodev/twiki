@@ -1,3 +1,4 @@
+// Maintained in TypeScript. Regenerate dist/index.js with bun run integrations:build.
 import { spawn } from "node:child_process";
 import {
   appendFileSync,
@@ -14,6 +15,41 @@ import {
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+type Mode = "restore" | "save";
+type Kind = "global" | "application" | "search" | "course";
+interface Group {
+  id: string;
+  namespace: "production";
+  key: string;
+  archive: string;
+  restoreKeys: string[];
+}
+type TransferReason =
+  | "ready"
+  | "missing-secret"
+  | "miss"
+  | "invalid"
+  | "invalid-result"
+  | "not-ready";
+type DiagnosticReason =
+  | TransferReason
+  | "archive-miss"
+  | "operation-error"
+  | "archive-missing"
+  | "cache-not-created";
+interface TransferResult {
+  ready: boolean;
+  reason: TransferReason;
+}
+function record(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function strings(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
+}
+
 // A JavaScript action receives the Actions cache service credentials. Do not
 // export those credentials into a workflow log or a repository artifact.
 const site = process.env.TWIKI_SITE_DIR
@@ -29,20 +65,22 @@ if (
     "Product cache requires a real absolute engine working directory",
   );
 const mode = process.env.INPUT_MODE;
-if (!["restore", "save"].includes(mode))
+if (mode !== "restore" && mode !== "save")
   throw new Error("Expected restore or save mode");
-const namespace = process.env.INPUT_NAMESPACE || "production";
-if (namespace !== "production")
+const namespace = "production";
+if ((process.env.INPUT_NAMESPACE || namespace) !== namespace)
   throw new Error("Unsupported product cache namespace");
-const transport = process.env.INPUT_TRANSPORT || "bundle";
-if (transport !== "bundle")
+const transport = "bundle";
+if ((process.env.INPUT_TRANSPORT || transport) !== transport)
   throw new Error("Unsupported product cache transport");
 if (!/^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA ?? ""))
   throw new Error("Bundle caches require an exact Git commit");
 if (
   mode === "save" &&
   (process.env.GITHUB_REF !== "refs/heads/main" ||
-    !["push", "workflow_dispatch"].includes(process.env.GITHUB_EVENT_NAME))
+    !["push", "workflow_dispatch"].includes(
+      process.env.GITHUB_EVENT_NAME ?? "",
+    ))
 )
   throw new Error(
     "Only trusted main builds may publish production product caches",
@@ -58,7 +96,11 @@ const counts = {
   skipped: 0,
   failed: 0,
 };
-function groupDiagnostic(group, ready, reason) {
+function groupDiagnostic(
+  group: Group,
+  ready: boolean,
+  reason: DiagnosticReason,
+) {
   console.log(
     "Encrypted product cache group: " +
       JSON.stringify({ mode, namespace, group: group.id, ready, reason }),
@@ -70,18 +112,27 @@ if (!process.env.BUILD_CACHE_KEY) {
   );
 } else {
   // Standard package resolution also supports hoisted consumer dependencies.
-  let sdk;
+  let sdk: string;
   try {
     sdk = import.meta.resolve("@actions/cache");
   } catch (error) {
-    if (error.code !== "ERR_MODULE_NOT_FOUND") throw error;
+    if (
+      !(error instanceof Error) ||
+      !("code" in error) ||
+      error.code !== "ERR_MODULE_NOT_FOUND"
+    )
+      throw error;
     // Legacy engine development and isolated test fixtures keep site dependencies.
     sdk = new URL(
       "../../../site/node_modules/@actions/cache/lib/cache.js",
       import.meta.url,
-    );
+    ).href;
   }
-  const { restoreCache, saveCache, isFeatureAvailable } = await import(sdk);
+  const {
+    restoreCache,
+    saveCache,
+    isFeatureAvailable,
+  }: typeof import("@actions/cache") = await import(sdk);
   if (!isFeatureAvailable())
     throw new Error("Actions cache service is unavailable");
   mkdirSync(path.join(site, "build/generated/product-caches"), {
@@ -89,14 +140,14 @@ if (!process.env.BUILD_CACHE_KEY) {
   });
   const products = path.join(site, "build/generated/product-caches");
   const bundleDirectory = path.join(products, "bundles", namespace);
-  let runtime;
-  let bundleLoadPromise;
+  let runtime: string | undefined;
+  let bundleLoadPromise: Promise<void> | undefined;
   let bundleAvailable = false;
-  let bundleGroups = new Set();
-  const selectedBundleGroups = new Set();
+  let bundleGroups = new Set<string>();
+  const selectedBundleGroups = new Set<string>();
   const bundleGroupId =
     /^(?:application|(?:global|files-global|search)-(?:public|full)|(?:course|course-files)-(?:public|full)-[a-f0-9]{16})$/;
-  function regular(file) {
+  function regular(file: string) {
     return lstatSync(file).isFile() && realpathSync(file) === file;
   }
   function cleanBundleDirectory() {
@@ -116,6 +167,7 @@ if (!process.env.BUILD_CACHE_KEY) {
     mkdirSync(bundleDirectory);
   }
   function bundleKey() {
+    if (!runtime) throw new Error("Missing bundle runtime identity");
     return `${prefix}bundle-${runtime}-${process.env.GITHUB_SHA}`;
   }
   async function loadBundle() {
@@ -137,16 +189,15 @@ if (!process.env.BUILD_CACHE_KEY) {
       const manifestFile = path.join(bundleDirectory, "bundle.json");
       if (!regular(manifestFile) || lstatSync(manifestFile).size > 256 * 1024)
         throw new Error("Invalid bundle metadata");
-      const manifest = JSON.parse(readFileSync(manifestFile, "utf8"));
+      const manifest: unknown = JSON.parse(readFileSync(manifestFile, "utf8"));
       if (
+        !record(manifest) ||
         manifest.schema !== 1 ||
         manifest.namespace !== namespace ||
         manifest.runtime !== runtime ||
-        !Array.isArray(manifest.groups) ||
+        !strings(manifest.groups) ||
         manifest.groups.length > 4096 ||
-        !manifest.groups.every(
-          (id) => typeof id === "string" && bundleGroupId.test(id),
-        ) ||
+        !manifest.groups.every((id) => bundleGroupId.test(id)) ||
         new Set(manifest.groups).size !== manifest.groups.length
       )
         throw new Error("Invalid bundle metadata");
@@ -168,7 +219,7 @@ if (!process.env.BUILD_CACHE_KEY) {
       );
     }
   }
-  async function archiveHit(group, archive) {
+  async function archiveHit(group: Group, archive: string) {
     await loadBundle();
     selectedBundleGroups.add(group.id);
     const source = path.join(bundleDirectory, `${group.id}.gpg`);
@@ -185,8 +236,8 @@ if (!process.env.BUILD_CACHE_KEY) {
     return true;
   }
   const planFile = "build/generated/product-caches/action-plan.json";
-  function run(args) {
-    return new Promise((resolve, reject) => {
+  function run(args: string[]): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
       const child = spawn("bun", ["tooling/cache.ts", ...args], {
         cwd: site,
         env: process.env,
@@ -200,7 +251,10 @@ if (!process.env.BUILD_CACHE_KEY) {
       );
     });
   }
-  async function limited(groups, operation) {
+  async function limited<T>(
+    groups: readonly T[],
+    operation: (group: T) => Promise<void>,
+  ) {
     let next = 0;
     await Promise.all(
       Array.from({ length: Math.min(4, groups.length) }, async () => {
@@ -208,7 +262,7 @@ if (!process.env.BUILD_CACHE_KEY) {
       }),
     );
   }
-  async function plan(kind) {
+  async function plan(kind?: Kind): Promise<Group[]> {
     await run([
       "plan",
       "--namespace",
@@ -218,30 +272,36 @@ if (!process.env.BUILD_CACHE_KEY) {
       "--plan-file",
       planFile,
     ]);
-    const value = JSON.parse(readFileSync(path.join(site, planFile), "utf8"));
+    const value: unknown = JSON.parse(
+      readFileSync(path.join(site, planFile), "utf8"),
+    );
     if (
+      !record(value) ||
       value.schema !== 1 ||
       value.namespace !== namespace ||
       !Array.isArray(value.groups)
     )
       throw new Error("Invalid product cache plan");
     if (
-      !/^[a-f0-9]{64}$/.test(value.runtime ?? "") ||
+      typeof value.runtime !== "string" ||
+      !/^[a-f0-9]{64}$/.test(value.runtime) ||
       (runtime && runtime !== value.runtime)
     )
       throw new Error("Invalid bundle runtime identity");
     runtime = value.runtime;
-    for (const group of value.groups) {
+    const groups: Group[] = [];
+    for (const candidate of value.groups as unknown[]) {
+      if (!record(candidate)) throw new Error("Invalid product cache group");
+      const group = candidate;
+      const restoreKeys = group.restoreKeys ?? [];
       if (
         typeof group.id !== "string" ||
         !/^[a-z0-9-]+$/.test(group.id) ||
         group.namespace !== namespace ||
         typeof group.key !== "string" ||
         !group.key.startsWith(prefix) ||
-        !Array.isArray(group.restoreKeys ?? []) ||
-        !(group.restoreKeys ?? []).every(
-          (key) => typeof key === "string" && key.startsWith(prefix),
-        )
+        !strings(restoreKeys) ||
+        !restoreKeys.every((key) => key.startsWith(prefix))
       )
         throw new Error("Product cache plan crosses its selected namespace");
       if (!bundleGroupId.test(group.id))
@@ -256,6 +316,13 @@ if (!process.env.BUILD_CACHE_KEY) {
         path.resolve(site, group.archive) !== expectedArchive
       )
         throw new Error("Product archive crosses its selected namespace");
+      groups.push({
+        id: group.id,
+        namespace,
+        key: group.key,
+        archive: group.archive,
+        restoreKeys,
+      });
     }
     counts.requested += value.groups.length;
     console.log(
@@ -267,9 +334,12 @@ if (!process.env.BUILD_CACHE_KEY) {
           groups: value.groups.length,
         }),
     );
-    return value.groups;
+    return groups;
   }
-  async function transfer(group, operation) {
+  async function transfer(
+    group: Group,
+    operation: Mode,
+  ): Promise<TransferResult> {
     const transferFile = `build/generated/product-caches/${operation}-${namespace}-${group.id}.json`;
     rmSync(path.join(site, transferFile), { force: true });
     await run([
@@ -281,29 +351,40 @@ if (!process.env.BUILD_CACHE_KEY) {
       "--plan-file",
       transferFile,
     ]);
-    const value = JSON.parse(
+    const value: unknown = JSON.parse(
       readFileSync(path.join(site, transferFile), "utf8"),
     );
-    const valid =
-      value.schema === 1 &&
-      value.namespace === namespace &&
-      Array.isArray(value.results) &&
-      value.results.length === 1 &&
-      value.results[0] !== null &&
-      value.results[0].id === group.id &&
-      typeof value.results[0].ready === "boolean";
-    if (!valid) return { ready: false, reason: "invalid-result" };
-    const result = value.results[0];
+    if (
+      !record(value) ||
+      value.schema !== 1 ||
+      value.namespace !== namespace ||
+      !Array.isArray(value.results) ||
+      value.results.length !== 1
+    ) {
+      return { ready: false, reason: "invalid-result" };
+    }
+    const result: unknown = value.results[0];
+    if (
+      !record(result) ||
+      result.id !== group.id ||
+      typeof result.ready !== "boolean"
+    ) {
+      return { ready: false, reason: "invalid-result" };
+    }
+    const reason = result.reason;
     return {
       ready: result.ready,
       reason: result.ready
         ? "ready"
-        : ["missing-secret", "miss", "invalid"].includes(result.reason)
-          ? result.reason
+        : reason === "missing-secret" ||
+            reason === "miss" ||
+            reason === "invalid"
+          ? reason
           : "not-ready",
     };
   }
-  async function restore(kind) {
+
+  async function restore(kind: Kind) {
     await limited(await plan(kind), async (group) => {
       const archive = path.resolve(site, group.archive);
       if (
@@ -354,7 +435,7 @@ if (!process.env.BUILD_CACHE_KEY) {
     }
   } else {
     const groups = await plan();
-    const prepared = [];
+    const prepared: Group[] = [];
     cleanBundleDirectory();
     await limited(groups, async (group) => {
       try {

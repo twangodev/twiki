@@ -45,7 +45,7 @@ function saveFixture(transfer: unknown, options: FixtureOptions = {}) {
 	const root = mkdtempSync(path.join(tmpdir(), 'twiki-product-action-'));
 	try {
 		execFileSync('git', ['init', '--quiet', root], { stdio: 'pipe' });
-		const action = path.join(root, '.github/actions/product-cache/index.mjs');
+		const action = path.join(root, 'integrations/github-cache/dist/index.js');
 		const site = path.join(root, options.stagedSite ? '.twiki/site' : 'site');
 		const products = path.join(site, 'build/generated/product-caches');
 		const sdk = path.join(options.stagedSite ? root : site, 'node_modules/@actions/cache');
@@ -58,7 +58,7 @@ function saveFixture(transfer: unknown, options: FixtureOptions = {}) {
 		])
 			mkdirSync(directory, { recursive: true });
 		copyFileSync(
-			fileURLToPath(new URL('../../../.github/actions/product-cache/index.mjs', import.meta.url)),
+			fileURLToPath(new URL('../../../integrations/github-cache/dist/index.js', import.meta.url)),
 			action
 		);
 		writeFileSync(
