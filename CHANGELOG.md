@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/twangodev/twiki/compare/v0.4.1...v0.5.0) (2026-10-20)
+
+
+### Features
+
+* transfer encrypted releases with native Bun archives ([4c5655c](https://github.com/twangodev/twiki/commit/4c5655c8d771903210f67c6ae8a83cb047f60678))
+
 ## [0.4.1](https://github.com/twangodev/twiki/compare/v0.4.0...v0.4.1) (2026-10-20)
 
 
