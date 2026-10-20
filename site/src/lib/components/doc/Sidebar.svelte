@@ -9,7 +9,7 @@
 	import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import LogIn from '@lucide/svelte/icons/log-in';
-	import { siGithub } from 'simple-icons';
+	import githubIcon from 'simple-icons/icons/github.svg?raw';
 	const publicEdition = $derived(page.data.edition === 'public');
 	import type { NavNode } from '$lib/types';
 	import { courseGroup, courseLabel, groupCourses, isCourse } from '$lib/course-navigation';
@@ -233,9 +233,9 @@
 			title="Source on GitHub"
 			class="inline-flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface hover:text-text"
 		>
-			<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-				<path d={siGithub.path} />
-			</svg>
+			<span class="size-4 [&>svg]:size-full [&>svg]:fill-current" aria-hidden="true">
+				{@html githubIcon}
+			</span>
 		</a>
 		<ThemeToggle /><ReaderModeToggle />
 		{#if authEnabled}
