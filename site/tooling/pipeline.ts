@@ -19,6 +19,7 @@ export async function prepareContent(
 	const site = process.cwd();
 	const project = resolveProject(site);
 	const repo = project.root;
+	const preparationStarted = performance.now();
 	writeProjectSiteConfig(site, project);
 	const key = JSON.stringify([
 		process.cwd(),
@@ -31,6 +32,8 @@ export async function prepareContent(
 	const marker = path.resolve('build/generated/dev-state.json');
 	const started = performance.now();
 	let inputs = development ? contentInputFingerprint(repo, key) : '';
+	if (development)
+		console.log(`content inputs: ${Math.round(performance.now() - preparationStarted)}ms`);
 	if (development && reuse && existsSync(marker)) {
 		try {
 			const saved = JSON.parse(readFileSync(marker, 'utf8'));
@@ -93,8 +96,14 @@ async function runPipeline(changedInputs?: Set<string>, development = false) {
 		import('./assets')
 	]);
 	const changed = await trackOutputs(async () => {
+		const compiled = performance.now();
 		await compileContent({ development });
+		const assets = performance.now();
 		await prepareAssets(changedInputs, development);
+		if (development)
+			console.log(
+				`content stages: compiler ${Math.round(assets - compiled)}ms, assets ${Math.round(performance.now() - assets)}ms`
+			);
 	});
 	console.log(
 		`content pipeline: ${((performance.now() - start) / 1000).toFixed(2)}s, ${changed.size} changed outputs`
