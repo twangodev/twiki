@@ -20,6 +20,14 @@ export async function prepareContent(
 	changedInputs?: Set<string>,
 	development = false
 ) {
+	return withSourceDiscovery(() => prepareSnapshot(reuse, changedInputs, development));
+}
+
+async function prepareSnapshot(
+	reuse: boolean,
+	changedInputs: Set<string> | undefined,
+	development: boolean
+) {
 	const builds = (state.wisconsinContentBuilds ??= new Map());
 	const site = process.cwd();
 	const project = resolveProject(site);
@@ -76,11 +84,13 @@ export async function prepareContent(
 	try {
 		const changed = await build;
 		if (development) {
-			let current = contentInputFingerprint(repo, key);
+			// Never validate a completed build against its cached discovery snapshot.
+			let current = withSourceDiscovery(() => contentInputFingerprint(repo, key));
 			while (current !== inputs) {
 				inputs = current;
-				for (const file of await runPipeline(undefined, true)) changed.add(file);
-				current = contentInputFingerprint(repo, key);
+				for (const file of await withSourceDiscovery(() => runPipeline(undefined, true)))
+					changed.add(file);
+				current = withSourceDiscovery(() => contentInputFingerprint(repo, key));
 			}
 			writeChanged(marker, JSON.stringify({ inputs, outputs: contentOutputFingerprint(site) }));
 		}
@@ -100,18 +110,16 @@ async function runPipeline(changedInputs?: Set<string>, development = false) {
 		import('./compiler'),
 		import('./assets')
 	]);
-	const changed = await withSourceDiscovery(() =>
-		trackOutputs(async () => {
-			const compiled = performance.now();
-			await compileContent({ development });
-			const assets = performance.now();
-			await prepareAssets(changedInputs, development);
-			if (development)
-				console.log(
-					`content stages: compiler ${Math.round(assets - compiled)}ms, assets ${Math.round(performance.now() - assets)}ms`
-				);
-		})
-	);
+	const changed = await trackOutputs(async () => {
+		const compiled = performance.now();
+		await compileContent({ development });
+		const assets = performance.now();
+		await prepareAssets(changedInputs, development);
+		if (development)
+			console.log(
+				`content stages: compiler ${Math.round(assets - compiled)}ms, assets ${Math.round(performance.now() - assets)}ms`
+			);
+	});
 	console.log(
 		`content pipeline: ${((performance.now() - start) / 1000).toFixed(2)}s, ${changed.size} changed outputs`
 	);
