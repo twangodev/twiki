@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/twangodev/twiki/compare/v0.5.1...v0.5.2) (2026-10-20)
+
+
+### Bug Fixes
+
+* **deps:** patch Vite advisory blocking package releases ([1be4d47](https://github.com/twangodev/twiki/commit/1be4d4758aff02612d9d19969cacbf3ccf9324b4))
+
 ## [0.5.1](https://github.com/twangodev/twiki/compare/v0.5.0...v0.5.1) (2026-10-20)
 
 
