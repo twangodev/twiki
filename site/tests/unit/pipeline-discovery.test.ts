@@ -53,6 +53,11 @@ const saved = JSON.parse(fs.readFileSync('build/generated/dev-state.json', 'utf8
 assert.equal(saved.inputs, contentInputFingerprint(${JSON.stringify(fixture.repo)}, process.env.TWIKI_PREPARED_CONTENT_KEY));
 assert.equal(saved.outputs, contentOutputFingerprint(process.cwd()));
 await prepareContent(true, undefined, true);
+assert(!fs.existsSync('build/generated/expected-404.json'));
+assert(!fs.existsSync('build/generated/expected-missing-id.json'));
+await prepareContent(false, undefined, false);
+assert(Array.isArray(JSON.parse(fs.readFileSync('build/generated/expected-404.json', 'utf8'))));
+assert(Array.isArray(JSON.parse(fs.readFileSync('build/generated/expected-missing-id.json', 'utf8'))));
 `
 			],
 			{
@@ -69,7 +74,7 @@ await prepareContent(true, undefined, true);
 				timeout: 25_000
 			}
 		);
-		expect((output.match(/content pipeline:/g) ?? []).length).toBe(3);
+		expect((output.match(/content pipeline:/g) ?? []).length).toBe(4);
 		expect(output).toContain('reused saved output');
 	} finally {
 		rmSync(fixture.repo, { recursive: true, force: true });

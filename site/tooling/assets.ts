@@ -215,6 +215,13 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 		writeChanged(path.join(STATIC_DIR, asset), runtimeDataModuleSource(data));
 	}
 	console.log(`nav: wrote src/lib/generated/nav.json`);
+	console.log(
+		`routes: ${contentEntries().length} content + ${Object.keys(manifest.tags).length + 1} tag + 2 xml + /404`
+	);
+
+	// These reports are consumed only by the production prerender crawler.
+	// Live routes already return their normal 404 responses without scanning every page.
+	if (development) return;
 
 	// ---------------------------------------------------------------------------
 	// 3. Expected-404 list for the strict prerender crawler
@@ -308,12 +315,6 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	console.log(
 		`expected-missing-id: ${sortedIds.length} unresolved content anchors reported to the crawler`
 	);
-	console.log(
-		`routes: ${contentEntries().length} content + ${Object.keys(manifest.tags).length + 1} tag + 2 xml + /404`
-	);
-
-	if (!development) {
-		const { buildSocialImages } = await import('./lib/social-images');
-		await buildSocialImages(SITE_DIR, manifest);
-	}
+	const { buildSocialImages } = await import('./lib/social-images');
+	await buildSocialImages(SITE_DIR, manifest);
 }
