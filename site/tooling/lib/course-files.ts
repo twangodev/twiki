@@ -59,8 +59,11 @@ export async function buildCourseFiles(
 	const output = courseFilesDirectory(siteDir);
 	const wanted = new Set<string>();
 	for (const dir of ['index', 'blobs']) mkdirSync(path.join(output, dir), { recursive: true });
+	const paths = discoverSourceFiles(project);
+	const declared = new Set(declaredContentCourses(project).map((course) => course.name));
+	const folders = paths.filter((file) => file.includes('/')).map((file) => file.split('/')[0]);
 	const courses = new Map(
-		declaredContentCourses(project).map((course) => [course.name, [] as CourseFile[]])
+		[...new Set([...declared, ...folders])].map((course) => [course, [] as CourseFile[]])
 	);
 	const key = JSON.stringify([siteDir, projectIdentity(project), publicEdition, development]);
 	const previous = previousBuilds.get(key);
@@ -72,7 +75,6 @@ export async function buildCourseFiles(
 			JSON.stringify([...noteSlugs].filter((slug) => slug.startsWith(course + '/')).sort())
 		])
 	);
-	const paths = discoverSourceFiles(project);
 	const fingerprints = new Map<string, string>();
 	const cacheFile = (course: string) =>
 		path.join(
@@ -92,6 +94,7 @@ export async function buildCourseFiles(
 	if (!development) {
 		const version = `${await stageFingerprint('files')}\0${publicEdition ? 'public' : 'full'}\0${project.publication}\0${project.discovery}`;
 		for (const course of courses.keys()) {
+			if (!/^[\w-]+$/.test(course)) continue;
 			const tracked = paths.filter((file) => file.startsWith(`${course}/`));
 			// Let the R renderer validate its installed runtime and worksheet dependencies.
 			if (tracked.some((file) => /\.rmd$/i.test(file))) continue;
@@ -144,23 +147,27 @@ export async function buildCourseFiles(
 	};
 	let count = 0;
 	const historyJobs = new Map<string, HistoryJob>(
-		(publicEdition || development ? [] : [...active]).map((course) => [
-			course,
-			{
-				repo: path.join(contentRoot, course),
-				output,
-				cache: path.join(siteDir, 'build/generated/cache/file-history', course),
-				files: []
-			}
-		])
+		(publicEdition || development ? [] : [...active].filter((course) => declared.has(course))).map(
+			(course) => [
+				course,
+				{
+					repo: path.join(contentRoot, course),
+					output,
+					cache: path.join(siteDir, 'build/generated/cache/file-history', course),
+					files: []
+				}
+			]
+		)
 	);
 	const revisions = new Map(
-		(development && !publicEdition ? [...active] : []).map((course) => [
-			course,
-			execFileSync('git', ['-C', path.join(contentRoot, course), 'rev-parse', 'HEAD'], {
-				encoding: 'utf8'
-			}).trim()
-		])
+		(development && !publicEdition ? [...active].filter((course) => declared.has(course)) : []).map(
+			(course) => [
+				course,
+				execFileSync('git', ['-C', path.join(contentRoot, course), 'rev-parse', 'HEAD'], {
+					encoding: 'utf8'
+				}).trim()
+			]
+		)
 	);
 	for (const tracked of paths) {
 		const relative = tracked;
@@ -202,7 +209,7 @@ export async function buildCourseFiles(
 		else if (inlineImages.has(suffix)) file.kind = 'image';
 		else if (previewText(bytes)) file.kind = 'text';
 		file.history =
-			development && !publicEdition
+			development && !publicEdition && declared.has(course)
 				? `/__content/history?course=${encodeURIComponent(course)}&file=${encodeURIComponent(file.path)}&v=${revisions.get(course)}-${hash}`
 				: undefined;
 		historyJobs.get(course)?.files.push({ file, source: path.join(output, 'blobs', blob) });

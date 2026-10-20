@@ -153,3 +153,36 @@ describe('file navigation', () => {
 		expect(fileSize(2048)).toBe('2.0 KB');
 	});
 });
+
+test('plain vault folders expose public file catalogs without Git history', async () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'twiki-folder-files-'));
+	const site = path.join(root, 'site');
+	const previous = process.env.VITE_PUBLIC_EDITION;
+	try {
+		mkdirSync(path.join(root, 'notes/guides'), { recursive: true });
+		mkdirSync(site);
+		writeFileSync(
+			path.join(root, 'twiki.config.json'),
+			JSON.stringify({
+				version: 1,
+				contentDir: 'notes',
+				discovery: 'filesystem',
+				publication: 'public'
+			})
+		);
+		writeFileSync(path.join(root, 'notes/guides/intro.md'), '# Introduction');
+		writeFileSync(path.join(root, 'notes/guides/example.txt'), 'example');
+		writeFileSync(path.join(root, 'notes/guides/.env'), 'secret');
+		process.env.VITE_PUBLIC_EDITION = 'true';
+		await buildCourseFiles(site, new Set(['guides/intro']));
+		const catalog: CourseFile[] = JSON.parse(
+			readFileSync(path.join(site, 'build/generated/public-files/index/guides.json'), 'utf8')
+		);
+		expect(catalog.map((file) => file.path).sort()).toEqual(['example.txt', 'intro.md']);
+		expect(catalog.every((file) => !file.history)).toBe(true);
+	} finally {
+		if (previous === undefined) delete process.env.VITE_PUBLIC_EDITION;
+		else process.env.VITE_PUBLIC_EDITION = previous;
+		rmSync(root, { recursive: true, force: true });
+	}
+});
