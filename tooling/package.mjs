@@ -18,6 +18,7 @@ export const requiredFiles = [
   "site/drizzle.config.ts",
   "site/tooling/build.ts",
   "site/tooling/deploy.ts",
+  "site/tooling/release-artifact.ts",
   "site/tooling/lib/project-config.ts",
   "site/tooling/lib/project-schema.ts",
   "site/worker/index.ts",
