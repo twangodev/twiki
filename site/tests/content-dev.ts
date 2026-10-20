@@ -254,6 +254,17 @@ try {
 		return page.getByRole('dialog', { name: 'Note actions' }).isVisible();
 	}, 'client hydration');
 	await page.keyboard.press('Escape');
+	for (const target of ['second', 'public']) {
+		const route = `/sp99-cs101/notes/${target}`;
+		const response = page.waitForResponse(
+			(response) => new URL(response.url()).pathname === `${route}/__data.json`
+		);
+		await page.locator(`article a[href="${route}"]`).first().click();
+		const data = JSON.parse((await (await response).text()).split('\n')[0]);
+		if (data.nodes[0]?.type !== 'skip')
+			throw new Error('Dev navigation downloaded the shared layout again');
+		await page.waitForURL(origin + route);
+	}
 	const unchangedPath = path.join(
 		siteDirectory,
 		'build/generated/pages/sp99-cs101/notes/second.json'
@@ -315,6 +326,11 @@ try {
 			(await fetch(origin + '/sp99-cs101/notes/new', { signal: AbortSignal.timeout(5000) })).ok,
 		'tracked note addition'
 	);
+	await until(
+		async () =>
+			(await page.locator('aside.doc-sidebar-left a[href="/sp99-cs101/notes/new"]').count()) > 0,
+		'added note appears in refreshed navigation'
+	);
 	if (statSync(unchangedPath).mtimeMs !== unchangedStat.mtimeMs)
 		throw new Error('Adding a note rewrote an unrelated page');
 	unlinkSync(path.join(fixture.repo, 'content/sp99-cs101/notes/new.md'));
@@ -323,6 +339,11 @@ try {
 			(await fetch(origin + '/sp99-cs101/notes/new', { signal: AbortSignal.timeout(5000) }))
 				.status === 404,
 		'note deletion'
+	);
+	await until(
+		async () =>
+			(await page.locator('aside.doc-sidebar-left a[href="/sp99-cs101/notes/new"]').count()) === 0,
+		'deleted note disappears from refreshed navigation'
 	);
 	fixture.write('content/sp99-cs101/notes/public.md', fixture.publicNote + '\n![[second]]\n');
 	await until(

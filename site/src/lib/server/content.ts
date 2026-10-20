@@ -23,6 +23,7 @@ let manifestCache: ContentManifest | undefined;
 
 export function resetContentCache() {
 	manifestCache = undefined;
+	navCache = undefined;
 	pageDocCache.clear();
 }
 
