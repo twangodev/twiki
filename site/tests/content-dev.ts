@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { chromium, type Page } from '@playwright/test';
 import { spawn, execFileSync } from 'node:child_process';
 import {
 	rmSync,
@@ -125,6 +125,16 @@ async function until(check: () => Promise<boolean>, label: string) {
 		await new Promise((resolve) => setTimeout(resolve, 200));
 	}
 	throw new Error(`Timed out: ${label}\n${output}`);
+}
+
+async function contentData(page: Page, route: string) {
+	const request = await page.waitForRequest(
+		(request) => new URL(request.url()).pathname === `${route}/__data.json`
+	);
+	// Replay the exact invalidation mask: Chromium may discard preloaded or
+	// superseded response bodies before Playwright can read them.
+	const response = await fetch(request.url());
+	return JSON.parse((await response.text()).split('\n')[0]) as { nodes: { type?: string }[] };
 }
 
 try {
@@ -256,11 +266,9 @@ try {
 	await page.keyboard.press('Escape');
 	for (const target of ['second', 'public']) {
 		const route = `/sp99-cs101/notes/${target}`;
-		const response = page.waitForResponse(
-			(response) => new URL(response.url()).pathname === `${route}/__data.json`
-		);
+		const response = contentData(page, route);
 		await page.locator(`article a[href="${route}"]`).first().click();
-		const data = JSON.parse((await (await response).text()).split('\n')[0]);
+		const data = await response;
 		if (data.nodes[0]?.type !== 'skip')
 			throw new Error('Dev navigation downloaded the shared layout again');
 		await page.waitForURL(origin + route);
@@ -274,6 +282,7 @@ try {
 		(window as unknown as { contentTestMarker: string }).contentTestMarker = 'preserved';
 	});
 	const editStart = performance.now();
+	const editedData = contentData(page, '/sp99-cs101/notes/public');
 	fixture.write(
 		'content/sp99-cs101/notes/public.md',
 		fixture.publicNote + '\nLive content update.\n\n```js\nconsole.log(1);\n```\n'
@@ -282,6 +291,9 @@ try {
 		async () => (await page.locator('article').innerText()).includes('Live content update.'),
 		'automatic browser refresh'
 	);
+	const editedNodes = await editedData;
+	if (editedNodes.nodes[0]?.type !== 'skip')
+		throw new Error('Body edit downloaded unchanged layout data');
 	await until(
 		async () => (await page.getByRole('button', { name: 'Copy code', exact: true }).count()) === 1,
 		'updated code block enhancement'
@@ -359,6 +371,21 @@ try {
 			(await page.locator('article').innerText()).includes('Changed embedded explanation.'),
 		'dependent transclusion refresh'
 	);
+	const tagPage = await browser.newPage();
+	await tagPage.goto(origin + '/tags');
+	await until(
+		async () => tagPage.locator('button[aria-label="Toggle navigation"]').isEnabled(),
+		'tag index hydration'
+	);
+	fixture.write(
+		'content/sp99-cs101/notes/public.md',
+		fixture.publicNote.replace('tags: [practice]', 'tags: [practice, live-tag]') + '\n![[second]]\n'
+	);
+	await until(
+		async () => (await tagPage.locator('a[href="/tags/live-tag"]').count()) > 0,
+		'tag index refresh without layout invalidation'
+	);
+	await tagPage.close();
 	fixture.write('content/sp99-cs101/publish.yaml', 'include: []\n');
 	await until(
 		async () => (await page.locator('article').innerText()).includes('Content locked'),

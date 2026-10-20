@@ -5,7 +5,8 @@ export const entries: EntryGenerator = async () => {
 	if (import.meta.env.VITE_STATIC_EXPORT !== 'true') return [];
 	return Object.keys((await requestContent(undefined).manifest()).tags).map((tag) => ({ tag }));
 };
-export const load: PageServerLoad = async ({ params, platform }) => {
+export const load: PageServerLoad = async ({ params, platform, depends }) => {
+	depends('twiki:content');
 	const model = await requestContent(platform).model();
 	const pages = model.tagPages(params.tag);
 	if (!pages) error(404, 'Tag not found');

@@ -12,7 +12,8 @@ import type { PageLoad } from './$types';
 export const prerender = false;
 export const ssr = false;
 
-export const load: PageLoad = async ({ params, fetch }) => {
+export const load: PageLoad = async ({ params, fetch, depends }) => {
+	depends('twiki:content');
 	const response = await fetch(fileIndexUrl(params.course));
 	if (!response.ok) error(response.status === 404 ? 404 : 503, 'Files unavailable');
 	const files: CourseFile[] = await response.json();

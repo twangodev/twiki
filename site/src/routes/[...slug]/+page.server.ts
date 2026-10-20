@@ -8,7 +8,8 @@ export const entries: EntryGenerator = async () => {
 	return (await requestContent(undefined).model()).contentEntries().map((slug) => ({ slug }));
 };
 
-export const load: PageServerLoad = async ({ params, platform }) => {
+export const load: PageServerLoad = async ({ params, platform, depends }) => {
+	depends('twiki:content');
 	const route = params.slug.replace(/^\/+|\/+$/g, '');
 	const content = requestContent(platform);
 	const model = await content.model();

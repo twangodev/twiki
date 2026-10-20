@@ -83,7 +83,16 @@ export function content(): Plugin {
 					);
 					// Browsers cache image/PDF URLs independently of SvelteKit's page data.
 					if (changedAsset) server.ws.send({ type: 'full-reload' });
-					else server.ws.send({ type: 'custom', event: 'wisconsin:content', data: { recovered } });
+					else {
+						const layoutChanged = ['nav.json', 'file-icons.json'].some((name) =>
+							changed?.has(path.join(generated, name))
+						);
+						server.ws.send({
+							type: 'custom',
+							event: 'wisconsin:content',
+							data: { recovered, layoutChanged }
+						});
+					}
 				} catch (error) {
 					failure = error instanceof Error ? error : new Error(String(error));
 					changedInputs.add(repo); // Recovery must reconcile every course after a partial failure.

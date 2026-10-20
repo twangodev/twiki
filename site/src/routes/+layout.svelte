@@ -3,7 +3,7 @@
 	import './layout.css';
 	import { onMount, setContext, type Snippet } from 'svelte';
 	import { dev } from '$app/environment';
-	import { onNavigate, invalidateAll } from '$app/navigation';
+	import { onNavigate, invalidate, invalidateAll } from '$app/navigation';
 	import { ModeWatcher } from 'mode-watcher';
 	import { site } from '$lib/config';
 	import DocShell from '$lib/components/doc/DocShell.svelte';
@@ -26,9 +26,15 @@
 	});
 
 	if (import.meta.hot) {
-		const refreshContent = ({ recovered }: { recovered: boolean }) => {
+		const refreshContent = ({
+			recovered,
+			layoutChanged
+		}: {
+			recovered: boolean;
+			layoutChanged?: boolean;
+		}) => {
 			if (recovered) document.querySelector('vite-error-overlay')?.remove();
-			void invalidateAll();
+			void (recovered || layoutChanged !== false ? invalidateAll() : invalidate('twiki:content'));
 		};
 		import.meta.hot.on('wisconsin:content', refreshContent);
 		import.meta.hot.dispose(() => import.meta.hot?.off('wisconsin:content', refreshContent));
