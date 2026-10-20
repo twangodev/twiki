@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/twangodev/twiki/compare/v0.5.0...v0.5.1) (2026-10-20)
+
+
+### Performance Improvements
+
+* **dev:** reuse unchanged asset copies during content reloads ([02a8f45](https://github.com/twangodev/twiki/commit/02a8f455e7110cba1ac388952445214d445f1e13))
+
 ## [0.5.0](https://github.com/twangodev/twiki/compare/v0.4.1...v0.5.0) (2026-10-20)
 
 
