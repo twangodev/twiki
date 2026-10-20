@@ -20,7 +20,11 @@ export const stages = {
 		assets: rAssets
 	},
 	pipeline: {
-		entries: ['tooling/pipeline.ts', 'tooling/lib/history-worker.ts'],
+		entries: [
+			'tooling/pipeline.ts',
+			'tooling/lib/history-worker.ts',
+			'tooling/dev-content-worker.ts'
+		],
 		assets: [...socialAssets, ...rAssets]
 	}
 };

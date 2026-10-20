@@ -2,6 +2,7 @@ import { existsSync, type FSWatcher } from 'node:fs';
 import path from 'node:path';
 import type { Plugin } from 'vite';
 import { prepareContent } from './pipeline';
+import { developmentContent } from './lib/dev-content';
 import { contentRepositories, watchContentGitDirectory } from './lib/dev-git-state';
 import { rebuildQueue } from './lib/rebuild-queue';
 import { resolveRuntimeDataImport } from './lib/runtime-data-modules';
@@ -26,7 +27,14 @@ export function content(): Plugin {
 			}
 		},
 		async configureServer(server) {
-			await prepareContent(true, undefined, true);
+			const preparation = developmentContent(server.config.root);
+			server.httpServer?.once('close', () => preparation.close());
+			try {
+				await preparation.prepare(true);
+			} catch (error) {
+				preparation.close();
+				throw error;
+			}
 			const project = resolveProject(server.config.root);
 			const repo = project.root;
 			const directory = project.contentDir;
@@ -53,7 +61,7 @@ export function content(): Plugin {
 					// Git can refresh an index or another worktree's ref without changing
 					// our inputs. Validate its snapshot; content events and failure
 					// recovery still force reconciliation.
-					const changed = await prepareContent(reuse, inputs, true);
+					const changed = await preparation.prepare(reuse, inputs);
 					const recovered = Boolean(failure);
 					failure = undefined;
 					if (!changed?.size && !recovered) return;
