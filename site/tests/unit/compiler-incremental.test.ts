@@ -95,6 +95,49 @@ function fixture() {
 	};
 }
 
+test('code-free notes skip Shiki and dev code edits reuse the highlighter across builds', () => {
+	const f = fixture();
+	try {
+		const output = execFileSync(
+			'bun',
+			[
+				'-e',
+				`
+import { strict as assert } from 'node:assert';
+import { spyOn } from 'bun:test';
+import fs from 'node:fs';
+import path from 'node:path';
+import * as shiki from ${JSON.stringify(import.meta.resolve('shiki'))};
+import { compileContent } from ${JSON.stringify(path.resolve(import.meta.dirname, '../../tooling/compiler.ts'))};
+const create = shiki.createHighlighter;
+let calls = 0;
+spyOn(shiki, 'createHighlighter').mockImplementation((...args) => { calls++; return create(...args); });
+const options = { siteDir: ${JSON.stringify(f.site)}, repoRoot: ${JSON.stringify(f.root)}, development: true };
+await compileContent(options);
+assert.equal(calls, 0);
+for (let i = 1; i <= 2; i++) {
+  fs.writeFileSync(${JSON.stringify(path.join(f.course, 'source.md'))}, '# Source\\n\\n\`\`\`js\\nconsole.log(' + i + ');\\n\`\`\`\\n');
+  await compileContent(options);
+  assert.equal(calls, 1);
+  const page = JSON.parse(fs.readFileSync(path.join(options.siteDir, 'build/generated/pages/course/source.json'), 'utf8'));
+  assert(page.html.includes('shiki'));
+  assert(page.html.includes(String(i)));
+}
+const production = path.join(${JSON.stringify(f.root)}, 'production');
+fs.mkdirSync(production);
+await compileContent({ ...options, siteDir: production, development: false });
+assert.equal(calls, 2);
+console.log('highlighter lifecycle passed');
+`
+			],
+			{ encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, timeout: 20_000 }
+		);
+		expect(output).toContain('highlighter lifecycle passed');
+	} finally {
+		f.cleanup();
+	}
+}, 25_000);
+
 test('Markdown edits avoid rereading unchanged assets in development and still publish asset edits', async () => {
 	const f = fixture();
 	let restore: (() => void) | undefined;

@@ -80,6 +80,9 @@ import {
 	type ContentSummary
 } from './lib/content-cache';
 
+// A dev worker owns this for its lifetime; production builds dispose their own instance.
+let developmentHighlighter: Promise<Highlighter> | undefined;
+
 export async function compileContent(
 	options: {
 		siteDir?: string;
@@ -264,6 +267,16 @@ export async function compileContent(
 	const unknownLangs = new Map<string, number>();
 
 	async function getHighlighter(): Promise<Highlighter> {
+		if (options.development) {
+			developmentHighlighter ??= createHighlighter({
+				themes: ['github-light', 'github-dark'],
+				langs: SHIKI_LANGS
+			}).catch((error) => {
+				developmentHighlighter = undefined;
+				throw error;
+			});
+			return developmentHighlighter;
+		}
 		highlighter ??= await createHighlighter({
 			themes: ['github-light', 'github-dark'],
 			langs: SHIKI_LANGS
@@ -462,7 +475,6 @@ export async function compileContent(
 			description = computeDescription(tree, data.description as string | undefined);
 		};
 
-		const hl = await getHighlighter();
 		const processor = unified()
 			.use(remarkParse)
 			// syntax-extension-only plugins (position in chain irrelevant, parse-time)
@@ -481,7 +493,17 @@ export async function compileContent(
 			.use(() => ofmYouTubeEmbed())
 			.use(rehypeSlug)
 			.use(collectToc)
-			.use(() => rehypeShiki(hl))
+			.use(() => async (tree: HtmlRoot) => {
+				let hasCode = false;
+				visit(tree, 'element', (node) => {
+					if (
+						node.tagName === 'pre' &&
+						node.children.some((child) => child.type === 'element' && child.tagName === 'code')
+					)
+						hasCode = true;
+				});
+				if (hasCode) rehypeShiki(await getHighlighter())(tree);
+			})
 			.use(captureDescription)
 			.use(rehypeKatex, { output: 'html', macros: {} });
 
