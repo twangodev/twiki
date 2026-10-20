@@ -12,7 +12,11 @@ import {
 import path from 'node:path';
 
 const changes = new AsyncLocalStorage<Set<string>>();
-const copiedAssets = new Map<string, { source: string; input: string; output: string }>();
+type SourceReader = (source: string) => Uint8Array | undefined;
+const copiedAssets = new Map<
+	string,
+	{ source: string; input: string; output: string; read: SourceReader }
+>();
 
 function fileStamp(file: string) {
 	const stat = statSync(file, { bigint: true, throwIfNoEntry: false });
@@ -21,7 +25,7 @@ function fileStamp(file: string) {
 		: undefined;
 }
 
-export async function trackOutputs(build: () => Promise<void>) {
+export async function trackOutputs(build: () => Promise<unknown>) {
 	const files = new Set<string>();
 	await changes.run(files, build);
 	return files;
@@ -44,21 +48,33 @@ export function writeChanged(file: string, data: string | Uint8Array) {
 }
 
 /** In a running dev server, reuse only copies whose source and output metadata still match. */
-export function copyChanged(source: string, destination: string, development = false) {
+export function copyChanged(
+	source: string,
+	destination: string,
+	development = false,
+	read: SourceReader = readFileSync
+) {
 	const input = development ? fileStamp(source) : undefined;
 	const previous = copiedAssets.get(destination);
 	if (
 		input &&
 		previous?.source === source &&
+		previous.read === read &&
 		previous.input === input &&
 		previous.output === fileStamp(destination)
 	)
-		return;
-	writeChanged(destination, readFileSync(source));
+		return true;
+	const bytes = read(source);
+	if (!bytes) {
+		copiedAssets.delete(destination);
+		return false;
+	}
+	writeChanged(destination, bytes);
 	if (development && input) {
 		const output = fileStamp(destination);
-		if (output) copiedAssets.set(destination, { source, input, output });
+		if (output) copiedAssets.set(destination, { source, input, output, read });
 	} else copiedAssets.delete(destination);
+	return true;
 }
 
 /** Paths are absolute. Each caller prunes only the directory it owns. */

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { lstatSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import type { FullSlug } from './slug';
-import { writeChanged } from './output';
+import { copyChanged, writeChanged } from './output';
 
 export type ContentEdition = 'public' | 'full';
 export interface ContentSummary {
@@ -84,7 +84,11 @@ function writeOwned(cache: string, relative: string, bytes: string | Uint8Array)
 	writeChanged(target, bytes);
 }
 
-function ownedObject(value: unknown, edition: ContentEdition, kind?: 'bodies' | 'docs') {
+function ownedObject(
+	value: unknown,
+	edition: ContentEdition,
+	kind?: 'bodies' | 'docs'
+): value is string {
 	return (
 		typeof value === 'string' &&
 		contentObjectPath.test(value) &&
@@ -94,9 +98,38 @@ function ownedObject(value: unknown, edition: ContentEdition, kind?: 'bodies' | 
 
 export function readContentObject(cache: string, relative: string, edition: ContentEdition) {
 	if (!ownedObject(relative, edition)) return;
-	const bytes = readRegular(cache, relative);
-	if (!bytes || contentHash(bytes) !== path.basename(relative, '.json')) return;
+	return readObjectFile(path.resolve(cache, relative));
+}
+
+function readObjectFile(file: string): Buffer | undefined {
+	const bytes = readRegular(path.dirname(file), path.basename(file));
+	if (!bytes || contentHash(bytes) !== path.basename(file, '.json')) return;
 	return bytes;
+}
+
+/** Emit by dependency identity, validating cached bytes whenever either file changes. */
+export function emitContentDocument(
+	cache: string,
+	edition: ContentEdition,
+	record: ContentCachePage,
+	key: string,
+	destination: string,
+	create: () => unknown,
+	development = false
+) {
+	if (
+		record.documentKey === key &&
+		ownedObject(record.document, edition, 'docs') &&
+		copyChanged(path.resolve(cache, record.document), destination, development, readObjectFile)
+	)
+		return;
+	const bytes = Buffer.from(JSON.stringify(create()));
+	record.document = writeContentObject(cache, edition, 'docs', bytes);
+	record.documentKey = key;
+	if (development) {
+		if (!copyChanged(path.resolve(cache, record.document), destination, true, readObjectFile))
+			throw new Error('Generated content document failed validation');
+	} else writeChanged(destination, bytes);
 }
 
 export function readContentBody(cache: string, relative: string, edition: ContentEdition) {

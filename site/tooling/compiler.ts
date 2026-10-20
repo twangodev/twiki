@@ -70,7 +70,7 @@ import {
 	contentHash,
 	readContentBody,
 	readContentIndex,
-	readContentObject,
+	emitContentDocument,
 	transclusionClosure,
 	writeContentIndex,
 	writeContentObject,
@@ -1246,24 +1246,21 @@ export async function compileContent(
 			const outPath = path.join(OUT_DIR, 'pages', page.slug + '.json');
 			wantedPages.add(outPath);
 			const documentKey = contentHash(JSON.stringify([meta, page.toc, pageBacklinks, record.body]));
-			let document =
-				record.documentKey === documentKey && record.document
-					? readContentObject(CACHE_DIR, record.document, edition)
-					: undefined;
-			if (!document) {
-				document = Buffer.from(
-					JSON.stringify({
-						...meta,
-						toc: page.toc,
-						backlinks: pageBacklinks,
-						html: body.html,
-						markdown: body.markdown
-					})
-				);
-				record.document = writeContentObject(CACHE_DIR, edition, 'docs', document);
-				record.documentKey = documentKey;
-			}
-			writeChanged(outPath, document);
+			emitContentDocument(
+				CACHE_DIR,
+				edition,
+				record,
+				documentKey,
+				outPath,
+				() => ({
+					...meta,
+					toc: page.toc,
+					backlinks: pageBacklinks,
+					html: body.html,
+					markdown: body.markdown
+				}),
+				options.development
+			);
 			checkSize(outPath);
 		}
 
@@ -1289,16 +1286,15 @@ export async function compileContent(
 			wantedPages.add(outPath);
 			const record = currentRecords[page.rel];
 			const documentKey = contentHash(JSON.stringify([meta, page.toc, 'locked']));
-			let document =
-				record.documentKey === documentKey && record.document
-					? readContentObject(CACHE_DIR, record.document, edition)
-					: undefined;
-			if (!document) {
-				document = Buffer.from(JSON.stringify({ ...meta, toc: page.toc, html: '' }));
-				record.document = writeContentObject(CACHE_DIR, edition, 'docs', document);
-				record.documentKey = documentKey;
-			}
-			writeChanged(outPath, document);
+			emitContentDocument(
+				CACHE_DIR,
+				edition,
+				record,
+				documentKey,
+				outPath,
+				() => ({ ...meta, toc: page.toc, html: '' }),
+				options.development
+			);
 			const parts = page.slug.split('/');
 			for (let i = 1; i < parts.length; i++) folderSet.add(parts.slice(0, i).join('/'));
 		}

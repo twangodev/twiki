@@ -1,9 +1,11 @@
-import { expect, test } from 'bun:test';
+import { expect, test, spyOn } from 'bun:test';
+import fs from 'node:fs';
 import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
 	contentHash,
+	emitContentDocument,
 	readContentBody,
 	readContentIndex,
 	readContentObject,
@@ -36,6 +38,72 @@ function page(slug: string, targets: string[] = []): ContentCachePage {
 		transclusionWarnings: []
 	};
 }
+
+test('document emission skips unchanged bytes and repairs changed or missing cache and output files', () => {
+	const cache = mkdtempSync(path.join(tmpdir(), 'twiki-doc-emitter-'));
+	const out = path.join(cache, 'pages/note.json');
+	const record = page('note');
+	const document = { html: 'private note', markdown: 'private source' };
+	let creates = 0;
+	const emit = () =>
+		emitContentDocument(
+			cache,
+			'full',
+			record,
+			'same-dependencies',
+			out,
+			() => {
+				creates++;
+				return document;
+			},
+			true
+		);
+	let restore: (() => void) | undefined;
+	try {
+		emit();
+		const object = path.join(cache, record.document!);
+		const read = spyOn(fs, 'readFileSync');
+		restore = () => read.mockRestore();
+		emit();
+		expect(read.mock.calls.filter(([file]) => file === out || file === object)).toHaveLength(0);
+		expect(creates).toBe(1);
+		read.mockRestore();
+		restore = undefined;
+		const before = fs.statSync(out);
+		writeFileSync(out, JSON.stringify({ html: 'altered note', markdown: 'altered source' }));
+		fs.utimesSync(out, before.atime, before.mtime);
+		emit();
+		expect(JSON.parse(readFileSync(out, 'utf8'))).toEqual(document);
+		rmSync(out);
+		emit();
+		expect(JSON.parse(readFileSync(out, 'utf8'))).toEqual(document);
+		const cached = fs.statSync(object);
+		writeFileSync(object, JSON.stringify({ html: 'altered note', markdown: 'altered source' }));
+		fs.utimesSync(object, cached.atime, cached.mtime);
+		emit();
+		expect(creates).toBe(2);
+		expect(readContentObject(cache, record.document!, 'full')?.toString()).toBe(
+			JSON.stringify(document)
+		);
+		rmSync(object);
+		emit();
+		expect(creates).toBe(3);
+		emitContentDocument(
+			cache,
+			'public',
+			record,
+			'same-dependencies',
+			out,
+			() => ({ locked: true, html: '' }),
+			true
+		);
+		expect(record.document).toStartWith('content/public/docs/');
+		expect(JSON.parse(readFileSync(out, 'utf8'))).toEqual({ locked: true, html: '' });
+	} finally {
+		restore?.();
+		rmSync(cache, { recursive: true, force: true });
+	}
+});
 
 test('compact index and actual-byte objects survive relocation, enforce edition ownership, and fail cold on corruption', () => {
 	const cache = mkdtempSync(path.join(tmpdir(), 'wisconsin-content-cache-'));

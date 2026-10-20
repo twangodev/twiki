@@ -14,6 +14,27 @@ import path from 'node:path';
 import { writeChanged, copyChanged, pruneOutputs, trackOutputs } from '../../tooling/lib/output';
 import { rebuildQueue } from '../../tooling/lib/rebuild-queue';
 
+test('a changed source reader must validate previously copied bytes before reuse', () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'twiki-copy-validation-'));
+	const source = path.join(root, 'source');
+	const output = path.join(root, 'output');
+	try {
+		writeFileSync(source, 'unchecked');
+		copyChanged(source, output, true);
+		let reads = 0;
+		expect(
+			copyChanged(source, output, true, () => {
+				reads++;
+				return undefined;
+			})
+		).toBe(false);
+		expect(reads).toBe(1);
+		expect(readFileSync(output, 'utf8')).toBe('unchecked');
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
 test('development asset reuse detects equal-size edits, restored mtimes, output corruption and deletion', async () => {
 	const root = mkdtempSync(path.join(tmpdir(), 'twiki-asset-reuse-'));
 	const source = path.join(root, 'source');

@@ -148,6 +148,10 @@ test('Markdown edits avoid rereading unchanged assets in development and still p
 		const output = path.join(f.site, 'build/generated/assets/course/image.svg');
 		const run = () => compileContent({ siteDir: f.site, repoRoot: f.root, development: true });
 		await run();
+		const cache = path.join(f.site, 'build/generated/cache');
+		const index = JSON.parse(readFileSync(path.join(cache, 'content-current-full.json'), 'utf8'));
+		const unchangedDocument = path.join(cache, index.pages['course/unrelated.md'].document);
+		const unchangedOutput = path.join(f.site, 'build/generated/pages/course/unrelated.json');
 		f.write('source.md', '# Source\n\nA Markdown-only edit.\n');
 		const read = spyOn(fs, 'readFileSync');
 		const mkdir = spyOn(fs, 'mkdirSync');
@@ -157,6 +161,9 @@ test('Markdown edits avoid rereading unchanged assets in development and still p
 		};
 		await run();
 		expect(read.mock.calls.filter(([file]) => file === source || file === output)).toHaveLength(0);
+		expect(
+			read.mock.calls.filter(([file]) => file === unchangedDocument || file === unchangedOutput)
+		).toHaveLength(0);
 		expect(
 			mkdir.mock.calls.filter(([directory]) => directory === path.dirname(output))
 		).toHaveLength(0);
