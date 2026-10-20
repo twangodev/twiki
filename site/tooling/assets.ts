@@ -8,7 +8,6 @@ import {
 	mkdirSync,
 	readdirSync,
 	readFileSync,
-	rmSync,
 	statSync,
 	unlinkSync
 } from 'node:fs';
@@ -18,7 +17,7 @@ import {
 	courseFilesDirectory,
 	compiledAssetsDirectory
 } from './lib/edition-paths.js';
-import { writeChanged } from './lib/output';
+import { pruneOutputs, writeChanged } from './lib/output';
 import { writeTextExports } from './lib/text-exports';
 import { buildCourseFiles } from './lib/course-files';
 import { addNotebookNavigation } from '../src/lib/notebook-nav';
@@ -129,10 +128,10 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 		} else if (srcStat.size > WARN_BYTES) {
 			console.warn(`warn: asset ${rel} is ${(srcStat.size / 1048576).toFixed(1)} MiB (>20 MiB)`);
 		}
-		if (existsSync(dest)) {
-			const destStat = statSync(dest);
+		const destStat = statSync(dest, { throwIfNoEntry: false });
+		if (destStat) {
 			if (
-				destStat.ino === srcStat.ino ||
+				(destStat.dev === srcStat.dev && destStat.ino === srcStat.ino) ||
 				(destStat.size === srcStat.size && readFileSync(dest).equals(readFileSync(src)))
 			) {
 				kept++;
@@ -152,35 +151,20 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 
 	for (const file of writeTextExports(
 		STATIC_DIR,
-		Object.keys(manifest.pages).map(loadPage),
-		wanted
+		path.join(GENERATED, 'pages'),
+		Object.values(manifest.pages),
+		wanted,
+		development
 	))
 		wanted.add(file);
 
 	// Prune stale synced files (never touch the hand-placed statics).
 	const KEEP = new Set(['.gitignore', 'favicon.ico']);
-	let pruned = 0;
-	for (const file of walk(STATIC_DIR)) {
+	const wantedPaths = new Set([...wanted].map((file) => path.join(STATIC_DIR, file)));
+	const pruned = pruneOutputs(STATIC_DIR, wantedPaths, (file) => {
 		const rel = path.relative(STATIC_DIR, file).split(path.sep).join('/');
-		if (KEEP.has(rel) || rel.startsWith('fonts/') || rel.startsWith('_og/')) continue;
-		if (!wanted.has(rel)) {
-			unlinkSync(file);
-			pruned++;
-		}
-	}
-	// Remove now-empty directories.
-	function pruneEmptyDirs(dir: string): boolean {
-		let empty = true;
-		for (const entry of readdirSync(dir, { withFileTypes: true })) {
-			const p = path.join(dir, entry.name);
-			if (entry.isDirectory()) {
-				if (pruneEmptyDirs(p)) rmSync(p, { recursive: true });
-				else empty = false;
-			} else empty = false;
-		}
-		return empty;
-	}
-	pruneEmptyDirs(STATIC_DIR);
+		return KEEP.has(rel) || rel === 'fonts' || rel === '_og';
+	});
 	console.log(`assets: pruned ${pruned} stale files`);
 
 	console.log(`assets: ${copied} synced, ${kept} up-to-date, ${wanted.size} total`);

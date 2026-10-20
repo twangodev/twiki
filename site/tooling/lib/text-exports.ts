@@ -1,11 +1,30 @@
-import { writeChanged } from './output';
+import { copyChanged, writeChanged } from './output';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { PageDoc } from '../../src/lib/types';
+import type { ManifestPage, PageDoc } from '../../src/lib/types';
 import { site } from '../../src/lib/config';
 import { textExportUrl } from '../../src/lib/text-exports';
 
+/** Transform a generated document only when its source or exported output changes. */
+function textExportBytes(file: string) {
+	const page = JSON.parse(readFileSync(file, 'utf8')) as PageDoc;
+	if (page.locked || page.markdown === undefined) return;
+	const route = page.slug === 'index' ? '' : page.slug.replace(/\/index$/, '');
+	const source = `${site.url}/${route.split('/').map(encodeURIComponent).join('/')}`;
+	const text = `# ${page.title}\n\nSource: ${source}\n\n${page.markdown.trim()}\n`;
+	if (Buffer.byteLength(text) > 25 * 1024 * 1024)
+		throw new Error(`Text export exceeds deployment size limit: ${page.slug}`);
+	return Buffer.from(text);
+}
+
 /** Called separately for each edition; locked outlines never become text exports. */
-export function writeTextExports(directory: string, pages: PageDoc[], assets = new Set<string>()) {
+export function writeTextExports(
+	directory: string,
+	pageDirectory: string,
+	pages: Pick<ManifestPage, 'slug' | 'title' | 'locked'>[],
+	assets = new Set<string>(),
+	development = false
+) {
 	const written = new Set<string>();
 	const index = [
 		`# ${site.title}`,
@@ -19,10 +38,7 @@ export function writeTextExports(directory: string, pages: PageDoc[], assets = n
 		''
 	];
 	for (const page of [...pages].sort((a, b) => a.slug.localeCompare(b.slug))) {
-		if (page.locked || page.markdown === undefined) continue;
-		const route = page.slug === 'index' ? '' : page.slug.replace(/\/index$/, '');
-		const source = `${site.url}/${route.split('/').map(encodeURIComponent).join('/')}`;
-		const text = `# ${page.title}\n\nSource: ${source}\n\n${page.markdown.trim()}\n`;
+		if (page.locked) continue;
 		for (const format of ['md', 'txt'] as const) {
 			const file = path.join(
 				directory,
@@ -34,9 +50,15 @@ export function writeTextExports(directory: string, pages: PageDoc[], assets = n
 				path.relative(directory, file) === 'llms.txt'
 			)
 				throw new Error(`Text export conflicts with an existing asset: ${page.slug}.${format}`);
-			if (Buffer.byteLength(text) > 25 * 1024 * 1024)
-				throw new Error(`Text export exceeds deployment size limit: ${page.slug}`);
-			writeChanged(file, text);
+			if (
+				!copyChanged(
+					path.join(pageDirectory, `${page.slug}.json`),
+					file,
+					development,
+					textExportBytes
+				)
+			)
+				throw new Error(`Missing Markdown for text export: ${page.slug}`);
 			written.add(path.relative(directory, file));
 		}
 		const title = page.title.replace(/[\r\n]/g, ' ').replace(/[\\[\]]/g, '\\$&');

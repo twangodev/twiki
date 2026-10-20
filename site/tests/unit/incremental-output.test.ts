@@ -1,6 +1,8 @@
 import { expect, test } from 'bun:test';
 import {
 	mkdtempSync,
+	mkdirSync,
+	symlinkSync,
 	readFileSync,
 	statSync,
 	linkSync,
@@ -96,6 +98,40 @@ test('incremental outputs preserve unchanged files and replace hardlinks without
 		});
 		expect([...removed]).toEqual([linked]);
 		expect(existsSync(linked)).toBe(false);
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test('pruning removes stale nested outputs, preserves protected trees, and never follows symlinks', async () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'twiki-prune-'));
+	const output = path.join(root, 'output');
+	const keep = path.join(output, 'keep/deep/note.txt');
+	const stale = path.join(output, 'stale/deep/note.txt');
+	const protectedTree = path.join(output, 'fonts');
+	const outside = path.join(root, 'outside.txt');
+	try {
+		writeChanged(keep, 'keep');
+		writeChanged(stale, 'stale');
+		writeChanged(path.join(protectedTree, 'font.woff2'), 'font');
+		mkdirSync(path.join(protectedTree, 'empty'));
+		mkdirSync(path.join(output, 'empty/deep'), { recursive: true });
+		writeFileSync(outside, 'outside');
+		const link = path.join(output, 'stale-link');
+		symlinkSync(outside, link);
+		let removed = 0;
+		const changed = await trackOutputs(async () => {
+			removed = pruneOutputs(output, new Set([keep]), (file) => file === protectedTree);
+		});
+		expect(removed).toBe(2);
+		expect([...changed].sort()).toEqual([stale, link].sort());
+		expect(readFileSync(keep, 'utf8')).toBe('keep');
+		expect(readFileSync(outside, 'utf8')).toBe('outside');
+		expect(existsSync(path.join(output, 'stale'))).toBe(false);
+		expect(existsSync(path.join(output, 'empty'))).toBe(false);
+		expect(existsSync(path.join(protectedTree, 'empty'))).toBe(true);
+		expect(pruneOutputs(output, new Set([keep]), (file) => file === protectedTree)).toBe(0);
+		expect(pruneOutputs(path.join(root, 'missing'), new Set())).toBe(0);
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}

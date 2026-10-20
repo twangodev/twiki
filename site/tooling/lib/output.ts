@@ -13,7 +13,7 @@ import path from 'node:path';
 
 const changes = new AsyncLocalStorage<Set<string>>();
 type SourceReader = (source: string) => Uint8Array | undefined;
-const copiedAssets = new Map<
+const copiedOutputs = new Map<
 	string,
 	{ source: string; input: string; output: string; read: SourceReader }
 >();
@@ -55,7 +55,7 @@ export function copyChanged(
 	read: SourceReader = readFileSync
 ) {
 	const input = development ? fileStamp(source) : undefined;
-	const previous = copiedAssets.get(destination);
+	const previous = copiedOutputs.get(destination);
 	if (
 		input &&
 		previous?.source === source &&
@@ -66,14 +66,14 @@ export function copyChanged(
 		return true;
 	const bytes = read(source);
 	if (!bytes) {
-		copiedAssets.delete(destination);
+		copiedOutputs.delete(destination);
 		return false;
 	}
 	writeChanged(destination, bytes);
 	if (development && input) {
 		const output = fileStamp(destination);
-		if (output) copiedAssets.set(destination, { source, input, output, read });
-	} else copiedAssets.delete(destination);
+		if (output) copiedOutputs.set(destination, { source, input, output, read });
+	} else copiedOutputs.delete(destination);
 	return true;
 }
 
@@ -83,17 +83,27 @@ export function pruneOutputs(
 	wanted: Set<string>,
 	keep?: (file: string) => boolean
 ) {
-	if (!existsSync(directory)) return;
-	for (const entry of readdirSync(directory, { withFileTypes: true })) {
-		const file = path.join(directory, entry.name);
-		if (keep?.(file)) continue;
-		if (entry.isDirectory()) {
-			pruneOutputs(file, wanted, keep);
-			if (!readdirSync(file).length) rmSync(file, { recursive: true });
-		} else if (!wanted.has(file)) {
-			rmSync(file);
-			copiedAssets.delete(file);
-			changes.getStore()?.add(path.resolve(file));
+	let removed = 0;
+	function prune(directory: string): boolean {
+		let empty = true;
+		for (const entry of readdirSync(directory, { withFileTypes: true })) {
+			const file = path.join(directory, entry.name);
+			if (keep?.(file)) {
+				empty = false;
+			} else if (entry.isDirectory()) {
+				if (prune(file)) rmSync(file, { recursive: true });
+				else empty = false;
+			} else if (wanted.has(file)) {
+				empty = false;
+			} else {
+				rmSync(file);
+				copiedOutputs.delete(file);
+				changes.getStore()?.add(path.resolve(file));
+				removed++;
+			}
 		}
+		return empty;
 	}
+	if (existsSync(directory)) prune(directory);
+	return removed;
 }
