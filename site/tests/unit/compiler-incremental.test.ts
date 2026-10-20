@@ -1,5 +1,6 @@
 import { expect, test, spyOn } from 'bun:test';
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
 import {
 	cpSync,
 	existsSync,
@@ -93,6 +94,32 @@ function fixture() {
 		cleanup: () => rmSync(root, { recursive: true, force: true })
 	};
 }
+
+test('Markdown edits avoid rereading unchanged assets in development and still publish asset edits', async () => {
+	const f = fixture();
+	let restore: (() => void) | undefined;
+	try {
+		f.write('image.svg', '<svg>before</svg>');
+		f.git(f.course, 'add', 'image.svg');
+		const source = path.join(f.course, 'image.svg');
+		const output = path.join(f.site, 'build/generated/assets/course/image.svg');
+		const run = () => compileContent({ siteDir: f.site, repoRoot: f.root, development: true });
+		await run();
+		f.write('source.md', '# Source\n\nA Markdown-only edit.\n');
+		const read = spyOn(fs, 'readFileSync');
+		restore = () => read.mockRestore();
+		await run();
+		expect(read.mock.calls.filter(([file]) => file === source || file === output)).toHaveLength(0);
+		read.mockRestore();
+		restore = undefined;
+		f.write('image.svg', '<svg>after!</svg>');
+		await run();
+		expect(readFileSync(output, 'utf8')).toBe('<svg>after!</svg>');
+	} finally {
+		restore?.();
+		f.cleanup();
+	}
+});
 
 test('identical and ordinary note builds skip unchanged ASTs and body serialization while updating backlinks and recovering missing outputs', async () => {
 	const f = fixture();

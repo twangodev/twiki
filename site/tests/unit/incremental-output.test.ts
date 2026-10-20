@@ -1,9 +1,54 @@
 import { expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, statSync, linkSync, rmSync, existsSync } from 'node:fs';
+import {
+	mkdtempSync,
+	readFileSync,
+	statSync,
+	linkSync,
+	rmSync,
+	existsSync,
+	writeFileSync,
+	utimesSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { writeChanged, pruneOutputs, trackOutputs } from '../../tooling/lib/output';
+import { writeChanged, copyChanged, pruneOutputs, trackOutputs } from '../../tooling/lib/output';
 import { rebuildQueue } from '../../tooling/lib/rebuild-queue';
+
+test('development asset reuse detects equal-size edits, restored mtimes, output corruption and deletion', async () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'twiki-asset-reuse-'));
+	const source = path.join(root, 'source');
+	const destination = path.join(root, 'output');
+	try {
+		writeFileSync(source, 'before');
+		copyChanged(source, destination, true);
+		const original = statSync(source);
+		const output = statSync(destination);
+		expect((await trackOutputs(async () => copyChanged(source, destination, true))).size).toBe(0);
+		expect(statSync(destination).ino).toBe(output.ino);
+		writeFileSync(source, 'after!');
+		utimesSync(source, original.atime, original.mtime);
+		expect([...(await trackOutputs(async () => copyChanged(source, destination, true)))]).toEqual([
+			destination
+		]);
+		expect(readFileSync(destination, 'utf8')).toBe('after!');
+		const copied = statSync(destination);
+		writeFileSync(destination, 'broken');
+		utimesSync(destination, copied.atime, copied.mtime);
+		copyChanged(source, destination, true);
+		expect(readFileSync(destination, 'utf8')).toBe('after!');
+		rmSync(destination);
+		copyChanged(source, destination, true);
+		expect(readFileSync(destination, 'utf8')).toBe('after!');
+		const other = path.join(root, 'other');
+		writeFileSync(other, 'other!');
+		copyChanged(other, destination, true);
+		expect(readFileSync(destination, 'utf8')).toBe('other!');
+		copyChanged(source, destination);
+		expect(readFileSync(destination, 'utf8')).toBe('after!');
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
 
 test('incremental outputs preserve unchanged files and replace hardlinks without modifying readers', async () => {
 	const root = mkdtempSync(path.join(tmpdir(), 'wisconsin-output-'));

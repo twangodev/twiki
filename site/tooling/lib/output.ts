@@ -12,6 +12,14 @@ import {
 import path from 'node:path';
 
 const changes = new AsyncLocalStorage<Set<string>>();
+const copiedAssets = new Map<string, { source: string; input: string; output: string }>();
+
+function fileStamp(file: string) {
+	const stat = statSync(file, { bigint: true, throwIfNoEntry: false });
+	return stat?.isFile()
+		? [stat.dev, stat.ino, stat.mode, stat.size, stat.mtimeNs, stat.ctimeNs].join(':')
+		: undefined;
+}
 
 export async function trackOutputs(build: () => Promise<void>) {
 	const files = new Set<string>();
@@ -35,8 +43,22 @@ export function writeChanged(file: string, data: string | Uint8Array) {
 	changes.getStore()?.add(path.resolve(file));
 }
 
-export function copyChanged(source: string, destination: string) {
+/** In a running dev server, reuse only copies whose source and output metadata still match. */
+export function copyChanged(source: string, destination: string, development = false) {
+	const input = development ? fileStamp(source) : undefined;
+	const previous = copiedAssets.get(destination);
+	if (
+		input &&
+		previous?.source === source &&
+		previous.input === input &&
+		previous.output === fileStamp(destination)
+	)
+		return;
 	writeChanged(destination, readFileSync(source));
+	if (development && input) {
+		const output = fileStamp(destination);
+		if (output) copiedAssets.set(destination, { source, input, output });
+	} else copiedAssets.delete(destination);
 }
 
 /** Paths are absolute. Each caller prunes only the directory it owns. */
@@ -54,6 +76,7 @@ export function pruneOutputs(
 			if (!readdirSync(file).length) rmSync(file, { recursive: true });
 		} else if (!wanted.has(file)) {
 			rmSync(file);
+			copiedAssets.delete(file);
 			changes.getStore()?.add(path.resolve(file));
 		}
 	}

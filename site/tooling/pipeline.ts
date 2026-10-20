@@ -93,7 +93,7 @@ async function runPipeline(changedInputs?: Set<string>, development = false) {
 		import('./assets')
 	]);
 	const changed = await trackOutputs(async () => {
-		await compileContent();
+		await compileContent({ development });
 		await prepareAssets(changedInputs, development);
 	});
 	console.log(

@@ -86,6 +86,7 @@ export async function compileContent(
 		repoRoot?: string;
 		publicEdition?: boolean;
 		incremental?: boolean;
+		development?: boolean;
 	} = {}
 ) {
 	const SITE_DIR = options.siteDir ?? path.resolve(import.meta.dirname, '..');
@@ -1154,7 +1155,7 @@ export async function compileContent(
 			// html assets: extensionless at slug, exactly like quartz's Assets emitter
 			const dest = path.join(ASSETS_DIR, asset.slug);
 			fs.mkdirSync(path.dirname(dest), { recursive: true });
-			copyChanged(asset.abs, dest);
+			copyChanged(asset.abs, dest, options.development);
 			wantedAssets.add(dest);
 			assetBytes += fs.statSync(dest).size;
 			checkSize(dest);
