@@ -150,10 +150,18 @@ test('Markdown edits avoid rereading unchanged assets in development and still p
 		await run();
 		f.write('source.md', '# Source\n\nA Markdown-only edit.\n');
 		const read = spyOn(fs, 'readFileSync');
-		restore = () => read.mockRestore();
+		const mkdir = spyOn(fs, 'mkdirSync');
+		restore = () => {
+			read.mockRestore();
+			mkdir.mockRestore();
+		};
 		await run();
 		expect(read.mock.calls.filter(([file]) => file === source || file === output)).toHaveLength(0);
+		expect(
+			mkdir.mock.calls.filter(([directory]) => directory === path.dirname(output))
+		).toHaveLength(0);
 		read.mockRestore();
+		mkdir.mockRestore();
 		restore = undefined;
 		f.write('image.svg', '<svg>after!</svg>');
 		await run();

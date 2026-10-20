@@ -1169,6 +1169,7 @@ export async function compileContent(
 			} else if (size > SIZE_WARN) {
 				warn(`size: ${outPath} is ${(size / 1024 / 1024).toFixed(1)}MiB (> 20MiB warn threshold)`);
 			}
+			return size;
 		};
 
 		// assets
@@ -1176,11 +1177,9 @@ export async function compileContent(
 		for (const asset of assetsSrc) {
 			// html assets: extensionless at slug, exactly like quartz's Assets emitter
 			const dest = path.join(ASSETS_DIR, asset.slug);
-			fs.mkdirSync(path.dirname(dest), { recursive: true });
 			copyChanged(asset.abs, dest, options.development);
 			wantedAssets.add(dest);
-			assetBytes += fs.statSync(dest).size;
-			checkSize(dest);
+			assetBytes += checkSize(dest);
 		}
 
 		// per-page JSON
@@ -1246,7 +1245,6 @@ export async function compileContent(
 
 			const outPath = path.join(OUT_DIR, 'pages', page.slug + '.json');
 			wantedPages.add(outPath);
-			fs.mkdirSync(path.dirname(outPath), { recursive: true });
 			const documentKey = contentHash(JSON.stringify([meta, page.toc, pageBacklinks, record.body]));
 			let document =
 				record.documentKey === documentKey && record.document
@@ -1289,7 +1287,6 @@ export async function compileContent(
 			pageMeta[page.slug] = meta;
 			const outPath = path.join(OUT_DIR, 'pages', page.slug + '.json');
 			wantedPages.add(outPath);
-			fs.mkdirSync(path.dirname(outPath), { recursive: true });
 			const record = currentRecords[page.rel];
 			const documentKey = contentHash(JSON.stringify([meta, page.toc, 'locked']));
 			let document =

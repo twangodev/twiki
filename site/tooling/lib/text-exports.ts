@@ -1,4 +1,3 @@
-import { mkdirSync } from 'node:fs';
 import { writeChanged } from './output';
 import path from 'node:path';
 import type { PageDoc } from '../../src/lib/types';
@@ -37,7 +36,6 @@ export function writeTextExports(directory: string, pages: PageDoc[], assets = n
 				throw new Error(`Text export conflicts with an existing asset: ${page.slug}.${format}`);
 			if (Buffer.byteLength(text) > 25 * 1024 * 1024)
 				throw new Error(`Text export exceeds deployment size limit: ${page.slug}`);
-			mkdirSync(path.dirname(file), { recursive: true });
 			writeChanged(file, text);
 			written.add(path.relative(directory, file));
 		}
