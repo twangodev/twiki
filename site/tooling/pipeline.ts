@@ -4,7 +4,12 @@ import { stageFingerprint } from './fingerprint';
 import { trackOutputs, writeChanged } from './lib/output';
 import { contentInputFingerprint, contentOutputFingerprint } from './lib/dev-state';
 import { rRendererIdentity } from './lib/r-runtime';
-import { resolveProject, projectIdentity, writeProjectSiteConfig } from './lib/project-config';
+import {
+	resolveProject,
+	projectIdentity,
+	writeProjectSiteConfig,
+	withSourceDiscovery
+} from './lib/project-config';
 
 const state = globalThis as typeof globalThis & {
 	wisconsinContentBuilds?: Map<string, Promise<Set<string>>>;
@@ -95,16 +100,18 @@ async function runPipeline(changedInputs?: Set<string>, development = false) {
 		import('./compiler'),
 		import('./assets')
 	]);
-	const changed = await trackOutputs(async () => {
-		const compiled = performance.now();
-		await compileContent({ development });
-		const assets = performance.now();
-		await prepareAssets(changedInputs, development);
-		if (development)
-			console.log(
-				`content stages: compiler ${Math.round(assets - compiled)}ms, assets ${Math.round(performance.now() - assets)}ms`
-			);
-	});
+	const changed = await withSourceDiscovery(() =>
+		trackOutputs(async () => {
+			const compiled = performance.now();
+			await compileContent({ development });
+			const assets = performance.now();
+			await prepareAssets(changedInputs, development);
+			if (development)
+				console.log(
+					`content stages: compiler ${Math.round(assets - compiled)}ms, assets ${Math.round(performance.now() - assets)}ms`
+				);
+		})
+	);
 	console.log(
 		`content pipeline: ${((performance.now() - start) / 1000).toFixed(2)}s, ${changed.size} changed outputs`
 	);

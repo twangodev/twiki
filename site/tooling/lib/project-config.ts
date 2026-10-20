@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { browsablePath } from './file-policy';
@@ -182,8 +183,26 @@ export function projectSourceVisible(project: ResolvedProject, relative: string)
 		)
 	);
 }
-/** Regular, contained inputs only: never follow symlinks or include engine/editor hidden state. */
+const sourceDiscovery = new AsyncLocalStorage<Map<string, string[]>>();
+
+/** One build uses one discovery snapshot; validation before/after it remains fresh. */
+export function withSourceDiscovery<T>(build: () => T): T {
+	return sourceDiscovery.run(new Map(), build);
+}
+
 export function discoverSourceFiles(project: ResolvedProject): string[] {
+	const snapshot = sourceDiscovery.getStore();
+	const key = projectIdentity(project);
+	let files = snapshot?.get(key);
+	if (!files) {
+		files = discoverFiles(project);
+		snapshot?.set(key, files);
+	}
+	return [...files];
+}
+
+/** Regular, contained inputs only: never follow symlinks or include engine/editor hidden state. */
+function discoverFiles(project: ResolvedProject): string[] {
 	if (!existsSync(project.contentDir)) throw new Error('Content directory does not exist');
 	const root = realpathSync(project.contentDir);
 	const paths = new Set<string>();

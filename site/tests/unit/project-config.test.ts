@@ -16,6 +16,7 @@ import {
 	discoverSourceFiles,
 	parseProjectConfig,
 	resolveProject,
+	withSourceDiscovery,
 	writeProjectSiteConfig
 } from '../../tooling/lib/project-config';
 import { contentInputFingerprint } from '../../tooling/lib/dev-state';
@@ -53,6 +54,42 @@ function withEnvironment<T>(environment: NodeJS.ProcessEnv, run: () => T): T {
 }
 
 describe('consumer project configuration and discovery', () => {
+	test('build discovery is shared only within its async snapshot and never leaks between projects', async () => {
+		const root = temporary();
+		try {
+			mkdirSync(path.join(root, 'notes'));
+			mkdirSync(path.join(root, 'other'));
+			writeFileSync(path.join(root, 'notes/first.md'), '# First');
+			writeFileSync(path.join(root, 'other/second.md'), '# Second');
+			const project = resolveProject(root, undefined, {
+				TWIKI_PROJECT_ROOT: root,
+				TWIKI_CONTENT_DIR: path.join(root, 'notes')
+			});
+			const other = resolveProject(root, undefined, {
+				TWIKI_PROJECT_ROOT: root,
+				TWIKI_CONTENT_DIR: path.join(root, 'other')
+			});
+			await withSourceDiscovery(async () => {
+				expect(discoverSourceFiles(project)).toEqual(['first.md']);
+				writeFileSync(path.join(root, 'notes/added.md'), '# Added during build');
+				await Promise.resolve();
+				const files = discoverSourceFiles(project);
+				expect(files).toEqual(['first.md']);
+				files.length = 0;
+				expect(discoverSourceFiles(project)).toEqual(['first.md']);
+				expect(discoverSourceFiles(other)).toEqual(['second.md']);
+			});
+			expect(discoverSourceFiles(project)).toEqual(['added.md', 'first.md']);
+			await expect(
+				withSourceDiscovery(async () => {
+					throw new Error('failed build');
+				})
+			).rejects.toThrow('failed build');
+			expect(discoverSourceFiles(project)).toEqual(['added.md', 'first.md']);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
 	test('plain vault defaults are private and independent of staged engine path', () => {
 		const root = temporary();
 		try {
