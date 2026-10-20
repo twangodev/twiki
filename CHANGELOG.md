@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/twangodev/twiki/compare/v0.4.0...v0.4.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **files:** generate catalogs for ordinary vault folders ([2e0fb8d](https://github.com/twangodev/twiki/commit/2e0fb8d5dde61b759de10c649164c6e1771ae1a7))
+
 ## [0.4.0](https://github.com/twangodev/twiki/compare/v0.3.0...v0.4.0) (2026-10-19)
 
 
