@@ -108,6 +108,56 @@ function fixture() {
 	};
 }
 
+test('validated compiler metadata avoids disk index reads, stays immutable and repairs cached products', async () => {
+	const f = fixture();
+	const options = { siteDir: f.site, repoRoot: f.root, publicEdition: false, development: true };
+	try {
+		const first = await compileContent(options);
+		const originalIndex = JSON.stringify(first.index);
+		const indexFile = path.join(f.site, 'build/generated/cache/content-current-full.json');
+		const cache = path.dirname(indexFile);
+		writeFileSync(indexFile, 'broken persisted index');
+		f.write('source.md', '# Changed source\n\n[[target]]\n');
+		const reading = spyOn(fs, 'readFileSync');
+		let next;
+		try {
+			next = await compileContent({
+				...options,
+				previous: first,
+				changedInputs: new Set([path.join(f.course, 'source.md')])
+			});
+			expect(reading.mock.calls.filter(([file]) => file === indexFile)).toHaveLength(0);
+		} finally {
+			reading.mockRestore();
+		}
+		expect(JSON.stringify(first.index)).toBe(originalIndex);
+		expect(next.manifest.pages['course/source'].title).toBe('Changed source');
+		expect(next.index.pages['course/unrelated.md'].summary).toBe(
+			first.index.pages['course/unrelated.md'].summary
+		);
+		expect(JSON.parse(readFileSync(indexFile, 'utf8')).renderer).toBe(next.index.renderer);
+		expect(Object.hasOwn(next.index.pages['course/source.md'].summary, 'tree')).toBe(false);
+		expect(Object.hasOwn(next.index.pages['course/source.md'].summary, 'markdown')).toBe(false);
+		const body = next.index.pages['course/target.md'].body!;
+		writeFileSync(path.join(cache, body), 'broken resolved body');
+		rmSync(path.join(f.site, 'build/generated/pages/course/target.json'));
+		const repaired = await compileContent({ ...options, previous: next });
+		expect(JSON.parse(f.pages()['course/target.json']).html).toContain('Target content');
+		expect(readFileSync(path.join(cache, body), 'utf8')).not.toBe('broken resolved body');
+		expect(repaired.manifest.generatedAt).toBe(next.manifest.generatedAt);
+		// Production still reads and validates the on-disk index independently.
+		const fresh = spyOn(fs, 'readFileSync');
+		try {
+			await compileContent({ ...options, previous: repaired, development: false });
+			expect(fresh.mock.calls.some(([file]) => file === indexFile)).toBe(true);
+		} finally {
+			fresh.mockRestore();
+		}
+	} finally {
+		f.cleanup();
+	}
+}, 20_000);
+
 test('code-free notes skip Shiki and dev code edits reuse the highlighter across builds', () => {
 	const f = fixture();
 	try {

@@ -21,13 +21,16 @@ import {
 	withSourceDiscovery
 } from './lib/project-config';
 import type { OutputCheckpoint } from './lib/output-checkpoint';
+import type { ContentCompilation } from './compiler';
 
 const state = globalThis as typeof globalThis & {
 	wisconsinContentBuilds?: Map<string, Promise<Set<string>>>;
 };
 
 let validatedInputs: ContentInputSnapshot | undefined;
-let validatedOutputs: { key: string; checkpoint: OutputCheckpoint } | undefined;
+let validatedOutputs:
+	| { key: string; checkpoint: OutputCheckpoint; compilation?: ContentCompilation }
+	| undefined;
 
 export async function prepareContent(
 	reuse = false,
@@ -115,18 +118,28 @@ async function prepareSnapshot(
 		return builds.get(key);
 	rmSync(marker, { force: true });
 	const changed = new Set<string>();
-	let checkpoint =
-		development && validatedOutputs?.key === key ? validatedOutputs.checkpoint : undefined;
+	const previous = development && validatedOutputs?.key === key ? validatedOutputs : undefined;
+	let checkpoint = previous?.checkpoint;
+	let compilation: ContentCompilation | undefined;
 	validatedOutputs = undefined;
 	// A changed renderer or configuration must reconcile all courses, including unchanged worksheets.
-	const run = () =>
-		runPipeline(
+	const run = async (
+		inputs?: Set<string>,
+		outputs?: OutputCheckpoint,
+		prior?: ContentCompilation
+	) => {
+		compilation = undefined;
+		const result = await runPipeline(inputs, development, changed, outputs, prior);
+		compilation = result.compilation;
+		return result.changed;
+	};
+	const initial = () =>
+		run(
 			development && process.env.TWIKI_PREPARED_CONTENT_KEY !== key ? undefined : changedInputs,
-			development,
-			changed,
-			checkpoint
+			checkpoint,
+			previous?.compilation
 		);
-	const build = snapshot ? snapshot.withDiscovery(run) : run();
+	const build = snapshot ? snapshot.withDiscovery(initial) : initial();
 	builds.set(key, build);
 	try {
 		let pending = build;
@@ -159,12 +172,12 @@ async function prepareSnapshot(
 						documents: captureContentDocumentValidation(cache, site, edition)
 					})
 				);
-				validatedOutputs = { key, checkpoint };
+				validatedOutputs = { key, checkpoint, compilation };
 				break;
 			}
 			inputs = current.fingerprint;
 			checkpoint = undefined;
-			pending = current.withDiscovery(() => runPipeline(undefined, true, changed));
+			pending = current.withDiscovery(() => run());
 			builds.set(key, pending);
 		}
 		process.env.TWIKI_PREPARED_CONTENT_KEY = key;
@@ -180,7 +193,8 @@ async function runPipeline(
 	changedInputs?: Set<string>,
 	development = false,
 	outputs = new Set<string>(),
-	checkpoint?: OutputCheckpoint
+	checkpoint?: OutputCheckpoint,
+	previous?: ContentCompilation
 ) {
 	const start = performance.now();
 	// A saved development snapshot does not need the parser or asset renderers.
@@ -189,13 +203,14 @@ async function runPipeline(
 		import('./assets'),
 		import('./lib/publishing')
 	]);
+	let compilation!: ContentCompilation;
 	const changed = await withPublicationPolicies(() =>
 		trackOutputs(
 			async () => {
 				const compiled = performance.now();
-				const manifest = await compileContent({ development, changedInputs });
+				compilation = await compileContent({ development, changedInputs, previous });
 				const assets = performance.now();
-				await prepareAssets(changedInputs, development, manifest);
+				await prepareAssets(changedInputs, development, compilation.manifest);
 				if (development)
 					console.log(
 						`content stages: compiler ${Math.round(assets - compiled)}ms, assets ${Math.round(performance.now() - assets)}ms`
@@ -208,5 +223,5 @@ async function runPipeline(
 	console.log(
 		`content pipeline: ${((performance.now() - start) / 1000).toFixed(2)}s, ${changed.size} changed outputs`
 	);
-	return changed;
+	return { changed, compilation };
 }

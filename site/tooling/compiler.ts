@@ -8,6 +8,7 @@ import fs, { type BigIntStats } from 'node:fs';
 import { writeChanged, copyChanged, pruneOutputs } from './lib/output';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
@@ -69,7 +70,8 @@ import { compiledAssetsDirectory } from './lib/edition-paths.js';
 import {
 	resolveProject,
 	discoverSourceEntries,
-	declaredContentCourses
+	declaredContentCourses,
+	projectIdentity
 } from './lib/project-config';
 import { contentSourceReader } from './lib/content-source';
 import {
@@ -89,6 +91,12 @@ import {
 // A dev worker owns this for its lifetime; production builds dispose their own instance.
 let developmentHighlighter: Promise<Highlighter> | undefined;
 
+export interface ContentCompilation {
+	readonly key: string;
+	readonly manifest: ContentManifest;
+	readonly index: ContentCacheIndex;
+}
+
 export async function compileContent(
 	options: {
 		siteDir?: string;
@@ -96,6 +104,8 @@ export async function compileContent(
 		publicEdition?: boolean;
 		incremental?: boolean;
 		changedInputs?: ReadonlySet<string>;
+		/** Engine-owned metadata from an enclosing validated development build. */
+		previous?: ContentCompilation;
 		development?: boolean;
 	} = {}
 ) {
@@ -112,6 +122,16 @@ export async function compileContent(
 	const CONTENT_DIR = project.contentDir;
 	const OUT_DIR = path.join(SITE_DIR, 'build/generated');
 	const CACHE_DIR = path.join(OUT_DIR, 'cache');
+	const compilationKey = JSON.stringify([
+		path.resolve(CACHE_DIR),
+		projectIdentity(project),
+		edition,
+		PIPELINE_VERSION
+	]);
+	const previous =
+		options.development && options.incremental !== false && options.previous?.key === compilationKey
+			? options.previous
+			: undefined;
 	const ASSETS_DIR =
 		options.publicEdition === undefined
 			? compiledAssetsDirectory(SITE_DIR)
@@ -585,8 +605,6 @@ export async function compileContent(
 		return found;
 	}
 
-	let completedIndex: ContentCacheIndex | undefined;
-
 	// ---------------------------------------------------------------------------
 	// stage 2 — resolve (global)
 	// ---------------------------------------------------------------------------
@@ -931,7 +949,7 @@ export async function compileContent(
 		const previousIndex =
 			options.incremental === false
 				? undefined
-				: readContentIndex(CACHE_DIR, edition, PIPELINE_VERSION);
+				: (previous?.index ?? readContentIndex(CACHE_DIR, edition, PIPELINE_VERSION));
 		const currentRecords: Record<string, ContentCachePage> = {};
 		const loaded = new Set<string>();
 		const changedSlugs = new Set<string>();
@@ -1357,13 +1375,16 @@ export async function compileContent(
 			graph
 		};
 		const manifestFile = path.join(OUT_DIR, 'content-manifest.json');
-		if (fs.existsSync(manifestFile)) {
-			const previous = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
-			if (
-				JSON.stringify({ ...manifest, generatedAt: previous.generatedAt }) ===
-				JSON.stringify(previous)
-			)
-				manifest.generatedAt = previous.generatedAt;
+		if (previous) {
+			// Both values are compiler-owned objects with the same optional-field
+			// representation, so compare directly instead of serializing the vault twice.
+			const saved = previous.manifest;
+			if (isDeepStrictEqual({ ...manifest, generatedAt: saved.generatedAt }, saved))
+				manifest.generatedAt = saved.generatedAt;
+		} else if (fs.existsSync(manifestFile)) {
+			const saved = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+			if (JSON.stringify({ ...manifest, generatedAt: saved.generatedAt }) === JSON.stringify(saved))
+				manifest.generatedAt = saved.generatedAt;
 		}
 		writeChanged(manifestFile, JSON.stringify(manifest, null, 1));
 
@@ -1402,19 +1423,24 @@ export async function compileContent(
 			wantedAssets,
 			(file) => !publicEdition && file === path.join(ASSETS_DIR, '_files')
 		);
-		completedIndex = { schema: 1, renderer: PIPELINE_VERSION, context, pages: currentRecords };
+		const index: ContentCacheIndex = {
+			schema: 1,
+			renderer: PIPELINE_VERSION,
+			context,
+			pages: currentRecords
+		};
 		console.log(`done in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
-		return manifest;
+		return { key: compilationKey, manifest, index };
 	}
 
 	try {
-		const manifest = await main();
+		const compilation = await main();
 		writeChanged(
 			path.join(CACHE_DIR, 'stage1-current.json'),
 			JSON.stringify([...parseCacheFiles].sort())
 		);
-		if (completedIndex) writeContentIndex(CACHE_DIR, edition, completedIndex);
-		return manifest;
+		writeContentIndex(CACHE_DIR, edition, compilation.index);
+		return compilation;
 	} finally {
 		highlighter?.dispose();
 	}

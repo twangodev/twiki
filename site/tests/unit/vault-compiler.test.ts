@@ -49,7 +49,7 @@ test('plain Obsidian vault compiles private/public editions with links and attac
 		const full = JSON.parse(
 			readFileSync(path.join(site, 'build/generated/content-manifest.json'), 'utf8')
 		);
-		expect(JSON.parse(JSON.stringify(compiledFull))).toEqual(full);
+		expect(JSON.parse(JSON.stringify(compiledFull.manifest))).toEqual(full);
 		expect(Object.keys(full.pages).sort()).toEqual(['index', 'nested/note']);
 		expect(full.pages['nested/note'].publication.public).toBe(false);
 		expect(readFileSync(path.join(site, 'build/generated/pages/index.json'), 'utf8')).toContain(
@@ -66,7 +66,7 @@ test('plain Obsidian vault compiles private/public editions with links and attac
 		const hidden = JSON.parse(
 			readFileSync(path.join(site, 'build/generated/content-manifest.json'), 'utf8')
 		);
-		expect(JSON.parse(JSON.stringify(compiledHidden))).toEqual(hidden);
+		expect(JSON.parse(JSON.stringify(compiledHidden.manifest))).toEqual(hidden);
 		expect(hidden.pages['nested/note'].locked).toBe(true);
 		const hiddenDoc = path.join(site, 'build/generated/pages/nested/note.json');
 		expect(
@@ -81,7 +81,7 @@ test('plain Obsidian vault compiles private/public editions with links and attac
 		const published = JSON.parse(
 			readFileSync(path.join(site, 'build/generated/content-manifest.json'), 'utf8')
 		);
-		expect(JSON.parse(JSON.stringify(compiledPublished))).toEqual(published);
+		expect(JSON.parse(JSON.stringify(compiledPublished.manifest))).toEqual(published);
 		expect(published.pages['nested/note'].publication.public).toBe(true);
 		expect(published.pages['nested/note'].locked).not.toBe(true);
 		expect(readFileSync(hiddenDoc, 'utf8')).toContain('plainvaultcanarybody');
