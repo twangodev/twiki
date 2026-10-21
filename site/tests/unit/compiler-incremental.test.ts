@@ -132,6 +132,13 @@ test('validated compiler metadata avoids disk index reads, stays immutable and r
 		}
 		expect(JSON.stringify(first.index)).toBe(originalIndex);
 		expect(next.manifest.pages['course/source'].title).toBe('Changed source');
+		const beforeSource = first.discovery.files.find((file) => file.rel === 'course/source.md')!;
+		const afterSource = next.discovery.files.find((file) => file.rel === 'course/source.md')!;
+		expect(afterSource.stat.size).toBe(
+			BigInt(Buffer.byteLength('# Changed source\n\n[[target]]\n'))
+		);
+		expect(afterSource.stat.size).not.toBe(beforeSource.stat.size);
+
 		expect(next.index.pages['course/unrelated.md'].summary).toBe(
 			first.index.pages['course/unrelated.md'].summary
 		);
@@ -550,3 +557,41 @@ test('HTML asset universe changes invalidate bodies and failed public validation
 		f.cleanup();
 	}
 }, 20_000);
+
+for (const discovery of ['git', 'filesystem'] as const) {
+	test(`development discovery follows added and renamed files (${discovery})`, async () => {
+		const f = fixture();
+		const options = { siteDir: f.site, repoRoot: f.root, publicEdition: false, development: true };
+		try {
+			if (discovery === 'filesystem') {
+				writeFileSync(
+					path.join(f.root, 'twiki.config.json'),
+					JSON.stringify({ version: 1, contentDir: 'content', discovery, publication: 'public' })
+				);
+				rmSync(path.join(f.root, '.git'), { recursive: true });
+				rmSync(path.join(f.course, '.git'), { recursive: true });
+			}
+			const first = await compileContent(options);
+			f.write('assets/new.svg', '<svg>new asset</svg>');
+			if (discovery === 'git') f.git(f.course, 'add', 'assets/new.svg');
+			const added = await compileContent({ ...options, previous: first });
+			expect(added.discovery.files.find((file) => file.rel === 'course/assets/new.svg')?.kind).toBe(
+				'asset'
+			);
+			const emitted = path.join(f.site, 'build/generated/assets/course/assets/new.svg');
+			expect(readFileSync(emitted, 'utf8')).toBe('<svg>new asset</svg>');
+			if (discovery === 'git') f.git(f.course, 'mv', 'assets/new.svg', 'assets/new.dat');
+			else
+				fs.renameSync(path.join(f.course, 'assets/new.svg'), path.join(f.course, 'assets/new.dat'));
+			const renamed = await compileContent({ ...options, previous: added });
+			expect(renamed.discovery.files.some((file) => file.rel.endsWith('/new.svg'))).toBe(false);
+			expect(
+				renamed.discovery.files.find((file) => file.rel === 'course/assets/new.dat')?.kind
+			).toBe('other');
+			expect(existsSync(emitted)).toBe(false);
+			await f.reference();
+		} finally {
+			f.cleanup();
+		}
+	}, 20_000);
+}

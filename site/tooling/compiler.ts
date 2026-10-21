@@ -96,10 +96,31 @@ import {
 // A dev worker owns this for its lifetime; production builds dispose their own instance.
 let developmentHighlighter: Promise<Highlighter> | undefined;
 
+interface SourceFile {
+	rel: string; // path relative to content/
+	abs: string;
+	stat: Readonly<BigIntStats>;
+	slug: FullSlug;
+	kind: 'page' | 'asset' | 'other';
+	/** in Quartz's RESOLUTION slug set (build.ts globs "**\/*.*": basename must
+	 * contain a dot). The Assets emitter globs "**" (everything non-md), so
+	 * extensionless files (Makefile, LICENSE, gradlew…) are SERVED by Quartz but
+	 * never participate in link resolution. We mirror both sets exactly. */
+	inResolution: boolean;
+}
+
+interface ContentDiscovery {
+	readonly locale: string;
+	readonly sourceNames: readonly string[];
+	readonly files: readonly SourceFile[];
+	readonly submoduleNames: string[];
+}
+
 export interface ContentCompilation {
 	readonly key: string;
 	readonly manifest: ContentManifest;
 	readonly index: ContentCacheIndex;
+	readonly discovery: ContentDiscovery;
 }
 
 export async function compileContent(
@@ -155,18 +176,6 @@ export async function compileContent(
 	// ---------------------------------------------------------------------------
 	// stage 0 — discover
 	// ---------------------------------------------------------------------------
-	interface SourceFile {
-		rel: string; // path relative to content/
-		abs: string;
-		stat: Readonly<BigIntStats>;
-		slug: FullSlug;
-		kind: 'page' | 'asset' | 'other';
-		/** in Quartz's RESOLUTION slug set (build.ts globs "**\/*.*": basename must
-		 * contain a dot). The Assets emitter globs "**" (everything non-md), so
-		 * extensionless files (Makefile, LICENSE, gradlew…) are SERVED by Quartz but
-		 * never participate in link resolution. We mirror both sets exactly. */
-		inResolution: boolean;
-	}
 
 	/**
 	 * Quartz's resolution discovery was globby("**\/*.*", { gitignore: true }) —
@@ -185,9 +194,26 @@ export async function compileContent(
 		return base.slice(1).includes('.');
 	}
 
-	function discover(): { files: SourceFile[]; submoduleNames: string[] } {
+	function discover(): ContentDiscovery {
 		const courses = declaredContentCourses(project);
 		const entries = discoverSourceEntries(project);
+		const sourceNames = entries.map((entry) => entry.relative);
+		const locale = Intl.Collator().resolvedOptions().locale;
+		if (
+			previous &&
+			previous.discovery.locale === locale &&
+			previous.discovery.sourceNames.length === sourceNames.length &&
+			previous.discovery.sourceNames.every((name, index) => name === sourceNames[index])
+		) {
+			// Paths and collation agree; file identities still come from the current snapshot.
+			const stats = new Map(entries.map((entry) => [entry.relative, entry.stat]));
+			return {
+				locale,
+				sourceNames,
+				files: previous.discovery.files.map((file) => ({ ...file, stat: stats.get(file.rel)! })),
+				submoduleNames: courses.map((course) => course.name)
+			};
+		}
 
 		const files: SourceFile[] = [];
 		for (const { relative: rel, stat } of entries) {
@@ -209,7 +235,7 @@ export async function compileContent(
 			});
 		}
 		files.sort((a, b) => a.rel.localeCompare(b.rel));
-		return { files, submoduleNames: courses.map((course) => course.name) };
+		return { locale, sourceNames, files, submoduleNames: courses.map((course) => course.name) };
 	}
 
 	// ---------------------------------------------------------------------------
@@ -958,7 +984,8 @@ export async function compileContent(
 		fs.mkdirSync(ASSETS_DIR, { recursive: true });
 
 		// stage 0
-		const { files: discovered, submoduleNames } = discover();
+		const discovery = discover();
+		const { files: discovered, submoduleNames } = discovery;
 		const publicationFor = publicationResolver(REPO_ROOT, project);
 		const licenseFor = courseLicenseResolver(REPO_ROOT, project);
 		const files = publicEdition
@@ -1129,7 +1156,7 @@ export async function compileContent(
 				[...fileRoutes],
 				[...assetPaths],
 				catalog.map((page) => [page.rel, publicationFor(page.rel)]),
-				Intl.Collator().resolvedOptions().locale
+				discovery.locale
 			])
 		);
 		const sameContext = previousIndex?.context === context;
@@ -1488,7 +1515,7 @@ export async function compileContent(
 			pages: currentRecords
 		};
 		console.log(`done in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
-		return { key: compilationKey, manifest, index };
+		return { key: compilationKey, manifest, index, discovery };
 	}
 
 	try {
