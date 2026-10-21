@@ -160,13 +160,8 @@ export async function compileContent(
 		const files: SourceFile[] = [];
 		for (const rel of rels) {
 			if (rel.split('/').includes('publish.yaml')) continue;
-			const source = path.join(CONTENT_DIR, rel);
-			if (
-				!fs.existsSync(source) ||
-				!fs.lstatSync(source).isFile() ||
-				fs.realpathSync(source) !== source
-			)
-				continue;
+			// Discovery already selects regular, contained files for this build snapshot.
+			// The pipeline reconciles source changes with fresh post-build discovery.
 			// dot-led paths are invisible to every Quartz glob (globby dot:false)
 			if (dotLed(rel)) continue;
 			const ext = (getFileExtension(rel) ?? '').toLowerCase();

@@ -10,6 +10,7 @@ import {
 	readdirSync,
 	rmSync,
 	statSync,
+	symlinkSync,
 	writeFileSync
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -137,6 +138,24 @@ console.log('highlighter lifecycle passed');
 		f.cleanup();
 	}
 }, 25_000);
+
+test('compiler discovery excludes linked notes and assets while retaining ordinary sources', async () => {
+	const f = fixture();
+	try {
+		const outside = path.join(f.root, 'private.md');
+		writeFileSync(outside, '# Outside vault secret');
+		symlinkSync(outside, path.join(f.course, 'linked.md'));
+		symlinkSync(outside, path.join(f.course, 'linked.svg'));
+		f.git(f.course, 'add', 'linked.md', 'linked.svg');
+		await f.run();
+		expect(f.pages()['course/source.json']).toBeDefined();
+		expect(f.pages()['course/linked.json']).toBeUndefined();
+		expect(existsSync(path.join(f.site, 'build/generated/assets/course/linked.svg'))).toBe(false);
+		expect(JSON.stringify(f.pages())).not.toContain('Outside vault secret');
+	} finally {
+		f.cleanup();
+	}
+});
 
 test('Markdown edits avoid rereading unchanged assets in development and still publish asset edits', async () => {
 	const f = fixture();

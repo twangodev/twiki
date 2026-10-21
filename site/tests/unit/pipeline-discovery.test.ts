@@ -95,7 +95,18 @@ assert(recovered.has(page));
 assert.equal(fs.statSync(page, {bigint: true}).ino, partialPage.ino);
 assert.equal(fs.statSync(page, {bigint: true}).mtimeNs, partialPage.mtimeNs);
 assert(JSON.parse(fs.readFileSync('build/generated/pages/sp99-cs101/notes/during-build-1.json', 'utf8')).html.includes('Changed during failed emission'));
-
+// A missed replacement with a symlink must be removed before the build is accepted.
+const replaced = path.join(${JSON.stringify(fixture.course)}, 'notes/during-build-2.md');
+const outside = path.join(${JSON.stringify(fixture.repo)}, 'outside.md');
+fs.writeFileSync(outside, '# Outside source boundary');
+fs.rmSync(replaced);
+fs.symlinkSync(outside, replaced);
+fs.writeFileSync(note, '# Reported alongside missed symlink replacement');
+before = pipelines;
+await prepareContent(false, new Set([note]), true);
+assert.equal(pipelines, before + 2);
+assert(!fs.existsSync('build/generated/pages/sp99-cs101/notes/during-build-2.json'));
+assert(!JSON.parse(fs.readFileSync('build/generated/content-manifest.json', 'utf8')).pages['sp99-cs101/notes/during-build-2']);
 
 await prepareContent(false, undefined, false);
 assert(Array.isArray(JSON.parse(fs.readFileSync('build/generated/expected-404.json', 'utf8'))));
