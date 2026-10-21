@@ -1,13 +1,99 @@
 import { expect, test, spyOn } from 'bun:test';
 import { execFileSync } from 'node:child_process';
+import * as childProcess from 'node:child_process';
 import * as fs from 'node:fs';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { publicationFixture } from '../publication-fixture';
 import { nestedPublicationFixture } from '../nested-publication-fixture';
-import { contentInputFingerprint, contentOutputFingerprint } from '../../tooling/lib/dev-state';
-import { withSourceDiscovery } from '../../tooling/lib/project-config';
+import {
+	captureContentInputs,
+	contentInputFingerprint,
+	contentOutputFingerprint
+} from '../../tooling/lib/dev-state';
+import { resolveProject, withSourceDiscovery } from '../../tooling/lib/project-config';
 import { contentGit, contentRepositories } from '../../tooling/lib/dev-git-state';
+
+test.each(['git', 'filesystem'] as const)(
+	'candidate %s snapshots match fresh captures for edits and atomic saves without querying Git',
+	(discovery) => {
+		const fixture = publicationFixture();
+		try {
+			fixture.write(
+				'twiki.config.json',
+				JSON.stringify({ version: 1, contentDir: 'content', discovery })
+			);
+			const project = resolveProject(process.cwd(), fixture.repo);
+			const note = path.join(fixture.course, 'notes/public.md');
+			const first = captureContentInputs(fixture.repo, 'engine');
+			const stamp = fs.statSync(note);
+			fixture.write('content/sp99-cs101/notes/public.md', fixture.publicNote + '\nEdited');
+			fs.utimesSync(note, stamp.atime, stamp.mtime);
+			const git = spyOn(childProcess, 'execFileSync');
+			let edited;
+			try {
+				edited = first.refresh(project, 'engine', new Set([note]))!;
+				expect(git.mock.calls).toHaveLength(0);
+			} finally {
+				git.mockRestore();
+			}
+			expect(edited.fingerprint).not.toBe(first.fingerprint);
+			expect(edited.fingerprint).toBe(captureContentInputs(fixture.repo, 'engine').fingerprint);
+			const rootNote = path.join(fixture.course, 'root.md');
+			fixture.write('content/sp99-cs101/root.md', '# Before');
+			if (discovery === 'git') execFileSync('git', ['-C', fixture.course, 'add', 'root.md']);
+			const beforeAtomic = captureContentInputs(fixture.repo, 'engine');
+			fs.writeFileSync(rootNote + '.saving', '# After');
+			fs.renameSync(rootNote + '.saving', rootNote);
+			expect(beforeAtomic.refresh(project, 'engine', new Set([rootNote]))?.fingerprint).toBe(
+				captureContentInputs(fixture.repo, 'engine').fingerprint
+			);
+			expect(first.refresh(project, 'new-engine', new Set([note]))).toBeUndefined();
+			expect(first.refresh(project, 'engine', new Set([fixture.course]))).toBeUndefined();
+			expect(first.refresh(project, 'engine', new Set([rootNote]))).toBeUndefined();
+			fs.rmSync(note);
+			expect(first.refresh(project, 'engine', new Set([note]))).toBeUndefined();
+			fs.symlinkSync(path.join(fixture.course, 'notes/second.md'), note);
+			expect(first.refresh(project, 'engine', new Set([note]))).toBeUndefined();
+		} finally {
+			rmSync(fixture.repo, { recursive: true, force: true });
+		}
+	}
+);
+
+test('unreported source and Git changes disagree with a candidate and require reconciliation', () => {
+	const fixture = publicationFixture();
+	try {
+		const project = resolveProject(process.cwd(), fixture.repo);
+		const snapshot = captureContentInputs(fixture.repo, 'engine');
+		const note = path.join(fixture.course, 'notes/public.md');
+		fixture.write('content/sp99-cs101/notes/public.md', fixture.publicNote + '\nReported');
+		fixture.write('content/sp99-cs101/notes/second.md', '# Unreported');
+		expect(snapshot.refresh(project, 'engine', new Set([note]))?.fingerprint).not.toBe(
+			captureContentInputs(fixture.repo, 'engine').fingerprint
+		);
+		const baseline = captureContentInputs(fixture.repo, 'engine');
+		execFileSync('git', [
+			'-C',
+			fixture.course,
+			'-c',
+			'commit.gpgsign=false',
+			'-c',
+			'user.name=Fixture',
+			'-c',
+			'user.email=fixture@example.test',
+			'commit',
+			'--allow-empty',
+			'-m',
+			'Unreported HEAD'
+		]);
+		expect(baseline.refresh(project, 'engine', new Set([note]))?.fingerprint).not.toBe(
+			captureContentInputs(fixture.repo, 'engine').fingerprint
+		);
+	} finally {
+		rmSync(fixture.repo, { recursive: true, force: true });
+	}
+});
 
 test('each snapshot observes a shared tracked note once across discovery and fingerprinting', () => {
 	const fixture = publicationFixture();

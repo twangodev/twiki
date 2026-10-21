@@ -25,8 +25,8 @@ function fileStamp(file: string) {
 		: undefined;
 }
 
-export async function trackOutputs(build: () => Promise<unknown>) {
-	const files = new Set<string>();
+/** A shared collector retains invalidations across failed or repeated passes. */
+export async function trackOutputs(build: () => Promise<unknown>, files = new Set<string>()) {
 	await changes.run(files, build);
 	return files;
 }

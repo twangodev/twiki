@@ -198,8 +198,13 @@ export interface SourceEntry {
 const sourceDiscovery = new AsyncLocalStorage<Map<string, SourceEntry[]>>();
 
 /** One build uses one discovery snapshot; validation before/after it remains fresh. */
-export function withSourceDiscovery<T>(build: () => T): T {
-	return sourceDiscovery.run(new Map(), build);
+export function withSourceDiscovery<T>(
+	build: () => T,
+	seed?: { project: ResolvedProject; entries: readonly SourceEntry[] }
+): T {
+	const snapshot = new Map<string, SourceEntry[]>();
+	if (seed) snapshot.set(projectIdentity(seed.project), [...seed.entries]);
+	return sourceDiscovery.run(snapshot, build);
 }
 
 export function discoverSourceFiles(project: ResolvedProject): string[] {

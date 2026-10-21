@@ -137,6 +137,25 @@ test('pruning removes stale nested outputs, preserves protected trees, and never
 	}
 });
 
+test('a reconciliation collector retains writes from a failed pass when recovery preserves their bytes', async () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'twiki-output-reconcile-'));
+	const file = path.join(root, 'page.json');
+	const outputs = new Set<string>();
+	try {
+		await expect(
+			trackOutputs(async () => {
+				writeChanged(file, 'new page');
+				throw new Error('Inputs changed');
+			}, outputs)
+		).rejects.toThrow('Inputs changed');
+		const recovered = await trackOutputs(async () => writeChanged(file, 'new page'), outputs);
+		expect([...recovered]).toEqual([file]);
+		expect(readFileSync(file, 'utf8')).toBe('new page');
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
 test('a burst during a running content build produces only one follow-up', async () => {
 	let release!: () => void;
 	let started!: () => void;

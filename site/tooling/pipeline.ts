@@ -2,7 +2,11 @@ import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { stageFingerprint } from './fingerprint';
 import { trackOutputs, writeChanged } from './lib/output';
-import { contentInputFingerprint, contentOutputFingerprint } from './lib/dev-state';
+import {
+	captureContentInputs,
+	contentOutputFingerprint,
+	type ContentInputSnapshot
+} from './lib/dev-state';
 import {
 	resolveProject,
 	projectIdentity,
@@ -14,12 +18,21 @@ const state = globalThis as typeof globalThis & {
 	wisconsinContentBuilds?: Map<string, Promise<Set<string>>>;
 };
 
+let validatedInputs: ContentInputSnapshot | undefined;
+
 export async function prepareContent(
 	reuse = false,
 	changedInputs?: Set<string>,
 	development = false
 ) {
-	return withSourceDiscovery(() => prepareSnapshot(reuse, changedInputs, development));
+	return withSourceDiscovery(async () => {
+		try {
+			return await prepareSnapshot(reuse, changedInputs, development);
+		} catch (error) {
+			validatedInputs = undefined;
+			throw error;
+		}
+	});
 }
 
 async function prepareSnapshot(
@@ -43,13 +56,21 @@ async function prepareSnapshot(
 	]);
 	const marker = path.resolve('build/generated/dev-state.json');
 	const started = performance.now();
-	let inputs = development ? contentInputFingerprint(repo, key) : '';
+	// Hints can seed an already-required rebuild; accepting saved output always
+	// starts from a full capture, and every build still finishes with a fresh one.
+	const snapshot = development
+		? (!reuse && validatedInputs?.refresh(project, key, changedInputs)) ||
+			captureContentInputs(repo, key)
+		: undefined;
+	let inputs = snapshot?.fingerprint ?? '';
 	if (development)
 		console.log(`content inputs: ${Math.round(performance.now() - preparationStarted)}ms`);
 	if (development && reuse && existsSync(marker)) {
 		try {
 			const saved = JSON.parse(readFileSync(marker, 'utf8'));
 			if (saved.inputs === inputs && saved.outputs === contentOutputFingerprint(site)) {
+				validatedInputs = snapshot;
+				process.env.TWIKI_PREPARED_CONTENT_KEY = key;
 				console.log(
 					`content startup: reused saved output in ${Math.round(performance.now() - started)}ms`
 				);
@@ -74,24 +95,43 @@ async function prepareSnapshot(
 	)
 		return builds.get(key);
 	rmSync(marker, { force: true });
+	const changed = new Set<string>();
 	// A changed renderer or configuration must reconcile all courses, including unchanged worksheets.
-	const build = runPipeline(
-		development && process.env.TWIKI_PREPARED_CONTENT_KEY !== key ? undefined : changedInputs,
-		development
-	);
+	const run = () =>
+		runPipeline(
+			development && process.env.TWIKI_PREPARED_CONTENT_KEY !== key ? undefined : changedInputs,
+			development,
+			changed
+		);
+	const build = snapshot ? snapshot.withDiscovery(run) : run();
 	builds.set(key, build);
 	try {
-		const changed = await build;
-		if (development) {
-			// Never validate a completed build against its cached discovery snapshot.
-			let current = withSourceDiscovery(() => contentInputFingerprint(repo, key));
-			while (current !== inputs) {
-				inputs = current;
-				for (const file of await withSourceDiscovery(() => runPipeline(undefined, true)))
-					changed.add(file);
-				current = withSourceDiscovery(() => contentInputFingerprint(repo, key));
+		let pending = build;
+		while (true) {
+			let failed = false;
+			let failure: unknown;
+			try {
+				await pending;
+			} catch (error) {
+				failed = true;
+				failure = error;
 			}
-			writeChanged(marker, JSON.stringify({ inputs, outputs: contentOutputFingerprint(site) }));
+			if (!development) {
+				if (failed) throw failure;
+				break;
+			}
+			// A missed deletion can fail a candidate pass before validation. Retry
+			// only when fresh inputs changed; genuine errors remain fail-closed.
+			const current = withSourceDiscovery(() => captureContentInputs(repo, key));
+			if (current.fingerprint === inputs) {
+				if (failed) throw failure;
+				validatedInputs = current;
+				writeChanged(marker, JSON.stringify({ inputs, outputs: contentOutputFingerprint(site) }));
+				break;
+			}
+			inputs = current.fingerprint;
+			pending = current.withDiscovery(() => runPipeline(undefined, true, changed));
+			builds.set(key, pending);
 		}
 		process.env.TWIKI_PREPARED_CONTENT_KEY = key;
 		return changed;
@@ -102,7 +142,11 @@ async function prepareSnapshot(
 	}
 }
 
-async function runPipeline(changedInputs?: Set<string>, development = false) {
+async function runPipeline(
+	changedInputs?: Set<string>,
+	development = false,
+	outputs = new Set<string>()
+) {
 	const start = performance.now();
 	// A saved development snapshot does not need the parser or asset renderers.
 	const [{ compileContent }, { prepareAssets }, { withPublicationPolicies }] = await Promise.all([
@@ -120,7 +164,7 @@ async function runPipeline(changedInputs?: Set<string>, development = false) {
 				console.log(
 					`content stages: compiler ${Math.round(assets - compiled)}ms, assets ${Math.round(performance.now() - assets)}ms`
 				);
-		})
+		}, outputs)
 	);
 	console.log(
 		`content pipeline: ${((performance.now() - start) / 1000).toFixed(2)}s, ${changed.size} changed outputs`

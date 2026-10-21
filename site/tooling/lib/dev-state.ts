@@ -5,6 +5,7 @@ import {
 	readFileSync,
 	readdirSync,
 	readlinkSync,
+	realpathSync,
 	type BigIntStats
 } from 'node:fs';
 import path from 'node:path';
@@ -14,7 +15,10 @@ import {
 	discoverSourceEntries,
 	projectIdentity,
 	gitAvailable,
-	contentWithinProject
+	contentWithinProject,
+	withSourceDiscovery,
+	type ResolvedProject,
+	type SourceEntry
 } from './project-config';
 
 function fileStat(file: string): BigIntStats | null {
@@ -38,60 +42,144 @@ function stamp(file: string, stat: Readonly<BigIntStats> | null = fileStat(file)
 	];
 }
 
-/** Validate tracked paths, working-copy edits, index changes and Git dates without reading large assets. */
-export function contentInputFingerprint(repo: string, pipeline: string) {
-	const project = resolveProject(process.cwd(), repo);
-	const hash = createHash('sha256').update(pipeline).update(projectIdentity(project));
-	// A path can appear in discovery and several recursive Git indexes. Observe it
-	// once per snapshot; the pipeline's post-build snapshot uses a fresh map.
-	const stamps = new Map<string, ReturnType<typeof stamp>>();
-	const inputStamp = (file: string) => {
-		if (!stamps.has(file)) stamps.set(file, stamp(file));
-		return stamps.get(file);
-	};
-	for (const { relative: file, stat } of discoverSourceEntries(project)) {
-		const absolute = path.join(project.contentDir, file);
-		if (project.discovery === 'filesystem') {
-			const bytes = readFileSync(absolute);
-			hash.update(JSON.stringify([file, bytes.length])).update(bytes);
-		} else {
-			const observed = stamp(absolute, stat);
-			stamps.set(absolute, observed);
-			hash.update(JSON.stringify([file, observed]));
-		}
-	}
-	if (project.configFile) hash.update(readFileSync(project.configFile));
-	const modules = path.join(repo, '.gitmodules');
-	hash.update(existsSync(modules) ? readFileSync(modules) : '');
-	for (const repository of contentRepositories(repo)) {
-		const { directory, head, tracked, config, worktreeConfig } = repository;
-		hash.update(directory).update(head).update(tracked);
-		// Registration and worktree-specific config can change recursive visibility
-		// without changing a commit or any tracked working-copy file.
-		hash.update(JSON.stringify([inputStamp(config), inputStamp(worktreeConfig)]));
-		const modules = path.join(directory, '.gitmodules');
-		hash.update(existsSync(modules) ? readFileSync(modules) : '');
-		for (const entry of tracked.toString().split('\0').filter(Boolean)) {
-			const file = entry.slice(entry.indexOf('\t') + 1);
-			hash.update(JSON.stringify([file, inputStamp(path.join(directory, file))]));
-		}
-	}
-	// Git's recursive index is authoritative about which initialized submodules
-	// are enabled, including nested registration changes.
-	if (project.discovery === 'git' && contentWithinProject(project) && gitAvailable(repo))
-		hash.update(
-			contentGit(
-				'-C',
-				repo,
-				'ls-files',
-				'-z',
-				'--stage',
-				'--recurse-submodules',
-				'--',
-				path.relative(repo, project.contentDir) || '.'
-			)
+type ObservationKind = 'stat' | 'bytes';
+const observationKey = (kind: ObservationKind, file: string) => `${kind}\0${file}`;
+const digest = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex');
+const contextKey = (project: ResolvedProject, pipeline: string) =>
+	JSON.stringify([pipeline, projectIdentity(project), project.configFile ?? null]);
+
+/** A candidate input snapshot is accepted only after a fresh post-build capture agrees. */
+export class ContentInputSnapshot {
+	readonly fingerprint: string;
+	private readonly sources: Map<string, SourceEntry>;
+	constructor(
+		private readonly project: ResolvedProject,
+		private readonly pipeline: string,
+		private readonly entries: readonly SourceEntry[],
+		private readonly shape: string,
+		private readonly observations: ReadonlyMap<string, string | null>
+	) {
+		this.sources = new Map(
+			entries.map((entry) => [path.join(project.contentDir, entry.relative), entry])
 		);
-	return hash.digest('hex');
+		const hash = createHash('sha256').update(contextKey(project, pipeline)).update(shape);
+		for (const key of [...observations.keys()].sort())
+			hash.update(JSON.stringify([key, observations.get(key)]));
+		this.fingerprint = hash.digest('hex');
+	}
+
+	/** Existing regular files only. Structural, Git, and configuration events need a full capture. */
+	refresh(project: ResolvedProject, pipeline: string, changed: ReadonlySet<string> | undefined) {
+		if (
+			!changed?.size ||
+			[...changed].some((file) => !this.sources.has(file)) ||
+			contextKey(project, pipeline) !== contextKey(this.project, this.pipeline)
+		)
+			return;
+		const replacements = new Map<string, SourceEntry>();
+		const observations = new Map(this.observations);
+		for (const file of changed) {
+			const previous = this.sources.get(file);
+			if (!previous) return;
+			let stat: BigIntStats | null;
+			try {
+				stat = fileStat(file);
+				if (!stat?.isFile() || realpathSync(file) !== file) return;
+			} catch (error) {
+				if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) return;
+				throw error;
+			}
+			replacements.set(previous.relative, { relative: previous.relative, stat });
+			for (const kind of ['stat', 'bytes'] as const) {
+				const key = observationKey(kind, file);
+				if (observations.has(key))
+					observations.set(
+						key,
+						kind === 'stat' ? JSON.stringify(stamp(file, stat)) : digest(readFileSync(file))
+					);
+			}
+			// Atomic saves also change containing gitlink directories recorded by Git.
+			for (let directory = path.dirname(file); ; ) {
+				const key = observationKey('stat', directory);
+				if (observations.has(key)) observations.set(key, JSON.stringify(stamp(directory)));
+				const parent = path.dirname(directory);
+				if (parent === directory) break;
+				directory = parent;
+			}
+		}
+		return new ContentInputSnapshot(
+			project,
+			pipeline,
+			this.entries.map((entry) => replacements.get(entry.relative) ?? entry),
+			this.shape,
+			observations
+		);
+	}
+
+	withDiscovery<T>(build: () => T): T {
+		return withSourceDiscovery(build, { project: this.project, entries: this.entries });
+	}
+}
+
+/** Read the complete source catalog and Git state, independent of watcher hints. */
+export function captureContentInputs(repo: string, pipeline: string) {
+	const project = resolveProject(process.cwd(), repo);
+	const entries = discoverSourceEntries(project);
+	const observations = new Map<string, string | null>();
+	const observeStat = (file: string, info?: Readonly<BigIntStats>) => {
+		const key = observationKey('stat', file);
+		if (!observations.has(key)) observations.set(key, JSON.stringify(stamp(file, info)));
+	};
+	const observeBytes = (file: string, optional = false) => {
+		const key = observationKey('bytes', file);
+		if (!observations.has(key))
+			observations.set(key, optional && !existsSync(file) ? null : digest(readFileSync(file)));
+	};
+	for (const entry of entries) {
+		const file = path.join(project.contentDir, entry.relative);
+		if (project.discovery === 'filesystem') observeBytes(file);
+		else observeStat(file, entry.stat);
+	}
+	if (project.configFile) observeBytes(project.configFile);
+	observeBytes(path.join(repo, '.gitmodules'), true);
+	const repositories = contentRepositories(repo).map((repository) => {
+		const { directory, head, tracked, config, worktreeConfig } = repository;
+		observeStat(config);
+		observeStat(worktreeConfig);
+		observeBytes(path.join(directory, '.gitmodules'), true);
+		for (const entry of tracked.toString().split('\0').filter(Boolean))
+			observeStat(path.join(directory, entry.slice(entry.indexOf('\t') + 1)));
+		return [directory, head, digest(tracked), config, worktreeConfig];
+	});
+	const recursive =
+		project.discovery === 'git' && contentWithinProject(project) && gitAvailable(repo)
+			? digest(
+					contentGit(
+						'-C',
+						repo,
+						'ls-files',
+						'-z',
+						'--stage',
+						'--recurse-submodules',
+						'--',
+						path.relative(repo, project.contentDir) || '.'
+					)
+				)
+			: null;
+	const shape = digest(
+		JSON.stringify([
+			'content-input-snapshot-v2',
+			entries.map((entry) => entry.relative),
+			repositories,
+			recursive
+		])
+	);
+	return new ContentInputSnapshot(project, pipeline, entries, shape, observations);
+}
+
+/** Public full-validation entry point; never use watcher hints for saved-output reuse. */
+export function contentInputFingerprint(repo: string, pipeline: string) {
+	return captureContentInputs(repo, pipeline).fingerprint;
 }
 
 /** A production build or missing/modified output invalidates the saved dev result. */
