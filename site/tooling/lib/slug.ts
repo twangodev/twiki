@@ -53,23 +53,18 @@ export function isAbsoluteURL(s: string): boolean {
 
 export function sluggify(s: string): string {
 	return s
-		.split('/')
-		.map((segment) =>
-			segment
-				.replace(/\s/g, '-')
-				.replace(/&/g, '-and-')
-				.replace(/%/g, '-percent')
-				.replace(/\?/g, '')
-				.replace(/#/g, '')
-		)
-		.join('/') // always use / as sep
+		.replace(/\s/g, '-')
+		.replace(/&/g, '-and-')
+		.replace(/%/g, '-percent')
+		.replace(/\?/g, '')
+		.replace(/#/g, '')
 		.replace(/\/$/, '');
 }
 
 export function slugifyFilePath(fp: FilePath, excludeExt?: boolean): FullSlug {
 	fp = stripSlashes(fp) as FilePath;
 	let ext = getFileExtension(fp);
-	const withoutFileExt = fp.replace(new RegExp(ext + '$'), '');
+	const withoutFileExt = ext === undefined ? fp : fp.slice(0, -ext.length);
 	if (excludeExt || ['.md', '.html', undefined].includes(ext)) {
 		ext = '';
 	}

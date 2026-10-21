@@ -3,6 +3,7 @@ import {
 	type FilePath,
 	type FullSlug,
 	simplifySlug,
+	sluggify,
 	slugifyFilePath,
 	slugTag,
 	splitAnchor,
@@ -25,6 +26,18 @@ describe('slugifyFilePath', () => {
 		);
 		expect<unknown>(slugifyFilePath(fp('fa25-cs354/cheatsheet.pdf'))).toBe(
 			'fa25-cs354/cheatsheet.pdf'
+		);
+	});
+
+	test('preserves extensionless filenames ending in undefined', () => {
+		expect(slugifyFilePath(fp('folder/undefined'))).toBe('folder/undefined');
+		expect(slugifyFilePath(fp('folder/someundefined'), true)).toBe('folder/someundefined');
+	});
+
+	test('preserves path separators while transforming punctuation and Unicode whitespace', () => {
+		expect(sluggify('a b/c&d//e%?#/')).toBe('a-b/c-and-d//e-percent');
+		expect(slugifyFilePath(fp('章节/hello\u00a0world & 50%.md'))).toBe(
+			'章节/hello-world--and--50-percent'
 		);
 	});
 
