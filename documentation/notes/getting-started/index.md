@@ -24,3 +24,5 @@ Twiki keeps generated files in `.twiki/`. Add that directory to `.gitignore`. So
 For a public site, set `publication` to `public` in the configuration. See [[guides/static-hosting|Static hosting]] or [[guides/cloudflare|Cloudflare deployment]] for the next step. [[reference/configuration|Configuration reference]] explains each field.
 
 To use another directory, pass `--project /path/to/vault`. To change the dev port, use `bunx twiki dev -- --port 5174`.
+
+To use your own favicon, put an ICO file in your project and set `site.favicon` in `twiki.config.json` to its path relative to the project root, for example `"favicon": "branding/favicon.ico"` inside `site`. Twiki copies it into generated output without changing the source file. Omit the setting to use the default favicon.

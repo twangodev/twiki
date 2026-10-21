@@ -61,6 +61,7 @@ const authorSchema = z.strictObject({
 	email: z.string().default('')
 });
 export const siteSchema = z.strictObject({
+	favicon: z.string().min(1).optional().describe('Path to a custom ICO favicon, relative to the project root. Omit to use the Twiki favicon.'),
 	name: z.string().default('twiki').describe('Site name shown in navigation.'),
 	title: z.string().default('twiki').describe('Default page title.'),
 	url: z

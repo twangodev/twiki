@@ -37,6 +37,11 @@
       "description": "Branding, canonical URL, author and navigation settings.",
       "type": "object",
       "properties": {
+        "favicon": {
+          "description": "Path to a custom ICO favicon, relative to the project root. Omit to use the Twiki favicon.",
+          "type": "string",
+          "minLength": 1
+        },
         "name": {
           "default": "twiki",
           "description": "Site name shown in navigation.",

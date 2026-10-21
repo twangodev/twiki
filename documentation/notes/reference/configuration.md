@@ -18,6 +18,7 @@ For editor completion, add `"$schema": "./node_modules/@twango/twiki/cli/twiki.s
 | `discovery` | `filesystem`, `git` | No | — | File discovery. Explicit CLI projects default to filesystem; legacy workspaces default to git. |
 | `publication` | `private`, `public`, `policies` | No | — | Publication mode. Explicit CLI projects default to private. Static export requires public. |
 | `site` | object | No | — | Branding, canonical URL, author and navigation settings. |
+| `site.favicon` | string | No | — | Path to a custom ICO favicon, relative to the project root. Omit to use the Twiki favicon. |
 | `site.name` | string | No | `"twiki"` | Site name shown in navigation. |
 | `site.title` | string | No | `"twiki"` | Default page title. |
 | `site.url` | string | No | `"http://localhost:5173"` | Canonical HTTP or HTTPS origin. |

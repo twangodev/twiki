@@ -421,3 +421,26 @@ test("engine dependency declarations and lock match the shipped exact runtime gr
     ),
   );
 });
+
+test("custom favicon follows consumer edits and removing the setting restores the default", () => {
+  const f = fixture();
+  const defaultIcon = Buffer.from([0, 0, 1, 0, 1, 0, 10]);
+  const customIcon = Buffer.from([0, 0, 1, 0, 1, 0, 20]);
+  writeFileSync(path.join(f.engine, "static/favicon.ico"), defaultIcon);
+  writeFileSync(path.join(f.vault, "brand.ico"), customIcon);
+  const config = path.join(f.vault, "twiki.config.json");
+  writeFileSync(config, JSON.stringify({ version: 1, site: { favicon: "brand.ico" } }));
+  const result = prepareProject(f.options);
+  const staged = path.join(result.workDir, "static/favicon.ico");
+  expect(readFileSync(staged)).toEqual(customIcon);
+  expect(readFileSync(path.join(f.engine, "static/favicon.ico"))).toEqual(defaultIcon);
+  const edited = Buffer.from([0, 0, 1, 0, 1, 0, 30]);
+  writeFileSync(path.join(f.vault, "brand.ico"), edited);
+  prepareProject(f.options);
+  expect(readFileSync(staged)).toEqual(edited);
+  writeFileSync(path.join(f.vault, "brand.ico"), "invalid");
+  expect(() => prepareProject(f.options)).toThrow("valid ICO");
+  writeFileSync(config, JSON.stringify({ version: 1 }));
+  prepareProject(f.options);
+  expect(readFileSync(staged)).toEqual(defaultIcon);
+});

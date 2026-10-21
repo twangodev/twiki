@@ -299,6 +299,15 @@ export function prepareProject(options: PrepareOptions = {}): PreparedProject {
         ].includes(file)
       )
         writeRuntime(workDir, file, readFileSync(path.join(source, file)));
+    if (project.site.favicon) {
+      const favicon = path.resolve(projectRoot, project.site.favicon);
+      if (!favicon.toLowerCase().endsWith(".ico") || !lstatSync(favicon, { throwIfNoEntry: false })?.isFile())
+        throw new Error("site.favicon must point to an existing ICO file");
+      const bytes = readFileSync(favicon);
+      if (bytes.length < 6 || bytes.readUInt32LE(0) !== 0x00010000 || bytes.readUInt16LE(4) === 0)
+        throw new Error("site.favicon must be a valid ICO file");
+      writeRuntime(workDir, "static/favicon.ico", bytes);
+    }
     for (const file of previous)
       if (!files.includes(file)) {
         directory(workDir, path.dirname(path.join(workDir, file)));
