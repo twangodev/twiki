@@ -139,6 +139,21 @@ console.log('highlighter lifecycle passed');
 	}
 }, 25_000);
 
+test('development size checks reject assets that outgrow a previously validated copy', async () => {
+	const f = fixture();
+	try {
+		f.write('image.svg', '<svg/>');
+		f.git(f.course, 'add', 'image.svg');
+		const run = () => compileContent({ siteDir: f.site, repoRoot: f.root, development: true });
+		await run();
+		await run();
+		writeFileSync(path.join(f.course, 'image.svg'), Buffer.alloc(25 * 1024 * 1024 + 1, 32));
+		await expect(run()).rejects.toThrow('Content exceeds the deployment asset limit');
+	} finally {
+		f.cleanup();
+	}
+});
+
 test('compiler discovery excludes linked notes and assets while retaining ordinary sources', async () => {
 	const f = fixture();
 	try {

@@ -116,20 +116,30 @@ export function emitContentDocument(
 	destination: string,
 	create: () => unknown,
 	development = false
-) {
-	if (
-		record.documentKey === key &&
-		ownedObject(record.document, edition, 'docs') &&
-		copyChanged(path.resolve(cache, record.document), destination, development, readObjectFile)
-	)
-		return;
+): number {
+	if (record.documentKey === key && ownedObject(record.document, edition, 'docs')) {
+		const copied = copyChanged(
+			path.resolve(cache, record.document),
+			destination,
+			development,
+			readObjectFile
+		);
+		if (copied !== undefined) return copied;
+	}
 	const bytes = Buffer.from(JSON.stringify(create()));
 	record.document = writeContentObject(cache, edition, 'docs', bytes);
 	record.documentKey = key;
 	if (development) {
-		if (!copyChanged(path.resolve(cache, record.document), destination, true, readObjectFile))
-			throw new Error('Generated content document failed validation');
+		const copied = copyChanged(
+			path.resolve(cache, record.document),
+			destination,
+			true,
+			readObjectFile
+		);
+		if (copied === undefined) throw new Error('Generated content document failed validation');
+		return copied;
 	} else writeChanged(destination, bytes);
+	return bytes.byteLength;
 }
 
 export function readContentBody(cache: string, relative: string, edition: ContentEdition) {

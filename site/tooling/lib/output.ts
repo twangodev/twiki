@@ -64,34 +64,30 @@ export function writeChanged(file: string, data: string | Uint8Array) {
 	changes.getStore()?.add(path.resolve(file));
 }
 
-/** In a running dev server, reuse only copies whose source and output metadata still match. */
+/** Return validated output size; dev reuse requires matching source and output identities. */
 export function copyChanged(
 	source: string,
 	destination: string,
 	development = false,
 	read: SourceReader = readFileSync
-) {
+): number | undefined {
 	const input = development ? fileStamp(source) : undefined;
 	const previous = copiedOutputs.get(destination);
-	if (
-		input &&
-		previous?.source === source &&
-		previous.read === read &&
-		previous.input === input &&
-		previous.output === fileStamp(destination)
-	)
-		return true;
+	if (input && previous?.source === source && previous.read === read && previous.input === input) {
+		const output = statSync(destination, { bigint: true, throwIfNoEntry: false });
+		if (output && previous.output === copyStamp(output)) return Number(output.size);
+	}
 	const bytes = read(source);
 	if (!bytes) {
 		copiedOutputs.delete(destination);
-		return false;
+		return;
 	}
 	writeChanged(destination, bytes);
 	if (development && input) {
 		const output = fileStamp(destination);
 		if (output) copiedOutputs.set(destination, { source, input, output, read });
 	} else copiedOutputs.delete(destination);
-	return true;
+	return bytes.byteLength;
 }
 
 /** Paths are absolute. Each caller prunes only the directory it owns. */

@@ -51,12 +51,12 @@ export function writeTextExports(
 			)
 				throw new Error(`Text export conflicts with an existing asset: ${page.slug}.${format}`);
 			if (
-				!copyChanged(
+				copyChanged(
 					path.join(pageDirectory, `${page.slug}.json`),
 					file,
 					development,
 					textExportBytes
-				)
+				) === undefined
 			)
 				throw new Error(`Missing Markdown for text export: ${page.slug}`);
 			written.add(path.relative(directory, file));

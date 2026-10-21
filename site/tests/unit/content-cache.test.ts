@@ -108,7 +108,7 @@ test('document emission skips unchanged bytes and repairs changed or missing cac
 	const cache = mkdtempSync(path.join(tmpdir(), 'twiki-doc-emitter-'));
 	const out = path.join(cache, 'pages/note.json');
 	const record = page('note');
-	const document = { html: 'private note', markdown: 'private source' };
+	const document = { html: 'private note 界', markdown: 'private source' };
 	let creates = 0;
 	const emit = () =>
 		emitContentDocument(
@@ -125,11 +125,11 @@ test('document emission skips unchanged bytes and repairs changed or missing cac
 		);
 	let restore: (() => void) | undefined;
 	try {
-		emit();
+		expect(emit()).toBe(Buffer.byteLength(JSON.stringify(document)));
 		const object = path.join(cache, record.document!);
 		const read = spyOn(fs, 'readFileSync');
 		restore = () => read.mockRestore();
-		emit();
+		expect(emit()).toBe(Buffer.byteLength(JSON.stringify(document)));
 		expect(read.mock.calls.filter(([file]) => file === out || file === object)).toHaveLength(0);
 		expect(creates).toBe(1);
 		read.mockRestore();

@@ -1163,8 +1163,7 @@ export async function compileContent(
 		// stage 3
 		const t3 = performance.now();
 		const sizeViolations: string[] = [];
-		const checkSize = (outPath: string) => {
-			const { size } = fs.statSync(outPath);
+		const checkSize = (outPath: string, size: number) => {
 			if (size > SIZE_FAIL) {
 				sizeViolations.push(
 					`${outPath} is ${(size / 1024 / 1024).toFixed(1)}MiB (> 25MiB Workers cap)`
@@ -1180,9 +1179,10 @@ export async function compileContent(
 		for (const asset of assetsSrc) {
 			// html assets: extensionless at slug, exactly like quartz's Assets emitter
 			const dest = path.join(ASSETS_DIR, asset.slug);
-			copyChanged(asset.abs, dest, options.development);
+			const size = copyChanged(asset.abs, dest, options.development);
+			if (size === undefined) throw new Error(`Missing compiled asset: ${asset.rel}`);
 			wantedAssets.add(dest);
-			assetBytes += checkSize(dest);
+			assetBytes += checkSize(dest, size);
 		}
 
 		// per-page JSON
@@ -1253,7 +1253,7 @@ export async function compileContent(
 			const outPath = path.join(OUT_DIR, 'pages', page.slug + '.json');
 			wantedPages.add(outPath);
 			const documentKey = contentHash(JSON.stringify([meta, page.toc, pageBacklinks, record.body]));
-			emitContentDocument(
+			const size = emitContentDocument(
 				CACHE_DIR,
 				edition,
 				record,
@@ -1271,7 +1271,7 @@ export async function compileContent(
 				},
 				options.development
 			);
-			checkSize(outPath);
+			checkSize(outPath, size);
 		}
 
 		for (const page of lockedPages) {

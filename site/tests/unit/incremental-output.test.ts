@@ -23,6 +23,24 @@ import {
 } from '../../tooling/lib/output';
 import { rebuildQueue } from '../../tooling/lib/rebuild-queue';
 
+test('copy results report emitted byte sizes for empty and transformed outputs, including reuse', () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'twiki-copy-sizes-'));
+	const source = path.join(root, 'source');
+	const output = path.join(root, 'output');
+	try {
+		writeFileSync(source, '');
+		expect(copyChanged(source, output, true)).toBe(0);
+		expect(copyChanged(source, output, true)).toBe(0);
+		writeFileSync(source, 'input with a different byte length');
+		const transform = () => Buffer.from('界');
+		expect(copyChanged(source, output, true, transform)).toBe(3);
+		expect(copyChanged(source, output, true, transform)).toBe(3);
+		expect(readFileSync(output, 'utf8')).toBe('界');
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
 test('restored copies skip validated bytes but reject source and output edits made after observation', () => {
 	const root = mkdtempSync(path.join(tmpdir(), 'twiki-restored-copy-'));
 	const source = path.join(root, 'source');
@@ -68,7 +86,7 @@ test('a changed source reader must validate previously copied bytes before reuse
 				reads++;
 				return undefined;
 			})
-		).toBe(false);
+		).toBeUndefined();
 		expect(reads).toBe(1);
 		expect(readFileSync(output, 'utf8')).toBe('unchecked');
 	} finally {
