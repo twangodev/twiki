@@ -1,6 +1,13 @@
 import { execFileSync } from 'node:child_process';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
+import {
+	existsSync,
+	lstatSync,
+	readFileSync,
+	readdirSync,
+	realpathSync,
+	type BigIntStats
+} from 'node:fs';
 import path from 'node:path';
 import { browsablePath } from './file-policy';
 import { writeChanged } from './output';
@@ -183,7 +190,12 @@ export function projectSourceVisible(project: ResolvedProject, relative: string)
 		)
 	);
 }
-const sourceDiscovery = new AsyncLocalStorage<Map<string, string[]>>();
+export interface SourceEntry {
+	readonly relative: string;
+	readonly stat: Readonly<BigIntStats>;
+}
+
+const sourceDiscovery = new AsyncLocalStorage<Map<string, SourceEntry[]>>();
 
 /** One build uses one discovery snapshot; validation before/after it remains fresh. */
 export function withSourceDiscovery<T>(build: () => T): T {
@@ -191,6 +203,11 @@ export function withSourceDiscovery<T>(build: () => T): T {
 }
 
 export function discoverSourceFiles(project: ResolvedProject): string[] {
+	return discoverSourceEntries(project).map((file) => file.relative);
+}
+
+/** File identities belong to the same discovery snapshot as their paths. */
+export function discoverSourceEntries(project: ResolvedProject): readonly SourceEntry[] {
 	const snapshot = sourceDiscovery.getStore();
 	const key = projectIdentity(project);
 	let files = snapshot?.get(key);
@@ -202,16 +219,17 @@ export function discoverSourceFiles(project: ResolvedProject): string[] {
 }
 
 /** Regular, contained inputs only: never follow symlinks or include engine/editor hidden state. */
-function discoverFiles(project: ResolvedProject): string[] {
+function discoverFiles(project: ResolvedProject): SourceEntry[] {
 	if (!existsSync(project.contentDir)) throw new Error('Content directory does not exist');
 	const root = realpathSync(project.contentDir);
-	const paths = new Set<string>();
+	const paths = new Map<string, SourceEntry>();
 	const add = (relative: string) => {
-		if (!projectSourceVisible(project, relative)) return;
+		if (paths.has(relative) || !projectSourceVisible(project, relative)) return;
 		const file = path.join(project.contentDir, relative);
 		try {
-			if (lstatSync(file).isFile() && realpathSync(file) === path.join(root, relative))
-				paths.add(relative);
+			const stat = lstatSync(file, { bigint: true });
+			if (stat.isFile() && realpathSync(file) === path.join(root, relative))
+				paths.set(relative, { relative, stat });
 		} catch (error) {
 			if (!['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error;
 		}
@@ -244,7 +262,7 @@ function discoverFiles(project: ResolvedProject): string[] {
 		};
 		walk(project.contentDir);
 	}
-	return [...paths].sort();
+	return [...paths.keys()].sort().map((relative) => paths.get(relative)!);
 }
 
 export function projectConfig(repoRoot?: string, environment: NodeJS.ProcessEnv = process.env) {

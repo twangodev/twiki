@@ -1,11 +1,48 @@
-import { expect, test } from 'bun:test';
+import { expect, test, spyOn } from 'bun:test';
 import { execFileSync } from 'node:child_process';
+import * as fs from 'node:fs';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { publicationFixture } from '../publication-fixture';
 import { nestedPublicationFixture } from '../nested-publication-fixture';
 import { contentInputFingerprint, contentOutputFingerprint } from '../../tooling/lib/dev-state';
+import { withSourceDiscovery } from '../../tooling/lib/project-config';
 import { contentGit, contentRepositories } from '../../tooling/lib/dev-git-state';
+
+test('each snapshot observes a shared tracked note once across discovery and fingerprinting', () => {
+	const fixture = publicationFixture();
+	const note = path.join(fixture.course, 'notes/public.md');
+	const stat = spyOn(fs, 'lstatSync');
+	try {
+		const first = contentInputFingerprint(fixture.repo, 'tooling');
+		expect(stat.mock.calls.filter(([file]) => file === note)).toHaveLength(1);
+		stat.mockClear();
+		fixture.write(
+			'content/sp99-cs101/notes/public.md',
+			fixture.publicNote + '\nChanged between snapshots'
+		);
+		expect(contentInputFingerprint(fixture.repo, 'tooling')).not.toBe(first);
+		expect(stat.mock.calls.filter(([file]) => file === note)).toHaveLength(1);
+	} finally {
+		stat.mockRestore();
+		rmSync(fixture.repo, { recursive: true, force: true });
+	}
+});
+
+test('a fresh validation scope sees edits made after the build discovery snapshot', () => {
+	const fixture = publicationFixture();
+	try {
+		const fingerprint = () => contentInputFingerprint(fixture.repo, 'tooling');
+		withSourceDiscovery(() => {
+			const original = fingerprint();
+			fixture.write('content/sp99-cs101/notes/public.md', fixture.publicNote + '\nDuring build');
+			expect(fingerprint()).toBe(original);
+			expect(withSourceDiscovery(fingerprint)).not.toBe(original);
+		});
+	} finally {
+		rmSync(fixture.repo, { recursive: true, force: true });
+	}
+});
 
 test('startup snapshots detect offline edits, tracking changes, tooling changes and lost output', () => {
 	const fixture = publicationFixture();

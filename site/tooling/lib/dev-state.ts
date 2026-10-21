@@ -11,7 +11,7 @@ import path from 'node:path';
 import { contentGit, contentRepositories } from './dev-git-state';
 import {
 	resolveProject,
-	discoverSourceFiles,
+	discoverSourceEntries,
 	projectIdentity,
 	gitAvailable,
 	contentWithinProject
@@ -26,7 +26,7 @@ function fileStat(file: string): BigIntStats | null {
 	}
 }
 
-function stamp(file: string, stat = fileStat(file)) {
+function stamp(file: string, stat: Readonly<BigIntStats> | null = fileStat(file)) {
 	if (!stat) return null;
 	return [
 		String(stat.mode),
@@ -42,11 +42,23 @@ function stamp(file: string, stat = fileStat(file)) {
 export function contentInputFingerprint(repo: string, pipeline: string) {
 	const project = resolveProject(process.cwd(), repo);
 	const hash = createHash('sha256').update(pipeline).update(projectIdentity(project));
-	for (const file of discoverSourceFiles(project)) {
+	// A path can appear in discovery and several recursive Git indexes. Observe it
+	// once per snapshot; the pipeline's post-build snapshot uses a fresh map.
+	const stamps = new Map<string, ReturnType<typeof stamp>>();
+	const inputStamp = (file: string) => {
+		if (!stamps.has(file)) stamps.set(file, stamp(file));
+		return stamps.get(file);
+	};
+	for (const { relative: file, stat } of discoverSourceEntries(project)) {
+		const absolute = path.join(project.contentDir, file);
 		if (project.discovery === 'filesystem') {
-			const bytes = readFileSync(path.join(project.contentDir, file));
+			const bytes = readFileSync(absolute);
 			hash.update(JSON.stringify([file, bytes.length])).update(bytes);
-		} else hash.update(JSON.stringify([file, stamp(path.join(project.contentDir, file))]));
+		} else {
+			const observed = stamp(absolute, stat);
+			stamps.set(absolute, observed);
+			hash.update(JSON.stringify([file, observed]));
+		}
 	}
 	if (project.configFile) hash.update(readFileSync(project.configFile));
 	const modules = path.join(repo, '.gitmodules');
@@ -56,12 +68,12 @@ export function contentInputFingerprint(repo: string, pipeline: string) {
 		hash.update(directory).update(head).update(tracked);
 		// Registration and worktree-specific config can change recursive visibility
 		// without changing a commit or any tracked working-copy file.
-		hash.update(JSON.stringify([stamp(config), stamp(worktreeConfig)]));
+		hash.update(JSON.stringify([inputStamp(config), inputStamp(worktreeConfig)]));
 		const modules = path.join(directory, '.gitmodules');
 		hash.update(existsSync(modules) ? readFileSync(modules) : '');
 		for (const entry of tracked.toString().split('\0').filter(Boolean)) {
 			const file = entry.slice(entry.indexOf('\t') + 1);
-			hash.update(JSON.stringify([file, stamp(path.join(directory, file))]));
+			hash.update(JSON.stringify([file, inputStamp(path.join(directory, file))]));
 		}
 	}
 	// Git's recursive index is authoritative about which initialized submodules

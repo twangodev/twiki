@@ -14,6 +14,7 @@ import path from 'node:path';
 import {
 	declaredContentCourses,
 	discoverSourceFiles,
+	discoverSourceEntries,
 	parseProjectConfig,
 	resolveProject,
 	withSourceDiscovery,
@@ -71,6 +72,9 @@ describe('consumer project configuration and discovery', () => {
 			});
 			await withSourceDiscovery(async () => {
 				expect(discoverSourceFiles(project)).toEqual(['first.md']);
+				const original = discoverSourceEntries(project)[0].stat;
+				writeFileSync(path.join(root, 'notes/first.md'), '# Changed during build');
+				expect(discoverSourceEntries(project)[0].stat.size).toBe(original.size);
 				writeFileSync(path.join(root, 'notes/added.md'), '# Added during build');
 				await Promise.resolve();
 				const files = discoverSourceFiles(project);
@@ -80,6 +84,9 @@ describe('consumer project configuration and discovery', () => {
 				expect(discoverSourceFiles(other)).toEqual(['second.md']);
 			});
 			expect(discoverSourceFiles(project)).toEqual(['added.md', 'first.md']);
+			expect(
+				discoverSourceEntries(project).find((file) => file.relative === 'first.md')?.stat.size
+			).toBe(BigInt(Buffer.byteLength('# Changed during build')));
 			await expect(
 				withSourceDiscovery(async () => {
 					throw new Error('failed build');
