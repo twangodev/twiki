@@ -2,7 +2,11 @@ import { expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { rRendererIdentity, rRuntimeVersion } from '../../tooling/lib/r-runtime';
+import {
+	rRendererIdentity,
+	rRuntimeVersion,
+	freshRRuntimeVersion
+} from '../../tooling/lib/r-runtime';
 import { contentInputFingerprint } from '../../tooling/lib/dev-state';
 import { publicationFixture } from '../publication-fixture';
 
@@ -128,6 +132,48 @@ test('worksheet package and transitive dependency changes invalidate R identity 
 		writeFileSync(packages, 'R test; knitr 1');
 		expect(rRendererIdentity(repo, environment)).not.toBe(first);
 	} finally {
+		rmSync(repo, { recursive: true, force: true });
+	}
+});
+
+test('concurrent preview provenance matches sync probes and refreshes unchanged executables', async () => {
+	const { repo } = publicationFixture();
+	const executable = path.join(repo, 'Rscript');
+	const packages = path.join(repo, 'versions');
+	const environment = { ...process.env, PATH: repo, RSCRIPT: executable };
+	try {
+		writeFileSync(executable, '#!/bin/sh\n/bin/cat "$VERSIONS"\n', { mode: 0o755 });
+		const selected = { ...environment, VERSIONS: packages };
+		writeFileSync(packages, 'R test; knitr 1');
+		expect(await freshRRuntimeVersion(selected)).toBe(rRuntimeVersion(selected, true));
+		writeFileSync(packages, 'R test; knitr 2');
+		expect(await freshRRuntimeVersion(selected)).toContain('knitr 2');
+		expect(rRuntimeVersion(selected)).toContain('knitr 2');
+		rmSync(packages);
+		await expect(freshRRuntimeVersion(selected)).rejects.toThrow('require R and knitr');
+		expect(() => rRuntimeVersion(selected)).toThrow('require R and knitr');
+		await expect(
+			freshRRuntimeVersion({ ...selected, RSCRIPT: '/missing-r-preview' })
+		).rejects.toThrow('require R and knitr');
+	} finally {
+		rmSync(repo, { recursive: true, force: true });
+	}
+});
+
+test('concurrent preview runtime subprocess stops when its request is aborted', async () => {
+	const { repo } = publicationFixture();
+	const executable = path.join(repo, 'Rscript');
+	const abort = new AbortController();
+	try {
+		writeFileSync(executable, '#!/bin/sh\nexec /bin/sleep 10\n', { mode: 0o755 });
+		const pending = freshRRuntimeVersion(
+			{ ...process.env, PATH: repo, RSCRIPT: executable },
+			abort.signal
+		);
+		abort.abort();
+		await expect(pending).rejects.toThrow('require R and knitr');
+	} finally {
+		abort.abort();
 		rmSync(repo, { recursive: true, force: true });
 	}
 });

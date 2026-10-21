@@ -1,7 +1,8 @@
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { resolveProject, declaredContentCourses, discoverSourceFiles } from './project-config';
 
 const runtimeEnvironment = [
@@ -133,21 +134,53 @@ function selection(environment: NodeJS.ProcessEnv) {
 	]);
 }
 
+const runtimeArguments = [
+	'--vanilla',
+	'-e',
+	'cat(R.version.string); for (p in c("knitr", "evaluate", "highr", "xfun", "yaml")) cat(p, as.character(packageVersion(p))); cat("\\n"); dput(R.version); dput(capabilities()); dput(extSoftVersion()); dput(grDevices::grSoftVersion()); dput(Sys.getlocale()); dput(Sys.timezone()); packages <- utils::installed.packages(); packages <- packages[order(packages[, "Package"], packages[, "Version"], packages[, "Built"]), c("Package", "Version", "Built"), drop = FALSE]; cat("\\n", apply(packages, 1, paste, collapse = " "), sep = "\\n")'
+];
+const runRuntime = promisify(execFile);
+
 /** Share the version probe with rendering, but refresh before accepting a saved dev snapshot. */
 export function rRuntimeVersion(environment: NodeJS.ProcessEnv = process.env, refresh = false) {
 	const key = selection(environment);
 	if (!refresh && probes.has(key)) return probes.get(key)!;
 	try {
-		const version = execFileSync(
-			environment.RSCRIPT ?? 'Rscript',
-			[
-				'--vanilla',
-				'-e',
-				'cat(R.version.string); for (p in c("knitr", "evaluate", "highr", "xfun", "yaml")) cat(p, as.character(packageVersion(p))); cat("\\n"); dput(R.version); dput(capabilities()); dput(extSoftVersion()); dput(grDevices::grSoftVersion()); dput(Sys.getlocale()); dput(Sys.timezone()); packages <- utils::installed.packages(); packages <- packages[order(packages[, "Package"], packages[, "Version"], packages[, "Built"]), c("Package", "Version", "Built"), drop = FALSE]; cat("\\n", apply(packages, 1, paste, collapse = " "), sep = "\\n")'
-			],
-			{ env: environment, encoding: 'utf8', timeout: 30_000, stdio: 'pipe' }
-		);
+		const version = execFileSync(environment.RSCRIPT ?? 'Rscript', runtimeArguments, {
+			env: environment,
+			encoding: 'utf8',
+			timeout: 30_000,
+			stdio: 'pipe'
+		});
 		const identity = `${version}\n${rFontIdentity(environment)}`;
+		probes.set(key, identity);
+		return identity;
+	} catch (error) {
+		probes.delete(key);
+		throw new Error(
+			'R Markdown previews require R and knitr. Install r-base-core and r-cran-knitr (see site/README.md).',
+			{ cause: error }
+		);
+	}
+}
+
+/** Fresh preview provenance: let R inspect packages while the parent verifies fonts. */
+export async function freshRRuntimeVersion(
+	environment: NodeJS.ProcessEnv = process.env,
+	signal?: AbortSignal
+) {
+	const key = selection(environment);
+	try {
+		const version = runRuntime(environment.RSCRIPT ?? 'Rscript', runtimeArguments, {
+			env: environment,
+			encoding: 'utf8',
+			timeout: 30_000,
+			signal
+		});
+		// Missing R must retain the immediate Source-view fallback.
+		if (!version.child?.pid) await version;
+		const fonts = rFontIdentity(environment);
+		const identity = `${(await version).stdout}\n${fonts}`;
 		probes.set(key, identity);
 		return identity;
 	} catch (error) {
@@ -218,8 +251,7 @@ export function verifyRRenderProfile(
 	runtime: string,
 	environment: NodeJS.ProcessEnv = process.env
 ) {
-	if (environment.R_CACHE_ONLY !== '1' && environment.R_REQUIRE_PROFILE !== '1')
-		return;
+	if (environment.R_CACHE_ONLY !== '1' && environment.R_REQUIRE_PROFILE !== '1') return;
 	const expected = readRRenderProfile(site, environment);
 	if (!expected) throw new Error('A verified R render profile lock is required by this build');
 	if (expected && renderProfile(runtime).runtimeSha256 !== expected.runtimeSha256)

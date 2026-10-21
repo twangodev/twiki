@@ -8,7 +8,12 @@ import path from 'node:path';
 import { parseRmd } from '../../src/lib/rmd';
 import type { CourseFile, RmdPreview } from '../../src/lib/files';
 import { writeChanged } from './output';
-import { lockedRRuntime, rRuntimeVersion, verifyRRenderProfile } from './r-runtime';
+import {
+	lockedRRuntime,
+	rRuntimeVersion,
+	freshRRuntimeVersion,
+	verifyRRenderProfile
+} from './r-runtime';
 import {
 	readRmdPreviewResult,
 	rmdCourseInputs,
@@ -50,7 +55,9 @@ export async function buildRmdPreviews(
 	try {
 		runtime = cacheOnly
 			? lockedRRuntime(site)
-			: rRuntimeVersion(process.env, options.refreshRuntime);
+			: options.refreshRuntime
+				? await freshRRuntimeVersion(process.env, options.signal)
+				: rRuntimeVersion();
 	} catch (error) {
 		if (cacheOnly || process.env.R_REQUIRE_PROFILE === '1')
 			throw new Error(

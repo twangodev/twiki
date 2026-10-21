@@ -6,6 +6,7 @@ import {
 	captureRRenderProfile,
 	lockedRRuntime,
 	rFontIdentity,
+	freshRRuntimeVersion,
 	rRuntimeVersion
 } from '../../tooling/lib/r-runtime';
 
@@ -137,4 +138,18 @@ test('unavailable font tools keep R rendering available with a stable process id
 	expect(first).toContain('fontconfig-unverified-v1:');
 	expect(rRuntimeVersion(environment)).toBe(first);
 	expect(rRuntimeVersion(environment, true)).toBe(first);
+});
+
+test('concurrent preview probes preserve verified font provenance and refresh its bytes', async () => {
+	const { fonts, bin, environment } = fixture();
+	const first = await freshRRuntimeVersion(environment);
+	expect(first).toBe(rRuntimeVersion(environment, true));
+	writeFileSync(path.join(fonts, 'sans.ttf'), 'changed font content');
+	const changed = await freshRRuntimeVersion(environment);
+	expect(changed).not.toBe(first);
+	expect(changed).toBe(rRuntimeVersion(environment, true));
+	rmSync(path.join(bin, 'fc-list'));
+	const unavailable = await freshRRuntimeVersion(environment);
+	expect(unavailable).toContain('fontconfig-unverified-v1:');
+	expect(unavailable).toBe(rRuntimeVersion(environment, true));
 });
