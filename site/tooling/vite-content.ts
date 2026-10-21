@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { Plugin } from 'vite';
 import { prepareContent } from './pipeline';
 import { developmentContent } from './lib/dev-content';
-import { contentRepositories, watchContentGitDirectory } from './lib/dev-git-state';
+import { watchContentGitDirectory } from './lib/dev-git-state';
 import { rebuildQueue } from './lib/rebuild-queue';
 import { resolveRuntimeDataImport } from './lib/runtime-data-modules';
 import { resolveProject, projectSourceVisible } from './lib/project-config';
@@ -59,8 +59,9 @@ export function content(): Plugin {
 					const reuse = !forceRebuild && !failure;
 					forceRebuild = false;
 					if (gitTopologyChanged) {
-						refreshGitWatchers();
+						// Clear before awaiting so events arriving during discovery remain pending.
 						gitTopologyChanged = false;
+						await refreshGitWatchers();
 					}
 					// Git can refresh an index or another worktree's ref without changing
 					// our inputs. Validate its snapshot; content events and failure
@@ -162,7 +163,9 @@ export function content(): Plugin {
 				...(project.configFile ? [project.configFile] : [])
 			]);
 			server.watcher.on('all', changed);
-			function refreshGitWatchers() {
+			async function refreshGitWatchers() {
+				const repositories = await preparation.repositories(repo);
+				if (closed) return;
 				const wanted = new Map<
 					string,
 					{ recursive: boolean; files: Set<string>; repositories: Set<string> }
@@ -178,7 +181,7 @@ export function content(): Plugin {
 					entry.repositories.add(repository);
 					wanted.set(directory, entry);
 				};
-				for (const repository of contentRepositories(repo)) {
+				for (const repository of repositories) {
 					for (const file of [
 						repository.index,
 						repository.config,
@@ -229,8 +232,8 @@ export function content(): Plugin {
 					gitWatchers.set(directory, { ...entry, watcher });
 				}
 			}
-			refreshGitWatchers();
 			gitTopologyChanged = false;
+			await refreshGitWatchers();
 			server.middlewares.use((request, response, next) => {
 				void queue
 					.wait()
