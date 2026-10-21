@@ -14,6 +14,29 @@ import {
 import { resolveProject, withSourceDiscovery } from '../../tooling/lib/project-config';
 import { contentGit, contentRepositories } from '../../tooling/lib/dev-git-state';
 
+test('public development output validation includes its separate assets, course files and static tree', () => {
+	const fixture = publicationFixture();
+	const edition = process.env.VITE_PUBLIC_EDITION;
+	try {
+		process.env.VITE_PUBLIC_EDITION = 'true';
+		const site = path.join(fixture.repo, 'site');
+		for (const directory of ['public-assets', 'public-files', 'public-static']) {
+			const file = path.join(site, 'build/generated', directory, 'output.json');
+			mkdirSync(path.dirname(file), { recursive: true });
+			writeFileSync(file, 'before');
+			const before = contentOutputFingerprint(site);
+			writeFileSync(file, 'changed output');
+			expect(contentOutputFingerprint(site)).not.toBe(before);
+			rmSync(file);
+			expect(contentOutputFingerprint(site)).not.toBe(before);
+		}
+	} finally {
+		if (edition === undefined) delete process.env.VITE_PUBLIC_EDITION;
+		else process.env.VITE_PUBLIC_EDITION = edition;
+		rmSync(fixture.repo, { recursive: true, force: true });
+	}
+});
+
 test.each(['git', 'filesystem'] as const)(
 	'candidate %s snapshots match fresh captures for edits and atomic saves without querying Git',
 	(discovery) => {

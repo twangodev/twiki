@@ -197,6 +197,13 @@ export function contentOutputFingerprint(site: string) {
 		'build/generated/expected-missing-id.json',
 		'build/generated/pages',
 		'build/generated/assets',
+		...(process.env.VITE_PUBLIC_EDITION === 'true'
+			? [
+					'build/generated/public-assets',
+					'build/generated/public-files',
+					'build/generated/public-static'
+				]
+			: []),
 		'src/lib/generated',
 		'static'
 	])
