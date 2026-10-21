@@ -256,7 +256,7 @@ async function runPipeline(
 					development,
 					changedInputs,
 					previous,
-					deferAssetValidation: deferred
+					deferOutputValidation: deferred
 				});
 				const assets = performance.now();
 				deferredEmission = Boolean(

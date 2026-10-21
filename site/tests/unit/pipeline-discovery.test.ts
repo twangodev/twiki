@@ -316,6 +316,8 @@ import { OutputCheckpoint } from './tooling/lib/output-checkpoint';
 let checks = 0;
 const checkOutputs = OutputCheckpoint.prototype.matchesCurrent;
 OutputCheckpoint.prototype.matchesCurrent = function () { checks++; return checkOutputs.call(this); };
+// Keep the source worker active while testing output repair in a small fixture.
+Object.defineProperty(OutputCheckpoint.prototype, 'fileCount', { configurable: true, get: () => 32768 });
 const source = ${JSON.stringify(path.join(fixture.course, 'notes/public.md'))};
 const original = fs.readFileSync(source, 'utf8');
 const image = ${JSON.stringify(path.join(fixture.course, 'notes/figure.svg'))};
@@ -340,12 +342,23 @@ async function edit(label, expectedPasses, body = original) {
   assert.equal(saved.outputs, contentOutputFingerprint(process.cwd()));
 }
 await edit('Ordinary prose edit', 1);
+const otherDocument = 'build/generated/pages/sp99-cs101/notes/second.json';
+const originalDocument = fs.readFileSync(otherDocument);
+fs.writeFileSync(otherDocument, '{"corrupted":true}');
+await edit('Repair an unchanged document alone', 2);
+assert.deepEqual(fs.readFileSync(otherDocument), originalDocument);
 // These outputs are unrelated to the reported edit and absent from its changed set.
 const staticImage = path.join(staticRoot, 'sp99-cs101/notes/figure.svg');
 fs.writeFileSync(staticImage, '<svg>corrupted generated image</svg>');
 fs.rmSync(text('sp99-cs101/notes/second', 'txt'));
 fs.rmSync(download('notes/second.md'));
+fs.writeFileSync(otherDocument, '{"corrupted":true}');
 await edit('Repair unrelated outputs', 2);
+assert.deepEqual(fs.readFileSync(otherDocument), originalDocument);
+// The deferred size check may reject this candidate, but a full pass must repair it.
+fs.writeFileSync(otherDocument, Buffer.alloc(26 * 1024 * 1024));
+await edit('Repair oversized generated document', 1);
+assert.deepEqual(fs.readFileSync(otherDocument), originalDocument);
 assert.equal(fs.readFileSync(staticImage, 'utf8'), fs.readFileSync(image, 'utf8'));
 assert(fs.readFileSync(text('sp99-cs101/notes/second', 'txt'), 'utf8').includes('Another public explanation'));
 assert.equal(fs.readFileSync(download('notes/second.md'), 'utf8'), fs.readFileSync(${JSON.stringify(path.join(fixture.course, 'notes/second.md'))}, 'utf8'));

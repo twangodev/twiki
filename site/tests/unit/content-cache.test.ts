@@ -19,6 +19,8 @@ import {
 	writeContentObject,
 	type ContentCachePage
 } from '../../tooling/lib/content-cache';
+import { OutputCheckpoint } from '../../tooling/lib/output-checkpoint';
+import { trackOutputs } from '../../tooling/lib/output';
 import type { FullSlug } from '../../tooling/lib/slug';
 
 function page(slug: string, targets: string[] = []): ContentCachePage {
@@ -442,4 +444,51 @@ test('transclusion invalidation includes missing targets, cycles, and chains bey
 	for (const slug of ['missing', 'a', 'b', 'c', 'd', 'e']) expect(closure.has(slug)).toBe(true);
 	expect(closure.has('unrelated')).toBe(false);
 	expect(contentHash('same')).toBe(contentHash(Buffer.from('same')));
+});
+
+test('deferred document copies retain hardlink bookkeeping when inode IDs are unavailable', async () => {
+	const site = mkdtempSync(path.join(tmpdir(), 'twiki-doc-deferred-inode-'));
+	const cache = path.join(site, 'cache');
+	const out = path.join(site, 'pages/note.json');
+	const record = page('note');
+	const checkpoint = new OutputCheckpoint(site, ['pages']);
+	const spies = (['lstatSync', 'statSync'] as const).map((name) => {
+		const stat = fs[name];
+		return spyOn(fs, name).mockImplementation((...args: any[]) => {
+			const info = (stat as any)(...args);
+			if (info?.isFile()) {
+				Object.defineProperty(info, 'ino', { value: 0n });
+				Object.defineProperty(info, 'ctimeNs', { value: 0n });
+			}
+			return info;
+		});
+	});
+	const emit = (deferred: boolean) =>
+		trackOutputs(
+			async () => {
+				emitContentDocument(
+					cache,
+					'full',
+					record,
+					'same',
+					out,
+					() => ({ html: 'body' }),
+					true,
+					deferred
+				);
+			},
+			new Set(),
+			checkpoint
+		);
+	try {
+		await emit(false);
+		expect(checkpoint.complete).toBe(true);
+		fs.linkSync(out, path.join(site, 'alias.json'));
+		await emit(true);
+		expect(checkpoint.complete).toBe(false);
+		expect(checkpoint.matchesCurrent()).toBe(false);
+	} finally {
+		for (const spy of spies) spy.mockRestore();
+		rmSync(site, { recursive: true, force: true });
+	}
 });

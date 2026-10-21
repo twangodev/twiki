@@ -109,8 +109,8 @@ export async function compileContent(
 		publicEdition?: boolean;
 		incremental?: boolean;
 		changedInputs?: ReadonlySet<string>;
-		/** Caller must verify the full expected output tree after deferred asset emission. */
-		deferAssetValidation?: boolean;
+		/** Caller must verify the full expected output tree after deferred emission. */
+		deferOutputValidation?: boolean;
 		/** Engine-owned metadata from an enclosing validated development build. */
 		previous?: ContentCompilation;
 		development?: boolean;
@@ -1244,7 +1244,7 @@ export async function compileContent(
 			const dest = path.join(ASSETS_DIR, asset.slug);
 			// An explicit editor event must read bytes even when filesystem identities collide.
 			const size =
-				options.deferAssetValidation && previous && sameContext
+				options.deferOutputValidation && previous && sameContext
 					? Number(asset.stat.size)
 					: copyChanged(
 							asset.abs,
@@ -1340,7 +1340,8 @@ export async function compileContent(
 						markdown: body.markdown
 					};
 				},
-				options.development
+				options.development,
+				Boolean(options.deferOutputValidation && previous && sameContext)
 			);
 			checkSize(outPath, size);
 		}
@@ -1374,7 +1375,8 @@ export async function compileContent(
 				documentKey,
 				outPath,
 				() => ({ ...meta, toc: page.toc, html: '' }),
-				options.development
+				options.development,
+				Boolean(options.deferOutputValidation && previous && sameContext)
 			);
 			const parts = page.slug.split('/');
 			for (let i = 1; i < parts.length; i++) folderSet.add(parts.slice(0, i).join('/'));

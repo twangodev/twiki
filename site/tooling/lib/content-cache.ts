@@ -115,8 +115,15 @@ export function emitContentDocument(
 	key: string,
 	destination: string,
 	create: () => unknown,
-	development = false
+	development = false,
+	deferValidation = false
 ): number {
+	// Only the narrowed pipeline may defer unchanged copies: it independently
+	// verifies the complete output tree and retries with full validation on mismatch.
+	if (development && deferValidation && record.documentKey === key) {
+		const output = lstatSync(destination, { bigint: true, throwIfNoEntry: false });
+		if (output?.isFile() && output.dev !== 0n && output.ino > 0n) return Number(output.size);
+	}
 	if (
 		record.documentKey === key &&
 		ownedObject(record.document, edition, 'docs') &&

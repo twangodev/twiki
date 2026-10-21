@@ -168,8 +168,12 @@ export class OutputCheckpoint {
 			previous?.identity &&
 			sameIdentity(previous.identity, info) &&
 			(!previous.inode || !this.unsettled.has(previous.inode))
-		)
+		) {
+			// Unknown inode IDs cannot certify shared paths incrementally, even
+			// when a newly added hardlink has the same filesystem timestamp.
+			if (!previous.inode && info.isFile() && info.nlink > 1n) this.unidentifiedLinks = true;
 			return;
+		}
 		const relative = this.relative(file);
 		const root = this.roots.find((root) => relative === root || relative.startsWith(root + '/'));
 		if (!root) return;

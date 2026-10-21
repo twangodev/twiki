@@ -297,3 +297,20 @@ test('bulk capture matches incremental assembly and retains hardlink groups for 
 		f.cleanup();
 	}
 });
+
+test('unchanged sentinel identities retain uncertainty when a file acquires hardlinks', () => {
+	const f = fixture();
+	try {
+		f.write('pages/note.json');
+		const checkpoint = new OutputCheckpoint(f.site, f.roots);
+		const info = fs.lstatSync(f.file('pages/note.json'), { bigint: true });
+		Object.defineProperty(info, 'ino', { value: 0n });
+		checkpoint.record(f.file('pages/note.json'), info);
+		expect(checkpoint.complete).toBe(true);
+		Object.defineProperty(info, 'nlink', { value: 2n });
+		checkpoint.record(f.file('pages/note.json'), info);
+		expect(checkpoint.complete).toBe(false);
+	} finally {
+		f.cleanup();
+	}
+});
