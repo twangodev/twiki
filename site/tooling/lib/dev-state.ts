@@ -44,6 +44,7 @@ function stamp(file: string, stat: Readonly<BigIntStats> | null = fileStat(file)
 }
 
 type ObservationKind = 'stat' | 'bytes';
+type ObservationValue = string | readonly string[] | null;
 const observationKey = (kind: ObservationKind, file: string) => `${kind}\0${file}`;
 const digest = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const contextKey = (project: ResolvedProject, pipeline: string) =>
@@ -58,7 +59,7 @@ export class ContentInputSnapshot {
 		private readonly pipeline: string,
 		private readonly entries: readonly SourceEntry[],
 		private readonly shape: string,
-		private readonly observations: ReadonlyMap<string, string | null>,
+		private readonly observations: ReadonlyMap<string, ObservationValue>,
 		private readonly repositories: readonly SourceRepository[]
 	) {
 		this.sources = new Map(
@@ -95,15 +96,12 @@ export class ContentInputSnapshot {
 			for (const kind of ['stat', 'bytes'] as const) {
 				const key = observationKey(kind, file);
 				if (observations.has(key))
-					observations.set(
-						key,
-						kind === 'stat' ? JSON.stringify(stamp(file, stat)) : digest(readFileSync(file))
-					);
+					observations.set(key, kind === 'stat' ? stamp(file, stat) : digest(readFileSync(file)));
 			}
 			// Atomic saves also change containing gitlink directories recorded by Git.
 			for (let directory = path.dirname(file); ; ) {
 				const key = observationKey('stat', directory);
-				if (observations.has(key)) observations.set(key, JSON.stringify(stamp(directory)));
+				if (observations.has(key)) observations.set(key, stamp(directory));
 				const parent = path.dirname(directory);
 				if (parent === directory) break;
 				directory = parent;
@@ -132,10 +130,10 @@ export class ContentInputSnapshot {
 export async function captureContentInputs(repo: string, pipeline: string) {
 	const project = resolveProject(process.cwd(), repo);
 	const entries = discoverSourceEntries(project);
-	const observations = new Map<string, string | null>();
+	const observations = new Map<string, ObservationValue>();
 	const observeStat = (file: string, info?: Readonly<BigIntStats>) => {
 		const key = observationKey('stat', file);
-		if (!observations.has(key)) observations.set(key, JSON.stringify(stamp(file, info)));
+		if (!observations.has(key)) observations.set(key, stamp(file, info));
 	};
 	const observeBytes = (file: string, optional = false) => {
 		const key = observationKey('bytes', file);
@@ -176,7 +174,7 @@ export async function captureContentInputs(repo: string, pipeline: string) {
 			: null;
 	const shape = digest(
 		JSON.stringify([
-			'content-input-snapshot-v2',
+			'content-input-snapshot-v3',
 			entries.map((entry) => entry.relative),
 			repositories,
 			recursive
