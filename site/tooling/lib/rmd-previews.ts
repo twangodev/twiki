@@ -5,7 +5,6 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { parseRmd } from '../../src/lib/rmd';
 import type { CourseFile, RmdPreview } from '../../src/lib/files';
 import { writeChanged } from './output';
 import {
@@ -119,6 +118,7 @@ export async function buildRmdPreviews(
 					const blob = save(readFileSync(source), extension);
 					markdown = markdown.split(source).join(`/_files/blobs/${blob}`);
 				}
+				const { parseRmd } = await import('../../src/lib/rmd');
 				const parsed = await parseRmd(markdown, course, worksheet.path, files);
 				if (parsed.blocks.some((block) => block.kind === 'r'))
 					throw new Error('Knitting left an unevaluated R chunk');
