@@ -41,6 +41,43 @@ test('copy results report emitted byte sizes for empty and transformed outputs, 
 	}
 });
 
+test('multiple copy destinations share one transformation and repair only invalid outputs', async () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'twiki-copy-many-'));
+	const source = path.join(root, 'source');
+	const first = path.join(root, 'first');
+	const second = path.join(root, 'second');
+	let reads = 0;
+	const read = () => {
+		reads++;
+		return Buffer.from(readFileSync(source, 'utf8').toUpperCase());
+	};
+	try {
+		writeFileSync(source, 'original');
+		expect(copyChanged(source, [first, second], true, read)).toBe(8);
+		expect(reads).toBe(1);
+		const stamp = statSync(first, { bigint: true });
+		expect(copyChanged(source, [first, second], true, read)).toBe(8);
+		expect(reads).toBe(1);
+		writeFileSync(second, 'corrupt');
+		const changed = await trackOutputs(async () => {
+			expect(copyChanged(source, [first, second], true, read)).toBe(8);
+		});
+		expect(reads).toBe(2);
+		expect(changed).toEqual(new Set([second]));
+		expect(statSync(first, { bigint: true }).mtimeNs).toBe(stamp.mtimeNs);
+		expect(readFileSync(second, 'utf8')).toBe('ORIGINAL');
+		writeFileSync(source, '');
+		expect(copyChanged(source, [first, second], true, read)).toBe(0);
+		expect(reads).toBe(3);
+		expect(statSync(first).size).toBe(0);
+		expect(statSync(second).size).toBe(0);
+		expect(copyChanged(source, [first, second], false, read)).toBe(0);
+		expect(reads).toBe(4);
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
 test('restored copies skip validated bytes but reject source and output edits made after observation', () => {
 	const root = mkdtempSync(path.join(tmpdir(), 'twiki-restored-copy-'));
 	const source = path.join(root, 'source');

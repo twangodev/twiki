@@ -39,6 +39,7 @@ export function writeTextExports(
 	];
 	for (const page of [...pages].sort((a, b) => a.slug.localeCompare(b.slug))) {
 		if (page.locked) continue;
+		const destinations: string[] = [];
 		for (const format of ['md', 'txt'] as const) {
 			const file = path.join(
 				directory,
@@ -50,17 +51,18 @@ export function writeTextExports(
 				path.relative(directory, file) === 'llms.txt'
 			)
 				throw new Error(`Text export conflicts with an existing asset: ${page.slug}.${format}`);
-			if (
-				copyChanged(
-					path.join(pageDirectory, `${page.slug}.json`),
-					file,
-					development,
-					textExportBytes
-				) === undefined
-			)
-				throw new Error(`Missing Markdown for text export: ${page.slug}`);
+			destinations.push(file);
 			written.add(path.relative(directory, file));
 		}
+		if (
+			copyChanged(
+				path.join(pageDirectory, `${page.slug}.json`),
+				destinations,
+				development,
+				textExportBytes
+			) === undefined
+		)
+			throw new Error(`Missing Markdown for text export: ${page.slug}`);
 		const title = page.title.replace(/[\r\n]/g, ' ').replace(/[\\[\]]/g, '\\$&');
 		index.push(`- [${title}](${site.url}${textExportUrl(page.slug)})`);
 	}

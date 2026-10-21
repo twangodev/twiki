@@ -67,26 +67,43 @@ export function writeChanged(file: string, data: string | Uint8Array) {
 /** Return validated output size; dev reuse requires matching source and output identities. */
 export function copyChanged(
 	source: string,
-	destination: string,
+	destination: string | readonly string[],
 	development = false,
 	read: SourceReader = readFileSync
 ): number | undefined {
 	const input = development ? fileStamp(source) : undefined;
-	const previous = copiedOutputs.get(destination);
-	if (input && previous?.source === source && previous.read === read && previous.input === input) {
-		const output = statSync(destination, { bigint: true, throwIfNoEntry: false });
-		if (output && previous.output === copyStamp(output)) return Number(output.size);
+	const destinations = typeof destination === 'string' ? [destination] : destination;
+	const pending: string[] = [];
+	let size: number | undefined;
+	for (const file of destinations) {
+		const previous = copiedOutputs.get(file);
+		if (
+			input &&
+			previous?.source === source &&
+			previous.read === read &&
+			previous.input === input
+		) {
+			const output = statSync(file, { bigint: true, throwIfNoEntry: false });
+			if (output && previous.output === copyStamp(output)) {
+				size = Number(output.size);
+				continue;
+			}
+		}
+		pending.push(file);
 	}
+	if (!pending.length) return size;
 	const bytes = read(source);
 	if (!bytes) {
-		copiedOutputs.delete(destination);
+		for (const file of destinations) copiedOutputs.delete(file);
 		return;
 	}
-	writeChanged(destination, bytes);
-	if (development && input) {
-		const output = fileStamp(destination);
-		if (output) copiedOutputs.set(destination, { source, input, output, read });
-	} else copiedOutputs.delete(destination);
+	for (const file of pending) {
+		writeChanged(file, bytes);
+		if (development && input) {
+			const output = fileStamp(file);
+			if (output) copiedOutputs.set(file, { source, input, output, read });
+		} else copiedOutputs.delete(file);
+	}
 	return bytes.byteLength;
 }
 
