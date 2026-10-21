@@ -25,17 +25,15 @@ import { assetSources } from './lib/asset-sources';
 import { addNotebookNavigation } from '../src/lib/notebook-nav';
 import type { CourseFile } from '../src/lib/files';
 import { runtimeDataAssets, runtimeDataModuleSource } from './lib/runtime-data-modules';
-import {
-	contentEntries,
-	displayRoute,
-	getManifest,
-	resetContentCache,
-	navTree,
-	loadPage,
-	pageSlugForRoute
-} from '../src/lib/server/content';
+import { getManifest, resetContentCache, loadPage } from '../src/lib/server/content';
+import { createContentModel } from '../src/lib/server/content-model';
+import type { ContentManifest } from '../src/lib/types';
 
-export async function prepareAssets(changedInputs?: Set<string>, development = false) {
+export async function prepareAssets(
+	changedInputs?: Set<string>,
+	development = false,
+	compiledManifest?: ContentManifest
+) {
 	resetContentCache();
 	const SITE_DIR = path.resolve(import.meta.dirname, '..');
 	const GENERATED = path.join(SITE_DIR, 'build/generated');
@@ -64,7 +62,8 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 		throw new Error('Content must be compiled before preparing assets');
 	}
 
-	const manifest = getManifest();
+	const manifest = compiledManifest ?? getManifest();
+	const { navTree, contentEntries, displayRoute, pageSlugForRoute } = createContentModel(manifest);
 	const courseOutputs = await buildCourseFiles(
 		SITE_DIR,
 		new Set(Object.keys(manifest.pages)),

@@ -41,10 +41,15 @@ test('plain Obsidian vault compiles private/public editions with links and attac
 				})
 			);
 		configure('private');
-		await compileContent({ siteDir: site, repoRoot: root, publicEdition: false });
+		const compiledFull = await compileContent({
+			siteDir: site,
+			repoRoot: root,
+			publicEdition: false
+		});
 		const full = JSON.parse(
 			readFileSync(path.join(site, 'build/generated/content-manifest.json'), 'utf8')
 		);
+		expect(JSON.parse(JSON.stringify(compiledFull))).toEqual(full);
 		expect(Object.keys(full.pages).sort()).toEqual(['index', 'nested/note']);
 		expect(full.pages['nested/note'].publication.public).toBe(false);
 		expect(readFileSync(path.join(site, 'build/generated/pages/index.json'), 'utf8')).toContain(
@@ -53,20 +58,30 @@ test('plain Obsidian vault compiles private/public editions with links and attac
 		expect(readFileSync(path.join(site, 'build/generated/pages/index.json'), 'utf8')).toContain(
 			'plainvaultcanarybody'
 		);
-		await compileContent({ siteDir: site, repoRoot: root, publicEdition: true });
+		const compiledHidden = await compileContent({
+			siteDir: site,
+			repoRoot: root,
+			publicEdition: true
+		});
 		const hidden = JSON.parse(
 			readFileSync(path.join(site, 'build/generated/content-manifest.json'), 'utf8')
 		);
+		expect(JSON.parse(JSON.stringify(compiledHidden))).toEqual(hidden);
 		expect(hidden.pages['nested/note'].locked).toBe(true);
 		const hiddenDoc = path.join(site, 'build/generated/pages/nested/note.json');
 		expect(
 			!existsSync(hiddenDoc) || !readFileSync(hiddenDoc, 'utf8').includes('plainvaultcanarybody')
 		).toBe(true);
 		configure('public');
-		await compileContent({ siteDir: site, repoRoot: root, publicEdition: true });
+		const compiledPublished = await compileContent({
+			siteDir: site,
+			repoRoot: root,
+			publicEdition: true
+		});
 		const published = JSON.parse(
 			readFileSync(path.join(site, 'build/generated/content-manifest.json'), 'utf8')
 		);
+		expect(JSON.parse(JSON.stringify(compiledPublished))).toEqual(published);
 		expect(published.pages['nested/note'].publication.public).toBe(true);
 		expect(published.pages['nested/note'].locked).not.toBe(true);
 		expect(readFileSync(hiddenDoc, 'utf8')).toContain('plainvaultcanarybody');

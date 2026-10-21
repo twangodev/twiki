@@ -193,9 +193,9 @@ async function runPipeline(
 		trackOutputs(
 			async () => {
 				const compiled = performance.now();
-				await compileContent({ development, changedInputs });
+				const manifest = await compileContent({ development, changedInputs });
 				const assets = performance.now();
-				await prepareAssets(changedInputs, development);
+				await prepareAssets(changedInputs, development, manifest);
 				if (development)
 					console.log(
 						`content stages: compiler ${Math.round(assets - compiled)}ms, assets ${Math.round(performance.now() - assets)}ms`

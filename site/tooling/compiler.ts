@@ -1,5 +1,6 @@
 import { htmlAssetPaths, rewriteContentUrls } from './lib/content-urls';
 import { fileRoute } from '../src/lib/files';
+import type { ContentManifest, ManifestPage, TreeNode } from '../src/lib/types';
 import { browsablePath, assetExtensions, imageExtensions } from './lib/file-policy';
 import { preserveCurrency } from './lib/currency';
 /** Render tracked notes, resolve links and transclusions, and emit pages, assets, and graph data. */
@@ -855,18 +856,11 @@ export async function compileContent(
 	// ---------------------------------------------------------------------------
 	// stage 3 — emit
 	// ---------------------------------------------------------------------------
-	interface NavNode {
-		name: string;
-		slug: string; // folder simple slug, e.g. "sp26-cs537/p1"
-		title: string;
-		children: NavNode[];
-		pages: { slug: string; title: string }[];
-	}
 
-	function buildTree(pages: PageParse[]): NavNode {
-		const root: NavNode = { name: '', slug: '', title: 'Notes', children: [], pages: [] };
+	function buildTree(pages: PageParse[]): TreeNode {
+		const root: TreeNode = { name: '', slug: '', title: 'Notes', children: [], pages: [] };
 		const dirOf = (slug: string) => slug.split('/').slice(0, -1).join('/');
-		const folderNode = (dir: string): NavNode => {
+		const folderNode = (dir: string): TreeNode => {
 			if (dir === '') return root;
 			const parts = dir.split('/');
 			let cur = root;
@@ -890,7 +884,7 @@ export async function compileContent(
 			}
 			node.pages.push({ slug: page.slug, title: page.title });
 		}
-		const sortNode = (n: NavNode) => {
+		const sortNode = (n: TreeNode) => {
 			n.children.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 			n.pages.sort((a, b) => a.slug.localeCompare(b.slug, undefined, { numeric: true }));
 			n.children.forEach(sortNode);
@@ -1201,7 +1195,7 @@ export async function compileContent(
 		// per-page JSON
 		const simpleToFull = new Map<string, string>();
 		for (const p of pages) simpleToFull.set(simplifySlug(p.slug), p.slug);
-		const pageMeta: Record<string, unknown> = {};
+		const pageMeta: Record<string, ManifestPage> = {};
 		const tagIndex = new Map<string, string[]>();
 		for (const page of catalog) {
 			for (const tag of page.tags.flatMap(getAllSegmentPrefixes)) {
@@ -1337,7 +1331,7 @@ export async function compileContent(
 					.map((out) => ({ source: simplifySlug(p.slug), target: out }))
 			)
 		};
-		const manifest = {
+		const manifest: ContentManifest = {
 			generatedAt: new Date().toISOString(),
 			counts: {
 				pages: pages.length,
@@ -1410,15 +1404,17 @@ export async function compileContent(
 		);
 		completedIndex = { schema: 1, renderer: PIPELINE_VERSION, context, pages: currentRecords };
 		console.log(`done in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
+		return manifest;
 	}
 
 	try {
-		await main();
+		const manifest = await main();
 		writeChanged(
 			path.join(CACHE_DIR, 'stage1-current.json'),
 			JSON.stringify([...parseCacheFiles].sort())
 		);
 		if (completedIndex) writeContentIndex(CACHE_DIR, edition, completedIndex);
+		return manifest;
 	} finally {
 		highlighter?.dispose();
 	}
