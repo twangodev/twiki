@@ -380,6 +380,38 @@ test('compact index and actual-byte objects survive relocation, enforce edition 
 	}
 });
 
+test('index byte validation preserves legacy JSON, reformatted caches and escaped metadata', () => {
+	const cache = mkdtempSync(path.join(tmpdir(), 'twiki-index-json-'));
+	const record = page('course/note');
+	record.summary.title = 'Unicode λ, quotes " and checksum-like text ,"checksum":"x"}';
+	const index = {
+		schema: 1 as const,
+		renderer: 'renderer',
+		context: 'c'.repeat(64),
+		pages: { [record.summary.rel]: record }
+	};
+	const checksum = contentHash(JSON.stringify(index));
+	const file = path.join(cache, 'content-current-full.json');
+	try {
+		writeContentIndex(cache, 'full', index);
+		// Keep the wire format readable by existing engines and cache tools.
+		expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ ...index, checksum });
+		for (const serialized of [
+			JSON.stringify({ ...index, checksum }),
+			JSON.stringify({ checksum, ...index }),
+			JSON.stringify({ ...index, checksum }, null, 2),
+			JSON.stringify({ ...index, checksum }).replace('"schema":1', '"schema": 1')
+		]) {
+			writeFileSync(file, serialized);
+			expect(readContentIndex(cache, 'full', 'renderer')).toEqual(index);
+			writeFileSync(file, serialized.replace('Unicode', 'Corrupt'));
+			expect(readContentIndex(cache, 'full', 'renderer')).toBeUndefined();
+		}
+	} finally {
+		rmSync(cache, { recursive: true, force: true });
+	}
+});
+
 test('objects through symlink ancestors are never consumed as cached content', () => {
 	const cache = mkdtempSync(path.join(tmpdir(), 'wisconsin-content-symlink-'));
 	const outside = mkdtempSync(path.join(tmpdir(), 'wisconsin-content-outside-'));

@@ -362,12 +362,19 @@ export function readContentIndex(cache: string, edition: ContentEdition, rendere
 	try {
 		const bytes = readRegular(cache, `content-current-${edition}.json`);
 		if (!bytes) return;
-		const { checksum, ...index } = JSON.parse(bytes.toString());
+		const serialized = bytes.toString();
+		const { checksum, ...index } = JSON.parse(serialized);
+		// The writer appends the checksum to an already serialized payload.
+		// Validate those bytes without serializing the whole catalog again.
+		const suffix = `,"checksum":${JSON.stringify(checksum)}}`;
+		const checked =
+			serialized.endsWith(suffix) &&
+			checksum === contentHash(serialized.slice(0, -suffix.length) + '}');
 		if (
 			index.schema !== 1 ||
 			index.renderer !== renderer ||
 			!digest.test(index.context) ||
-			checksum !== contentHash(JSON.stringify(index)) ||
+			(!checked && checksum !== contentHash(JSON.stringify(index))) ||
 			!index.pages ||
 			typeof index.pages !== 'object' ||
 			Array.isArray(index.pages) ||
@@ -403,7 +410,7 @@ export function writeContentIndex(
 	writeOwned(
 		cache,
 		`content-current-${edition}.json`,
-		JSON.stringify({ ...index, checksum: contentHash(payload) })
+		`${payload.slice(0, -1)},"checksum":"${contentHash(payload)}"}`
 	);
 	const files = new Set<string>([`content-current-${edition}.json`]);
 	for (const page of Object.values(index.pages)) {
