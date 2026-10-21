@@ -67,3 +67,39 @@ test('source selections release obsolete key observations', () => {
 		fs.rmSync(root, { recursive: true, force: true });
 	}
 });
+
+test('explicit change hints reread only dirty notes when filesystem identities collide', () => {
+	const root = fs.mkdtempSync(path.join(tmpdir(), 'twiki-source-collision-'));
+	const changed = path.join(root, 'changed.md');
+	const untouched = path.join(root, 'untouched.md');
+	try {
+		fs.writeFileSync(changed, '# Before');
+		fs.writeFileSync(untouched, '# Untouched');
+		const sources = [changed, untouched].map((abs) => ({
+			abs,
+			rel: path.basename(abs),
+			stat: fs.lstatSync(abs, { bigint: true })
+		}));
+		const initial = contentSourceReader(sources, 'renderer', true);
+		const previous = initial(sources[0]);
+		const stable = initial(sources[1]);
+		fs.writeFileSync(changed, '# After!');
+		// Some filesystems report the same identity for rapid equal-size writes.
+		// Retain that original observation to exercise the collision deterministically.
+		const read = contentSourceReader(sources, 'renderer', true, new Set([changed]));
+		const spy = spyOn(fs, 'readFileSync');
+		try {
+			const next = read(sources[0]);
+			expect(next.raw).toBe('# After!');
+			expect(next.parseKey).not.toBe(previous.parseKey);
+			expect(next.parseKey).toBe(contentHash('renderer|changed.md|# After!'));
+			expect(read(sources[1])).toEqual({ parseKey: stable.parseKey, raw: undefined });
+			expect(spy.mock.calls).toHaveLength(1);
+		} finally {
+			spy.mockRestore();
+		}
+	} finally {
+		contentSourceReader([], 'renderer', true);
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});

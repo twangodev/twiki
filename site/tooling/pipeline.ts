@@ -193,7 +193,7 @@ async function runPipeline(
 		trackOutputs(
 			async () => {
 				const compiled = performance.now();
-				await compileContent({ development });
+				await compileContent({ development, changedInputs });
 				const assets = performance.now();
 				await prepareAssets(changedInputs, development);
 				if (development)

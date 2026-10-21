@@ -94,6 +94,7 @@ export async function compileContent(
 		repoRoot?: string;
 		publicEdition?: boolean;
 		incremental?: boolean;
+		changedInputs?: ReadonlySet<string>;
 		development?: boolean;
 	} = {}
 ) {
@@ -946,7 +947,8 @@ export async function compileContent(
 		const readSource = contentSourceReader(
 			pagesSrc,
 			PIPELINE_VERSION,
-			options.development && options.incremental !== false && project.discovery === 'git'
+			options.development && options.incremental !== false && project.discovery === 'git',
+			options.changedInputs
 		);
 		for (const f of pagesSrc) {
 			try {

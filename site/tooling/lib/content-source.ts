@@ -14,7 +14,8 @@ const validatedSources = new Map<string, { identity: string; parseKey: string }>
 export function contentSourceReader(
 	sources: readonly ContentSource[],
 	renderer: string,
-	reuse = false
+	reuse = false,
+	changedInputs?: ReadonlySet<string>
 ) {
 	if (reuse) {
 		const selected = new Set(sources.map((source) => source.abs));
@@ -32,7 +33,7 @@ export function contentSourceReader(
 					])
 				: undefined;
 		const previous = validatedSources.get(source.abs);
-		if (identity && previous?.identity === identity)
+		if (identity && previous?.identity === identity && !changedInputs?.has(source.abs))
 			return { parseKey: previous.parseKey, raw: undefined };
 		const raw = fs.readFileSync(source.abs, 'utf8');
 		const parseKey = createHash('sha256').update(`${renderer}|${source.rel}|${raw}`).digest('hex');
