@@ -12,6 +12,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 test('installed styles scan engine source without Git ignores or generated consumer data', async () => {
 	const root = mkdtempSync(path.join(tmpdir(), 'twiki-style-sources-'));
@@ -19,11 +20,17 @@ test('installed styles scan engine source without Git ignores or generated consu
 		cpSync(path.resolve(import.meta.dirname, '../../src'), path.join(root, 'src'), {
 			recursive: true
 		});
-		symlinkSync(
-			path.resolve(import.meta.dirname, '../../node_modules'),
-			path.join(root, 'node_modules'),
-			'dir'
-		);
+		// Resolve installed packages rather than assuming workspace dependencies
+		// live under site/node_modules; CI hoists them to the repository root.
+		for (const name of ['tailwindcss', '@tailwindcss/typography']) {
+			const destination = path.join(root, 'node_modules', name);
+			mkdirSync(path.dirname(destination), { recursive: true });
+			symlinkSync(
+				path.dirname(fileURLToPath(import.meta.resolve(`${name}/package.json`))),
+				destination,
+				'dir'
+			);
+		}
 		for (const file of [
 			'build/generated/cache/page.json',
 			'static/note.md',
