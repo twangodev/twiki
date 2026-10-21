@@ -41,13 +41,17 @@ export function restoreTextExports(
 	}
 }
 
-/** Called separately for each edition; locked outlines never become text exports. */
+/**
+ * Called separately for each edition; locked outlines never become text exports.
+ * A changed-page selection requires independent verification of untouched outputs.
+ */
 export function writeTextExports(
 	directory: string,
 	pageDirectory: string,
 	pages: Pick<ManifestPage, 'slug' | 'title' | 'locked'>[],
 	assets = new Set<string>(),
-	development = false
+	development = false,
+	changedPages?: ReadonlySet<string>
 ) {
 	const written = new Set<string>();
 	const index = [
@@ -75,13 +79,10 @@ export function writeTextExports(
 			destinations.push(file);
 			written.add(path.relative(directory, file));
 		}
+		const source = path.join(pageDirectory, `${page.slug}.json`);
 		if (
-			copyChanged(
-				path.join(pageDirectory, `${page.slug}.json`),
-				destinations,
-				development,
-				textExportBytes
-			) === undefined
+			(!changedPages || changedPages.has(source)) &&
+			copyChanged(source, destinations, development, textExportBytes) === undefined
 		)
 			throw new Error(`Missing Markdown for text export: ${page.slug}`);
 		const title = page.title.replace(/[\r\n]/g, ' ').replace(/[\\[\]]/g, '\\$&');

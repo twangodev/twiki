@@ -73,10 +73,9 @@ async function prepareSnapshot(
 	const started = performance.now();
 	// Hints can seed an already-required rebuild; accepting saved output always
 	// starts from a full capture, and every build still finishes with a fresh one.
-	const snapshot = development
-		? (!reuse && validatedInputs?.refresh(project, key, changedInputs)) ||
-			(await captureContentInputs(repo, key))
-		: undefined;
+	const refreshed =
+		development && !reuse ? validatedInputs?.refresh(project, key, changedInputs) : undefined;
+	const snapshot = development ? refreshed || (await captureContentInputs(repo, key)) : undefined;
 	let inputs = snapshot?.fingerprint ?? '';
 	if (development)
 		console.log(`content inputs: ${Math.round(performance.now() - preparationStarted)}ms`);
@@ -120,24 +119,36 @@ async function prepareSnapshot(
 	const changed = new Set<string>();
 	const previous = development && validatedOutputs?.key === key ? validatedOutputs : undefined;
 	let checkpoint = previous?.checkpoint;
+	// Only an existing-note candidate can defer unchanged asset emission.
+	// The fresh source capture below must still agree before it can be accepted.
+	let verifyOutputs = Boolean(
+		refreshed &&
+		previous?.compilation &&
+		checkpoint?.complete &&
+		changedInputs?.size &&
+		[...changedInputs].every((file) => /\.md$/i.test(file))
+	);
 	let compilation: ContentCompilation | undefined;
 	validatedOutputs = undefined;
 	// A changed renderer or configuration must reconcile all courses, including unchanged worksheets.
 	const run = async (
 		inputs?: Set<string>,
 		outputs?: OutputCheckpoint,
-		prior?: ContentCompilation
+		prior?: ContentCompilation,
+		deferred = false
 	) => {
 		compilation = undefined;
-		const result = await runPipeline(inputs, development, changed, outputs, prior);
+		const result = await runPipeline(inputs, development, changed, outputs, prior, deferred);
 		compilation = result.compilation;
+		verifyOutputs = result.deferred;
 		return result.changed;
 	};
 	const initial = () =>
 		run(
 			development && process.env.TWIKI_PREPARED_CONTENT_KEY !== key ? undefined : changedInputs,
 			checkpoint,
-			previous?.compilation
+			previous?.compilation,
+			verifyOutputs
 		);
 	const build = snapshot ? snapshot.withDiscovery(initial) : initial();
 	builds.set(key, build);
@@ -160,6 +171,15 @@ async function prepareSnapshot(
 			// only when fresh inputs changed; genuine errors remain fail-closed.
 			const current = await withSourceDiscovery(() => captureContentInputs(repo, key));
 			if (current.fingerprint === inputs) {
+				// Deferred writes do not attest unchanged files: inspect the entire expected
+				// output tree and repair any mismatch before publishing this build.
+				if (verifyOutputs && (failed || !checkpoint?.matchesCurrent())) {
+					verifyOutputs = false;
+					checkpoint = undefined;
+					pending = current.withDiscovery(() => run());
+					builds.set(key, pending);
+					continue;
+				}
 				if (failed) throw failure;
 				validatedInputs = current;
 				checkpoint = checkpoint?.complete ? checkpoint : captureContentOutputs(site).checkpoint;
@@ -176,6 +196,7 @@ async function prepareSnapshot(
 				break;
 			}
 			inputs = current.fingerprint;
+			verifyOutputs = false;
 			checkpoint = undefined;
 			pending = current.withDiscovery(() => run());
 			builds.set(key, pending);
@@ -194,7 +215,8 @@ async function runPipeline(
 	development = false,
 	outputs = new Set<string>(),
 	checkpoint?: OutputCheckpoint,
-	previous?: ContentCompilation
+	previous?: ContentCompilation,
+	deferred = false
 ) {
 	const start = performance.now();
 	// A saved development snapshot does not need the parser or asset renderers.
@@ -204,13 +226,30 @@ async function runPipeline(
 		import('./lib/publishing')
 	]);
 	let compilation!: ContentCompilation;
+	let deferredEmission = false;
 	const changed = await withPublicationPolicies(() =>
 		trackOutputs(
 			async () => {
 				const compiled = performance.now();
-				compilation = await compileContent({ development, changedInputs, previous });
+				compilation = await compileContent({
+					development,
+					changedInputs,
+					previous,
+					deferAssetValidation: deferred
+				});
 				const assets = performance.now();
-				await prepareAssets(changedInputs, development, compilation.manifest);
+				deferredEmission = Boolean(
+					deferred &&
+					previous &&
+					previous.key === compilation.key &&
+					previous.index.context === compilation.index.context
+				);
+				await prepareAssets(
+					changedInputs,
+					development,
+					compilation.manifest,
+					deferredEmission ? outputs : undefined
+				);
 				if (development)
 					console.log(
 						`content stages: compiler ${Math.round(assets - compiled)}ms, assets ${Math.round(performance.now() - assets)}ms`
@@ -223,5 +262,5 @@ async function runPipeline(
 	console.log(
 		`content pipeline: ${((performance.now() - start) / 1000).toFixed(2)}s, ${changed.size} changed outputs`
 	);
-	return { changed, compilation };
+	return { changed, compilation, deferred: deferredEmission };
 }

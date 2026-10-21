@@ -96,14 +96,18 @@ test('unknown external edits do not become trusted through newer observations', 
 		f.write('pages/note.json', 'original');
 		const { checkpoint } = f.capture();
 		const original = checkpoint.fingerprint();
+		expect(checkpoint.matchesCurrent()).toBe(true);
 		const observed = f.info('pages/note.json');
 		f.write('pages/note.json', 'unreported change');
+		expect(checkpoint.matchesCurrent()).toBe(false);
+		expect(checkpoint.fingerprint()).toBe(original);
 		checkpoint.record(f.file('pages/note.json'), observed);
 		expect(checkpoint.fingerprint()).toBe(original);
 		expect(f.capture().checkpoint.fingerprint()).not.toBe(original);
 		checkpoint.record(f.file('pages/note.json'), f.info('pages/note.json'));
 		expect(checkpoint.fingerprint()).toBe(f.capture().checkpoint.fingerprint());
 		f.write('static/unreported.txt');
+		expect(checkpoint.matchesCurrent()).toBe(false);
 		expect(checkpoint.fingerprint()).not.toBe(f.capture().checkpoint.fingerprint());
 	} finally {
 		f.cleanup();

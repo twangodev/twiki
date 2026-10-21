@@ -256,3 +256,98 @@ console.log('missed policy reconciliation passed');
 		rmSync(fixture.repo, { recursive: true, force: true });
 	}
 }, 30000);
+
+for (const publicEdition of [false, true]) {
+	test(`note emission keeps raw downloads current and repairs unrelated outputs (${publicEdition ? 'public' : 'full'})`, () => {
+		const fixture = publicationFixture();
+		const site = path.join(fixture.repo, 'site');
+		fixture.write(
+			'twiki.config.json',
+			JSON.stringify({
+				version: 1,
+				contentDir: 'content',
+				discovery: 'git',
+				publication: 'policies'
+			})
+		);
+		try {
+			prepareSite(site);
+			const output = execFileSync(
+				'bun',
+				[
+					'-e',
+					`
+import { strict as assert } from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
+import { prepareContent } from './tooling/pipeline';
+import { contentInputFingerprint, contentOutputFingerprint } from './tooling/lib/dev-state';
+import { staticDirectory, courseFilesDirectory } from './tooling/lib/edition-paths.js';
+import { textExportUrl } from './src/lib/text-exports';
+import { OutputCheckpoint } from './tooling/lib/output-checkpoint';
+let checks = 0;
+const checkOutputs = OutputCheckpoint.prototype.matchesCurrent;
+OutputCheckpoint.prototype.matchesCurrent = function () { checks++; return checkOutputs.call(this); };
+const source = ${JSON.stringify(path.join(fixture.course, 'notes/public.md'))};
+const original = fs.readFileSync(source, 'utf8');
+const image = ${JSON.stringify(path.join(fixture.course, 'notes/figure.svg'))};
+const staticRoot = staticDirectory(process.cwd());
+const indexFile = path.join(courseFilesDirectory(process.cwd()), 'index/sp99-cs101.json');
+const files = () => JSON.parse(fs.readFileSync(indexFile, 'utf8'));
+const download = (name) => path.join(staticRoot, files().find(file => file.path === name).download.slice(1));
+const text = (slug, format) => path.join(staticRoot, textExportUrl(slug, format).slice(1));
+const realLog = console.log;
+let passes = 0;
+console.log = (...args) => { if (String(args[0]).startsWith('content pipeline:')) passes++; realLog(...args); };
+await prepareContent(false, undefined, true);
+async function edit(label, expectedPasses, body = original) {
+  const before = passes;
+  fs.writeFileSync(source, body + '\\n\\n' + label + '\\n');
+  await prepareContent(false, new Set([source]), true);
+  assert.equal(passes - before, expectedPasses, label);
+  assert.equal(fs.readFileSync(download('notes/public.md'), 'utf8'), fs.readFileSync(source, 'utf8'));
+  for (const format of ['md', 'txt']) assert(fs.readFileSync(text('sp99-cs101/notes/public', format), 'utf8').includes(label));
+  const saved = JSON.parse(fs.readFileSync('build/generated/dev-state.json', 'utf8'));
+  assert.equal(saved.inputs, await contentInputFingerprint(${JSON.stringify(fixture.repo)}, process.env.TWIKI_PREPARED_CONTENT_KEY));
+  assert.equal(saved.outputs, contentOutputFingerprint(process.cwd()));
+}
+await edit('Ordinary prose edit', 1);
+// These outputs are unrelated to the reported edit and absent from its changed set.
+const staticImage = path.join(staticRoot, 'sp99-cs101/notes/figure.svg');
+fs.writeFileSync(staticImage, '<svg>corrupted generated image</svg>');
+fs.rmSync(text('sp99-cs101/notes/second', 'txt'));
+fs.rmSync(download('notes/second.md'));
+await edit('Repair unrelated outputs', 2);
+assert.equal(fs.readFileSync(staticImage, 'utf8'), fs.readFileSync(image, 'utf8'));
+assert(fs.readFileSync(text('sp99-cs101/notes/second', 'txt'), 'utf8').includes('Another public explanation'));
+assert.equal(fs.readFileSync(download('notes/second.md'), 'utf8'), fs.readFileSync(${JSON.stringify(path.join(fixture.course, 'notes/second.md'))}, 'utf8'));
+// Source hints must never replace the independent fresh source validation.
+fs.writeFileSync(image, '<svg>unreported source image edit</svg>');
+await edit('Reported note alongside an unreported image edit', 2);
+assert.equal(fs.readFileSync(staticImage, 'utf8'), fs.readFileSync(image, 'utf8'));
+const beforeChecks = checks;
+await edit('Catalog tag changes', 1, original.replace('tags: [practice]', 'tags: [practice, emission-test]'));
+assert.equal(checks, beforeChecks, 'full emission must not also scan all outputs through the deferred path');
+console.log('note emission and repair verified');
+`
+				],
+				{
+					cwd: site,
+					env: {
+						...process.env,
+						TWIKI_PROJECT_ROOT: fixture.repo,
+						TWIKI_CONFIG_FILE: path.join(fixture.repo, 'twiki.config.json'),
+						TWIKI_CONTENT_DIR: path.join(fixture.repo, 'content'),
+						VITE_PUBLIC_EDITION: String(publicEdition)
+					},
+					encoding: 'utf8',
+					maxBuffer: 4 * 1024 * 1024,
+					timeout: 45000
+				}
+			);
+			expect(output).toContain('note emission and repair verified');
+		} finally {
+			rmSync(fixture.repo, { recursive: true, force: true });
+		}
+	}, 60000);
+}

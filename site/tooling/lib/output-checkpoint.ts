@@ -230,6 +230,36 @@ export class OutputCheckpoint {
 		return digest(['output-checkpoint-v1', this.roots, this.tree.fingerprint()]);
 	}
 
+	/** Compare fresh filesystem observations without replacing the expected checkpoint. */
+	matchesCurrent() {
+		if (!this.complete) return false;
+		const matches = (file: string, expected: Branch | Leaf | undefined): boolean => {
+			const info = lstatSync(file, { bigint: true, throwIfNoEntry: false });
+			if (!info) return !expected || (!(expected instanceof Branch) && !expected.identity);
+			if (info.isDirectory()) {
+				if (expected && !(expected instanceof Branch)) return false;
+				const children = expected?.children;
+				const missing = new Set(children?.keys());
+				for (const name of readdirSync(file)) {
+					missing.delete(name);
+					if (!matches(path.join(file, name), children?.get(name))) return false;
+				}
+				// Empty nested directories do not participate in output fingerprints.
+				return missing.size === 0;
+			}
+			if (!expected || expected instanceof Branch || !expected.identity) return false;
+			if (!sameIdentity(expected.identity, info)) return false;
+			return (
+				!info.isSymbolicLink() ||
+				expected.hash === digest(['leaf', identity(info).map(String), readlinkSync(file)])
+			);
+		};
+		return this.roots.every((root) => {
+			const expected = this.node(root);
+			return expected !== undefined && matches(path.join(this.site, root), expected);
+		});
+	}
+
 	/** A fresh scan never follows symlink directories or trusts the expected tree. */
 	static capture(site: string, roots: readonly string[]) {
 		const checkpoint = new OutputCheckpoint(site, roots);

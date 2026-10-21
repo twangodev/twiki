@@ -29,10 +29,12 @@ import { getManifest, resetContentCache, loadPage } from '../src/lib/server/cont
 import { createContentModel } from '../src/lib/server/content-model';
 import type { ContentManifest } from '../src/lib/types';
 
+/** Narrowed sync requires the caller to independently verify untouched outputs. */
 export async function prepareAssets(
 	changedInputs?: Set<string>,
 	development = false,
-	compiledManifest?: ContentManifest
+	compiledManifest?: ContentManifest,
+	changedOutputs?: ReadonlySet<string>
 ) {
 	resetContentCache();
 	const SITE_DIR = path.resolve(import.meta.dirname, '..');
@@ -110,11 +112,25 @@ export async function prepareAssets(
 	let oversize = false;
 	const wanted = new Set<string>(Object.values(runtimeDataAssets));
 
+	if (changedOutputs) {
+		// Course-file pruning may remove an old raw note blob or replace an index.
+		// Mirror those removals before verifying the complete expected output.
+		const fileRoot = courseFilesDirectory(SITE_DIR) + path.sep;
+		for (const file of changedOutputs) {
+			if (!file.startsWith(fileRoot) || existsSync(file)) continue;
+			const destination = path.join(STATIC_DIR, '_files', path.relative(fileRoot, file));
+			if (existsSync(destination)) {
+				unlinkSync(destination);
+				removeOutput(destination);
+			}
+		}
+		for (const asset of manifest.assets) wanted.add(destRel(asset));
+	}
 	const sources = assetSources(
 		srcRoot,
-		manifest.assets,
+		changedOutputs ? [] : manifest.assets,
 		courseFilesDirectory(SITE_DIR),
-		courseOutputs
+		changedOutputs ? [...courseOutputs].filter((file) => changedOutputs.has(file)) : courseOutputs
 	);
 	for (const { src, rel: relative } of sources) {
 		const rel = relative.split(path.sep).join('/');
@@ -163,20 +179,25 @@ export async function prepareAssets(
 		path.join(GENERATED, 'pages'),
 		Object.values(manifest.pages),
 		wanted,
-		development
+		development,
+		changedOutputs
 	))
 		wanted.add(file);
 
 	// Prune stale synced files (never touch the hand-placed statics).
 	const KEEP = new Set(['.gitignore', 'favicon.ico']);
 	const wantedPaths = new Set([...wanted].map((file) => path.join(STATIC_DIR, file)));
-	const pruned = pruneOutputs(STATIC_DIR, wantedPaths, (file) => {
-		const rel = path.relative(STATIC_DIR, file).split(path.sep).join('/');
-		return KEEP.has(rel) || rel === 'fonts' || rel === '_og';
-	});
-	console.log(`assets: pruned ${pruned} stale files`);
-
-	console.log(`assets: ${copied} synced, ${kept} up-to-date, ${wanted.size} total`);
+	const pruned = changedOutputs
+		? 0
+		: pruneOutputs(STATIC_DIR, wantedPaths, (file) => {
+				const rel = path.relative(STATIC_DIR, file).split(path.sep).join('/');
+				return KEEP.has(rel) || rel === 'fonts' || rel === '_og';
+			});
+	if (changedOutputs) console.log(`assets: ${copied} changed files synced`);
+	else {
+		console.log(`assets: pruned ${pruned} stale files`);
+		console.log(`assets: ${copied} synced, ${kept} up-to-date, ${wanted.size} total`);
+	}
 
 	// ---------------------------------------------------------------------------
 	// 2. Nav tree module

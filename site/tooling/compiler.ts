@@ -109,6 +109,8 @@ export async function compileContent(
 		publicEdition?: boolean;
 		incremental?: boolean;
 		changedInputs?: ReadonlySet<string>;
+		/** Caller must verify the full expected output tree after deferred asset emission. */
+		deferAssetValidation?: boolean;
 		/** Engine-owned metadata from an enclosing validated development build. */
 		previous?: ContentCompilation;
 		development?: boolean;
@@ -1241,11 +1243,14 @@ export async function compileContent(
 			// html assets: extensionless at slug, exactly like quartz's Assets emitter
 			const dest = path.join(ASSETS_DIR, asset.slug);
 			// An explicit editor event must read bytes even when filesystem identities collide.
-			const size = copyChanged(
-				asset.abs,
-				dest,
-				options.development && !options.changedInputs?.has(asset.abs)
-			);
+			const size =
+				options.deferAssetValidation && previous && sameContext
+					? Number(asset.stat.size)
+					: copyChanged(
+							asset.abs,
+							dest,
+							options.development && !options.changedInputs?.has(asset.abs)
+						);
 			if (size === undefined) throw new Error(`Missing compiled asset: ${asset.rel}`);
 			wantedAssets.add(dest);
 			assetBytes += checkSize(dest, size);
