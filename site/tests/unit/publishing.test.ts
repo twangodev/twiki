@@ -1,5 +1,15 @@
-import { expect, test } from 'bun:test';
-import { parsePublishPolicy, publicationDecision } from '../../tooling/lib/publishing';
+import { expect, test, spyOn } from 'bun:test';
+import * as fs from 'node:fs';
+import path from 'node:path';
+import { publicationFixture } from '../publication-fixture';
+import { resolveProject } from '../../tooling/lib/project-config';
+import {
+	parsePublishPolicy,
+	publicationDecision,
+	publicationResolver,
+	courseLicenseResolver,
+	withPublicationPolicies
+} from '../../tooling/lib/publishing';
 
 test('publication is opt-in, relative to one course, with exclusions winning', () => {
 	const policy = parsePublishPolicy(
@@ -65,4 +75,44 @@ test('license metadata records attribution without granting public access', () =
 		expect(() =>
 			parsePublishPolicy(JSON.stringify({ include: ['**'], license: invalid }))
 		).toThrow();
+});
+
+test('one asynchronous publication scope shares checked policies, while fresh scopes see revocations and failures', async () => {
+	const fixture = publicationFixture();
+	const project = resolveProject(fixture.repo, fixture.repo, {});
+	const policy = path.join(fixture.course, 'publish.yaml');
+	const note = 'sp99-cs101/notes/public.md';
+	const read = spyOn(fs, 'readFileSync');
+	try {
+		await withPublicationPolicies(async () => {
+			expect(publicationResolver(fixture.repo, project)(note).public).toBe(true);
+			await Promise.resolve();
+			expect(courseLicenseResolver(fixture.repo, project)(note)?.name).toBe('CC BY 4.0');
+			expect(publicationResolver(fixture.repo, project)(note).public).toBe(true);
+			expect(read.mock.calls.filter(([file]) => file === policy)).toHaveLength(1);
+			fixture.write('content/sp99-cs101/publish.yaml', 'include: []\n');
+			expect(publicationResolver(fixture.repo, project)(note).public).toBe(true);
+			withPublicationPolicies(() => {
+				expect(publicationResolver(fixture.repo, project)(note).public).toBe(false);
+				expect(courseLicenseResolver(fixture.repo, project)(note)).toBeUndefined();
+			});
+		});
+		expect(publicationResolver(fixture.repo, project)(note).public).toBe(false);
+		fixture.write('content/sp99-cs101/publish.yaml', 'include: invalid\n');
+		expect(() => withPublicationPolicies(() => publicationResolver(fixture.repo, project))).toThrow(
+			'invalid or untracked'
+		);
+		fixture.write('content/sp99-cs101/publish.yaml', 'include: ["**"]\n');
+		expect(
+			withPublicationPolicies(() => publicationResolver(fixture.repo, project)(note).public)
+		).toBe(true);
+		fs.renameSync(policy, policy + '.outside');
+		fs.symlinkSync(policy + '.outside', policy);
+		expect(() => withPublicationPolicies(() => publicationResolver(fixture.repo, project))).toThrow(
+			'invalid or untracked'
+		);
+	} finally {
+		read.mockRestore();
+		fs.rmSync(fixture.repo, { recursive: true, force: true });
+	}
 });

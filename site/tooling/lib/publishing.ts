@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
@@ -6,6 +7,7 @@ import {
 	declaredContentCourses,
 	projectSourceVisible,
 	resolveProject,
+	projectIdentity,
 	type ResolvedProject
 } from './project-config';
 import type { ContentLicense } from '../../src/lib/content-license';
@@ -99,7 +101,21 @@ export function publicationDecision(file: string, policy?: PublishPolicy) {
 		: { public: false, reason: 'Not included' };
 }
 
-export function coursePolicies(repo: string, project = resolveProject(process.cwd(), repo)) {
+const policySnapshots = new AsyncLocalStorage<Map<string, Map<string, PublishPolicy>>>();
+
+/** One pipeline pass uses one checked policy snapshot; retries get a fresh scope. */
+export function withPublicationPolicies<T>(build: () => T): T {
+	return policySnapshots.run(new Map(), build);
+}
+
+export function coursePolicies(
+	repo: string,
+	project = resolveProject(process.cwd(), repo)
+): ReadonlyMap<string, PublishPolicy> {
+	const snapshot = policySnapshots.getStore();
+	const key = projectIdentity(project);
+	const saved = snapshot?.get(key);
+	if (saved) return saved;
 	const policies = new Map<string, PublishPolicy>();
 	for (const course of declaredContentCourses(project)) {
 		const file = path.join(course.directory, 'publish.yaml');
@@ -117,6 +133,7 @@ export function coursePolicies(repo: string, project = resolveProject(process.cw
 			throw new Error(`${file}: invalid or untracked publication policy`, { cause: error });
 		}
 	}
+	snapshot?.set(key, policies);
 	return policies;
 }
 

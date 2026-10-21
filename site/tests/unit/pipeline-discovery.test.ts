@@ -44,11 +44,13 @@ console.log = (...args) => {
   if (!String(args[0]).startsWith('parse:') || additions >= 2) return;
   const file = 'notes/during-build-' + ++additions + '.md';
   fs.writeFileSync(path.join(${JSON.stringify(fixture.course)}, file), '# Added during compilation ' + additions);
+  if (additions === 1) fs.writeFileSync(path.join(${JSON.stringify(fixture.course)}, 'publish.yaml'), 'include: []\\n');
   execFileSync('git', ['-C', ${JSON.stringify(fixture.course)}, 'add', file]);
 };
 await prepareContent(false, undefined, true);
 for (let i = 1; i <= 2; i++)
   assert(fs.existsSync('build/generated/pages/sp99-cs101/notes/during-build-' + i + '.json'));
+assert.equal(JSON.parse(fs.readFileSync('build/generated/pages/sp99-cs101/notes/public.json', 'utf8')).publication.public, false);
 const saved = JSON.parse(fs.readFileSync('build/generated/dev-state.json', 'utf8'));
 assert.equal(saved.inputs, contentInputFingerprint(${JSON.stringify(fixture.repo)}, process.env.TWIKI_PREPARED_CONTENT_KEY));
 assert.equal(saved.outputs, contentOutputFingerprint(process.cwd()));

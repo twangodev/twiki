@@ -106,20 +106,23 @@ async function prepareSnapshot(
 async function runPipeline(changedInputs?: Set<string>, development = false) {
 	const start = performance.now();
 	// A saved development snapshot does not need the parser or asset renderers.
-	const [{ compileContent }, { prepareAssets }] = await Promise.all([
+	const [{ compileContent }, { prepareAssets }, { withPublicationPolicies }] = await Promise.all([
 		import('./compiler'),
-		import('./assets')
+		import('./assets'),
+		import('./lib/publishing')
 	]);
-	const changed = await trackOutputs(async () => {
-		const compiled = performance.now();
-		await compileContent({ development });
-		const assets = performance.now();
-		await prepareAssets(changedInputs, development);
-		if (development)
-			console.log(
-				`content stages: compiler ${Math.round(assets - compiled)}ms, assets ${Math.round(performance.now() - assets)}ms`
-			);
-	});
+	const changed = await withPublicationPolicies(() =>
+		trackOutputs(async () => {
+			const compiled = performance.now();
+			await compileContent({ development });
+			const assets = performance.now();
+			await prepareAssets(changedInputs, development);
+			if (development)
+				console.log(
+					`content stages: compiler ${Math.round(assets - compiled)}ms, assets ${Math.round(performance.now() - assets)}ms`
+				);
+		})
+	);
 	console.log(
 		`content pipeline: ${((performance.now() - start) / 1000).toFixed(2)}s, ${changed.size} changed outputs`
 	);
