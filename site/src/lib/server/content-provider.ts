@@ -55,7 +55,7 @@ function trim() {
 	}
 }
 
-function readBounded(read: () => Promise<unknown>): Promise<unknown> {
+function readBounded<T>(read: () => Promise<T>): Promise<T> {
 	if (pendingReads >= maximumPendingReads)
 		return Promise.reject(new Error('Content reads temporarily busy'));
 	pendingReads++;
@@ -101,7 +101,7 @@ function pageFile(slug: string) {
 
 function provider(
 	context: ContentContext,
-	read: (file: string) => Promise<unknown>
+	read: (file: string) => Promise<string>
 ): ContentProvider {
 	const cache = new Map<string, CacheEntry>();
 	function json<T>(file: string): Promise<T> {
@@ -114,21 +114,25 @@ function provider(
 		}
 		if (pendingReads >= maximumPendingReads)
 			return Promise.reject(new Error('Content reads temporarily busy'));
+		const reading = readBounded(async () => {
+			const serialized = await read(file);
+			return { value: JSON.parse(serialized), cost: serialized.length * 3 + entryOverhead };
+		});
 		const entry: CacheEntry = {
-			promise: readBounded(() => read(file)),
+			promise: reading,
 			cost: entryOverhead,
 			pending: true,
 			remove: () => {
 				if (cache.get(file) === entry) cache.delete(file);
 			}
 		};
-		entry.promise = entry.promise.then(
-			(value) => {
+		entry.promise = reading.then(
+			({ value, cost }) => {
 				entry.pending = false;
 				if (cache.get(file) !== entry) return value;
-				// Conservative parsed-object estimate; oversized documents remain usable
-				// by active requests but are never kept for subsequent requests.
-				const cost = JSON.stringify(value).length * 3 + entryOverhead;
+				// Estimate from the original JSON text rather than serializing parsed
+				// content again. Oversized documents remain usable by active requests
+				// but are never kept for subsequent requests.
 				if (cost > memoryBudget) discard(entry);
 				else {
 					retainedBytes += cost - entry.cost;
@@ -205,9 +209,10 @@ export function emptyContentProvider(): ContentProvider {
 	return provider(
 		{ edition: 'public', snapshot: 'application-shell', applicationVersion: 'application-shell' },
 		async (fileName) => {
-			if (fileName === 'manifest.json') return manifest;
-			if (fileName === 'nav.json') return [];
-			if (fileName === 'file-icons.json') return { file, folder, files: {}, folders: {} };
+			if (fileName === 'manifest.json') return JSON.stringify(manifest);
+			if (fileName === 'nav.json') return '[]';
+			if (fileName === 'file-icons.json')
+				return JSON.stringify({ file, folder, files: {}, folders: {} });
 			throw new Error('No content in application-only build');
 		}
 	);
@@ -236,7 +241,7 @@ export function assetContentProvider(platform: ContentPlatform): ContentProvider
 			new Request(`https://wisconsin-content.internal${root}${file}`)
 		);
 		if (response.status !== 200) throw new Error('Content snapshot unavailable');
-		return response.json();
+		return response.text();
 	});
 	snapshots.set(key, result);
 	// Keep a bounded number of snapshots without sharing public/full data.
@@ -261,6 +266,6 @@ export function localContentProvider(
 				: file === 'nav.json' || file === 'file-icons.json'
 					? `src/lib/generated/${file}`
 					: `build/generated/${file.split('/').map(decodeURIComponent).join('/')}`;
-		return JSON.parse(await readFile(`${site}/${relative}`, 'utf8'));
+		return readFile(`${site}/${relative}`, 'utf8');
 	});
 }
