@@ -94,7 +94,7 @@ describe('course file discovery', () => {
 					.filter((entry) => entry.isFile())
 					.map((entry) => path.join(entry.parentPath, entry.name))
 					.sort();
-			expect([...emitted].sort()).toEqual(actual());
+			expect([...emitted.outputs].sort()).toEqual(actual());
 			expect(
 				JSON.parse(
 					readFileSync(path.join(site, 'build/generated/cache/history-current.json'), 'utf8')
@@ -104,6 +104,7 @@ describe('course file discovery', () => {
 			const files: CourseFile[] = JSON.parse(
 				readFileSync(path.join(output, '_files/index/test-course.json'), 'utf8')
 			);
+			expect(emitted.courses.get('test-course')).toEqual(files);
 			expect(files.map((file) => file.path)).toEqual([
 				'Main.java',
 				'README.md',
@@ -124,7 +125,7 @@ describe('course file discovery', () => {
 				new Set(['test-course/README']),
 				new Set([path.join(repo, 'content/index.md')])
 			);
-			expect([...reused].sort()).toEqual(actual());
+			expect([...reused.outputs].sort()).toEqual(actual());
 			expect(statSync(path.join(output, html.download!)).ino).toBe(unchanged.ino);
 			expect(statSync(path.join(output, html.download!)).mtimeMs).toBe(unchanged.mtimeMs);
 			rmSync(path.join(output, html.download!));

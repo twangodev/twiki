@@ -287,5 +287,9 @@ export async function buildCourseFiles(
 	console.log(
 		`files: ${count} tracked files across ${active.size} changed courses (${courses.size - active.size} reused)`
 	);
-	return wanted;
+	return {
+		outputs: wanted,
+		courses: new Map([...courses].filter(([, files]) => !publicEdition || files.length)),
+		entries
+	};
 }

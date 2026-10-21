@@ -23,7 +23,6 @@ import { writeTextExports } from './lib/text-exports';
 import { buildCourseFiles } from './lib/course-files';
 import { assetSources } from './lib/asset-sources';
 import { addNotebookNavigation } from '../src/lib/notebook-nav';
-import type { CourseFile } from '../src/lib/files';
 import { runtimeDataAssets, runtimeDataModuleSource } from './lib/runtime-data-modules';
 import { getManifest, resetContentCache, loadPage } from '../src/lib/server/content';
 import { createContentModel } from '../src/lib/server/content-model';
@@ -66,7 +65,11 @@ export async function prepareAssets(
 
 	const manifest = compiledManifest ?? getManifest();
 	const { navTree, contentEntries, displayRoute, pageSlugForRoute } = createContentModel(manifest);
-	const courseOutputs = await buildCourseFiles(
+	const {
+		outputs: courseOutputs,
+		courses,
+		entries
+	} = await buildCourseFiles(
 		SITE_DIR,
 		new Set(Object.keys(manifest.pages)),
 		changedInputs,
@@ -74,9 +77,6 @@ export async function prepareAssets(
 		changedOutputs !== undefined
 	);
 	if (process.env.VITE_PUBLIC_EDITION === 'true') {
-		const entries = JSON.parse(
-			readFileSync(path.join(SITE_DIR, 'src/lib/generated/file-entries.json'), 'utf8')
-		) as { course: string; file: string }[];
 		manifest.fileCourses = entries
 			.filter((entry) => entry.file === '')
 			.map((entry) => entry.course);
@@ -207,14 +207,8 @@ export async function prepareAssets(
 	const navOut = path.join(SITE_DIR, 'src/lib/generated/nav.json');
 	mkdirSync(path.dirname(navOut), { recursive: true });
 	const navigation = navTree();
-	const fileIndexDirectory = path.join(STATIC_DIR, '_files/index');
-	for (const name of existsSync(fileIndexDirectory) ? readdirSync(fileIndexDirectory) : []) {
-		if (!name.endsWith('.json')) continue;
-		const files: CourseFile[] = JSON.parse(
-			readFileSync(path.join(STATIC_DIR, '_files/index', name), 'utf8')
-		);
-		addNotebookNavigation(navigation, name.slice(0, -5), files);
-	}
+	for (const course of [...courses.keys()].sort())
+		addNotebookNavigation(navigation, course, courses.get(course)!);
 	for (const node of navigation) {
 		if (manifest.fileCourses?.includes(node.segment) && !node.children.length)
 			node.children.push({
@@ -226,7 +220,10 @@ export async function prepareAssets(
 	}
 	writeChanged(navOut, JSON.stringify(navigation));
 	for (const [input, asset] of Object.entries(runtimeDataAssets)) {
-		const data = JSON.parse(readFileSync(path.join(path.dirname(navOut), input), 'utf8'));
+		const data =
+			input === 'nav.json'
+				? navigation
+				: JSON.parse(readFileSync(path.join(path.dirname(navOut), input), 'utf8'));
 		writeChanged(path.join(STATIC_DIR, asset), runtimeDataModuleSource(data));
 	}
 	console.log(`nav: wrote src/lib/generated/nav.json`);
