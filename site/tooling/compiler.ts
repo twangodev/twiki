@@ -27,7 +27,12 @@ import { toString as mdastToString } from 'mdast-util-to-string';
 import { toString as hastToString } from 'hast-util-to-string';
 import { toHtml } from 'hast-util-to-html';
 import Slugger from 'github-slugger';
-import { createHighlighter, type Highlighter } from 'shiki';
+import {
+	bundledLanguagesInfo,
+	createHighlighter,
+	type BundledLanguage,
+	type Highlighter
+} from 'shiki';
 import type { Root as MdRoot } from 'mdast';
 import type { Element, ElementContent, Root as HtmlRoot } from 'hast';
 
@@ -287,27 +292,48 @@ export async function compileContent(
 	};
 	const unknownLangs = new Map<string, number>();
 
-	async function getHighlighter(): Promise<Highlighter> {
+	const configuredLanguages = new Set(
+		SHIKI_LANGS.flatMap((language) => {
+			const info = bundledLanguagesInfo.find(
+				(info) => info.id === language || info.aliases?.includes(language)
+			);
+			return info ? [info.id, ...(info.aliases ?? [])] : [language];
+		})
+	);
+
+	async function getHighlighter(languages: string[]): Promise<Highlighter> {
+		let hl: Highlighter;
 		if (options.development) {
 			developmentHighlighter ??= createHighlighter({
 				themes: ['github-light', 'github-dark'],
-				langs: SHIKI_LANGS
+				langs: languages
 			}).catch((error) => {
 				developmentHighlighter = undefined;
 				throw error;
 			});
-			return developmentHighlighter;
+			hl = await developmentHighlighter;
+		} else {
+			highlighter ??= await createHighlighter({
+				themes: ['github-light', 'github-dark'],
+				langs: languages
+			});
+			hl = highlighter;
 		}
-		highlighter ??= await createHighlighter({
-			themes: ['github-light', 'github-dark'],
-			langs: SHIKI_LANGS
-		});
-		return highlighter;
+		const loaded = new Set(hl.getLoadedLanguages());
+		const missing = languages.filter((language) => language !== 'text' && !loaded.has(language));
+		if (missing.length) await hl.loadLanguage(...(missing as BundledLanguage[]));
+		return hl;
 	}
 
-	/** Shiki dual-theme highlighting (replaces rehype-pretty-code; cca pattern). */
-	function rehypeShiki(hl: Highlighter) {
-		return (tree: HtmlRoot) => {
+	/** Load only grammars needed by this page before highlighting its code blocks. */
+	function rehypeShiki() {
+		return async (tree: HtmlRoot) => {
+			const blocks: {
+				code: Element;
+				classNames: string[];
+				lang: string;
+				replace: (pre: Element) => void;
+			}[] = [];
 			visit(tree, 'element', (node, index, parent) => {
 				if (
 					node.tagName !== 'pre' ||
@@ -330,7 +356,28 @@ export async function compileContent(
 						?.slice('language-'.length)
 						.toLowerCase() ?? 'text';
 				lang = shikiLangAliases[lang] ?? lang;
-				if (!['text'].includes(lang) && !hl.getLoadedLanguages().includes(lang)) {
+				blocks.push({
+					code,
+					classNames,
+					lang,
+					replace: (pre) => {
+						parent.children[index] = pre;
+					}
+				});
+			});
+			if (!blocks.length) return;
+			const requested = [...new Set(blocks.map((block) => block.lang))];
+			// Some supported grammars were previously loaded as dependencies of the
+			// configured set. Resolve uncommon languages through that same set so
+			// their highlighting and unknown-language warnings stay compatible.
+			const languages = requested.some((lang) => !configuredLanguages.has(lang))
+				? SHIKI_LANGS
+				: requested;
+			const hl = await getHighlighter(languages);
+			const loaded = new Set(hl.getLoadedLanguages());
+			for (const { code, classNames, replace, lang: requestedLanguage } of blocks) {
+				let lang = requestedLanguage;
+				if (lang !== 'text' && !loaded.has(lang)) {
 					unknownLangs.set(lang, (unknownLangs.get(lang) ?? 0) + 1);
 					lang = 'text';
 				}
@@ -341,11 +388,10 @@ export async function compileContent(
 					defaultColor: false
 				});
 				const pre = highlighted.children[0] as Element;
-				// keep the original language- class on the inner <code> for styling/copy
 				const newCode = pre.children[0] as Element;
 				newCode.properties = { ...newCode.properties, className: classNames };
-				parent.children[index] = pre;
-			});
+				replace(pre);
+			}
 		};
 	}
 
@@ -514,17 +560,7 @@ export async function compileContent(
 			.use(() => ofmYouTubeEmbed())
 			.use(rehypeSlug)
 			.use(collectToc)
-			.use(() => async (tree: HtmlRoot) => {
-				let hasCode = false;
-				visit(tree, 'element', (node) => {
-					if (
-						node.tagName === 'pre' &&
-						node.children.some((child) => child.type === 'element' && child.tagName === 'code')
-					)
-						hasCode = true;
-				});
-				if (hasCode) rehypeShiki(await getHighlighter())(tree);
-			})
+			.use(rehypeShiki)
 			.use(captureDescription)
 			.use(rehypeKatex, { output: 'html', macros: {} });
 

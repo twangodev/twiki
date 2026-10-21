@@ -185,7 +185,7 @@ test('dev graph versions track graph dependencies rather than ordinary body meta
 	}
 }, 20_000);
 
-test('code-free notes skip Shiki and dev code edits reuse the highlighter across builds', () => {
+test('code, math, and diagram edits load only needed grammars and reuse the dev highlighter', () => {
 	const f = fixture();
 	try {
 		const output = execFileSync(
@@ -201,8 +201,14 @@ import * as shiki from ${JSON.stringify(import.meta.resolve('shiki'))};
 import { compileContent } from ${JSON.stringify(path.resolve(import.meta.dirname, '../../tooling/compiler.ts'))};
 const create = shiki.createHighlighter;
 let calls = 0;
-spyOn(shiki, 'createHighlighter').mockImplementation((...args) => { calls++; return create(...args); });
+const instances = [];
+spyOn(shiki, 'createHighlighter').mockImplementation((...args) => { calls++; const result = create(...args); void result.then(hl => instances.push(hl)); return result; });
 const options = { siteDir: ${JSON.stringify(f.site)}, repoRoot: ${JSON.stringify(f.root)}, development: true };
+await compileContent(options);
+assert.equal(calls, 0);
+const fence = String.fromCharCode(96).repeat(3);
+const source = ${JSON.stringify(path.join(f.course, 'source.md'))};
+fs.writeFileSync(source, '# Source\\n\\n$$x^2$$\\n\\n' + fence + 'mermaid\\ngraph TD\\nA-->B\\n' + fence + '\\n');
 await compileContent(options);
 assert.equal(calls, 0);
 for (let i = 1; i <= 2; i++) {
@@ -212,7 +218,19 @@ for (let i = 1; i <= 2; i++) {
   const page = JSON.parse(fs.readFileSync(path.join(options.siteDir, 'build/generated/pages/course/source.json'), 'utf8'));
   assert(page.html.includes('shiki'));
   assert(page.html.includes(String(i)));
+  assert(!instances[0].getLoadedLanguages().includes('r'));
 }
+fs.writeFileSync(source, '# Source\\n\\n' + fence + 'r\\nmean(c(1, 2))\\n' + fence + '\\n');
+await compileContent(options);
+assert.equal(calls, 1);
+assert(instances[0].getLoadedLanguages().includes('r'));
+assert(!instances[0].getLoadedLanguages().includes('java'));
+fs.writeFileSync(source, '# Source\\n\\n' + fence + 'cpp-macro\\n#define ANSWER 42\\n' + fence + '\\n');
+await compileContent(options);
+assert(!fs.readFileSync(path.join(options.siteDir, 'build/generated/warnings.txt'), 'utf8').includes('shiki: unknown languages'));
+fs.writeFileSync(source, '# Source\\n\\n' + fence + 'twiki-unrecognized\\nplain code\\n' + fence + '\\n');
+await compileContent(options);
+assert(fs.readFileSync(path.join(options.siteDir, 'build/generated/warnings.txt'), 'utf8').includes('twiki-unrecognized (1)'));
 const production = path.join(${JSON.stringify(f.root)}, 'production');
 fs.mkdirSync(production);
 await compileContent({ ...options, siteDir: production, development: false });
