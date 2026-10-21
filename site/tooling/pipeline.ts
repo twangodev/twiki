@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { stageFingerprint } from './fingerprint';
+import { assetExtensions } from './lib/file-policy';
 import { trackOutputs, writeChanged } from './lib/output';
 import { restoreDevelopmentOutputs } from './lib/dev-output-state';
 import {
@@ -120,14 +121,14 @@ async function prepareSnapshot(
 	const changed = new Set<string>();
 	const previous = development && validatedOutputs?.key === key ? validatedOutputs : undefined;
 	let checkpoint = previous?.checkpoint;
-	// Only an existing-note candidate can defer unchanged asset emission.
+	// Only existing non-asset files can defer unchanged asset emission.
 	// The fresh source capture below must still agree before it can be accepted.
 	let verifyOutputs = Boolean(
 		refreshed &&
 		previous?.compilation &&
 		checkpoint?.complete &&
 		changedInputs?.size &&
-		[...changedInputs].every((file) => /\.md$/i.test(file))
+		[...changedInputs].every((file) => !assetExtensions.has(path.extname(file).toLowerCase()))
 	);
 	let compilation: ContentCompilation | undefined;
 	validatedOutputs = undefined;

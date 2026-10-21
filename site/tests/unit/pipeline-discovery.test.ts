@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdirSync, rmSync, symlinkSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
 import path from 'node:path';
 import { publicationFixture } from '../publication-fixture';
 
@@ -299,6 +299,24 @@ for (const publicEdition of [false, true]) {
 			})
 		);
 		try {
+			for (const name of ['worksheet.Rmd', 'script.R', 'data.csv'])
+				fixture.write(`content/sp99-cs101/notes/${name}`, '# Original raw file\n');
+			fixture.write(
+				'content/sp99-cs101/publish.yaml',
+				readFileSync(path.join(fixture.course, 'publish.yaml'), 'utf8').replace(
+					'include:\n',
+					'include:\n  - notes/worksheet.Rmd\n  - notes/script.R\n  - notes/data.csv\n'
+				)
+			);
+			execFileSync('git', [
+				'-C',
+				fixture.course,
+				'add',
+				'publish.yaml',
+				'notes/worksheet.Rmd',
+				'notes/script.R',
+				'notes/data.csv'
+			]);
 			prepareSite(site);
 			const output = execFileSync(
 				'bun',
@@ -342,6 +360,27 @@ async function edit(label, expectedPasses, body = original) {
   assert.equal(saved.outputs, contentOutputFingerprint(process.cwd()));
 }
 await edit('Ordinary prose edit', 1);
+for (const name of ['worksheet.Rmd', 'script.R', 'data.csv']) {
+  const raw = path.join(${JSON.stringify(fixture.course)}, 'notes', name);
+  const previousPreview = files().find(file => file.path === 'notes/worksheet.Rmd').rmdPreview;
+  const beforeChecks = checks;
+  const beforePasses = passes;
+  fs.appendFileSync(raw, '\\n# Updated raw source ' + name + '\\n');
+  await prepareContent(false, new Set([raw]), true);
+  assert.equal(passes - beforePasses, 1, name);
+  assert(checks > beforeChecks, 'non-asset edits must use the independently checked candidate path');
+  assert.equal(fs.readFileSync(download('notes/' + name), 'utf8'), fs.readFileSync(raw, 'utf8'));
+  assert.notEqual(files().find(file => file.path === 'notes/worksheet.Rmd').rmdPreview, previousPreview);
+  const saved = JSON.parse(fs.readFileSync('build/generated/dev-state.json', 'utf8'));
+  assert.equal(saved.inputs, await contentInputFingerprint(${JSON.stringify(fixture.repo)}, process.env.TWIKI_PREPARED_CONTENT_KEY));
+  assert.equal(saved.outputs, contentOutputFingerprint(process.cwd()));
+}
+const beforeAssetChecks = checks;
+fs.writeFileSync(image, '<svg>reported source asset edit</svg>');
+await prepareContent(false, new Set([image]), true);
+assert.equal(checks, beforeAssetChecks, 'asset edits must retain full asset emission');
+assert.equal(fs.readFileSync(path.join(staticRoot, 'sp99-cs101/notes/figure.svg'), 'utf8'), fs.readFileSync(image, 'utf8'));
+
 // Narrowed builds must repair omissions even though icon generation is deferred.
 const icons = path.join(courseFilesDirectory(process.cwd()), 'icons');
 const iconName = fs.readdirSync(icons).find(name => name.endsWith('.svg'));
@@ -392,6 +431,18 @@ assert.equal(fs.readFileSync(download('notes/second.md'), 'utf8'), fs.readFileSy
 fs.writeFileSync(image, '<svg>unreported source image edit</svg>');
 await edit('Reported note alongside an unreported image edit', 2);
 assert.equal(fs.readFileSync(staticImage, 'utf8'), fs.readFileSync(image, 'utf8'));
+const policy = ${JSON.stringify(path.join(fixture.course, 'publish.yaml'))};
+fs.writeFileSync(policy, fs.readFileSync(policy, 'utf8').replace('  - notes/worksheet.Rmd\\n', ''));
+await prepareContent(false, new Set([policy]), true);
+const worksheet = files().find(file => file.path === 'notes/worksheet.Rmd');
+if (${publicEdition}) {
+  assert.equal(worksheet.locked, true);
+  assert.equal(worksheet.download, undefined);
+  assert.equal(worksheet.rmdPreview, undefined);
+} else {
+  assert.equal(worksheet.locked, false);
+  assert(worksheet.download);
+}
 const beforeChecks = checks;
 await edit('Catalog tag changes', 1, original.replace('tags: [practice]', 'tags: [practice, emission-test]'));
 assert.equal(checks, beforeChecks, 'full emission must not also scan all outputs through the deferred path');
