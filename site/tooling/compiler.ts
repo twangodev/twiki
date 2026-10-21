@@ -1204,7 +1204,12 @@ export async function compileContent(
 		for (const asset of assetsSrc) {
 			// html assets: extensionless at slug, exactly like quartz's Assets emitter
 			const dest = path.join(ASSETS_DIR, asset.slug);
-			const size = copyChanged(asset.abs, dest, options.development);
+			// An explicit editor event must read bytes even when filesystem identities collide.
+			const size = copyChanged(
+				asset.abs,
+				dest,
+				options.development && !options.changedInputs?.has(asset.abs)
+			);
 			if (size === undefined) throw new Error(`Missing compiled asset: ${asset.rel}`);
 			wantedAssets.add(dest);
 			assetBytes += checkSize(dest, size);

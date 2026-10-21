@@ -234,6 +234,40 @@ test('compiler discovery excludes linked notes and assets while retaining ordina
 	}
 });
 
+test('an explicit asset change reads fresh bytes even when filesystem identities collide', async () => {
+	const f = fixture();
+	try {
+		f.write('image.svg', '<svg>before</svg>');
+		f.git(f.course, 'add', 'image.svg');
+		const source = path.join(f.course, 'image.svg');
+		const destination = path.join(f.site, 'build/generated/assets/course/image.svg');
+		await f.run(true, false, f.site, true);
+		const originalStat = fs.statSync;
+		const observed = originalStat(source, { bigint: true });
+		f.write('image.svg', '<svg>after!</svg>');
+		const stats = spyOn(fs, 'statSync').mockImplementation(((
+			...args: Parameters<typeof originalStat>
+		) => {
+			if (String(args[0]) === source && args[1]?.bigint) return observed;
+			return originalStat(...args);
+		}) as typeof originalStat);
+		try {
+			await compileContent({
+				siteDir: f.site,
+				repoRoot: f.root,
+				publicEdition: false,
+				development: true,
+				changedInputs: new Set([source])
+			});
+			expect(readFileSync(destination, 'utf8')).toBe('<svg>after!</svg>');
+		} finally {
+			stats.mockRestore();
+		}
+	} finally {
+		f.cleanup();
+	}
+});
+
 test('Markdown edits avoid rereading unchanged assets in development and still publish asset edits', async () => {
 	const f = fixture();
 	let restore: (() => void) | undefined;
