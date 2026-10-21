@@ -249,9 +249,42 @@ function discoverFiles(project: ResolvedProject): SourceEntry[] {
 				.toString()
 				.split('\0')
 				.filter(Boolean);
-		for (const relative of tracked(project.contentDir)) add(relative);
-		for (const course of declaredContentCourses(project)) {
-			if (!existsSync(path.join(course.directory, '.git'))) continue;
+		const rootFiles = tracked(project.contentDir);
+		for (const relative of rootFiles) add(relative);
+		const recursiveCourses = new Set(
+			rootFiles.filter((file) => file.includes('/')).map((file) => file.split('/')[0])
+		);
+		const courses = declaredContentCourses(project).filter((course) =>
+			existsSync(path.join(course.directory, '.git'))
+		);
+		// Only staged gitlinks can be covered by the parent's recursive listing.
+		const indexed = courses.length
+			? execFileSync('git', ['-C', project.contentDir, 'ls-files', '-z', '--stage'], {
+					maxBuffer: 1 << 28
+				})
+					.toString()
+					.split('\0')
+					.filter(Boolean)
+			: [];
+		const gitlinks = new Set(
+			indexed
+				.filter((entry) => /^160000 [a-f0-9]+ 0\t/.test(entry))
+				.map((entry) => entry.slice(entry.indexOf('\t') + 1))
+		);
+		const directCourses = new Set(
+			indexed
+				.map((entry) => entry.slice(entry.indexOf('\t') + 1))
+				.filter((file) => file.includes('/'))
+				.map((file) => file.split('/')[0])
+		);
+		for (const course of courses) {
+			if (
+				gitlinks.has(course.name) &&
+				recursiveCourses.has(course.name) &&
+				!directCourses.has(course.name)
+			)
+				continue;
+			// Inactive, unindexed, or mixed-index courses still need their own walk.
 			for (const relative of tracked(course.directory)) add(`${course.name}/${relative}`);
 		}
 	} else {

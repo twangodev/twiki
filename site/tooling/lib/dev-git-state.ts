@@ -52,7 +52,7 @@ export function contentRepositories(repo: string): ContentRepository[] {
 		const directory = pending[position];
 		if (visited.has(directory)) continue;
 		visited.add(directory);
-		const [gitDirectory, commonDirectory, index, config, worktreeConfig] = contentGit(
+		const metadataArgs = [
 			'-C',
 			directory,
 			'rev-parse',
@@ -65,18 +65,19 @@ export function contentRepositories(repo: string): ContentRepository[] {
 			'config',
 			'--git-path',
 			'config.worktree'
-		)
+		];
+		let metadata: Buffer;
+		try {
+			metadata = contentGit(...metadataArgs, '--verify', '--quiet', 'HEAD');
+		} catch (error) {
+			if ((error as { status?: number }).status !== 1) throw error;
+			// Empty repositories still have paths and tracked content, but no HEAD.
+			metadata = contentGit(...metadataArgs);
+		}
+		const [gitDirectory, commonDirectory, index, config, worktreeConfig, head = 'unborn'] = metadata
 			.toString()
 			.trimEnd()
 			.split('\n');
-		let head = 'unborn';
-		try {
-			head = contentGit('-C', directory, 'rev-parse', '--verify', '--quiet', 'HEAD')
-				.toString()
-				.trim();
-		} catch {
-			/* Empty repositories still have tracked content. */
-		}
 		const tracked = contentGit(
 			'-C',
 			directory,
