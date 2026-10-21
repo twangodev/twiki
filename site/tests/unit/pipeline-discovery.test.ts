@@ -4,32 +4,36 @@ import { cpSync, mkdirSync, rmSync, symlinkSync } from 'node:fs';
 import path from 'node:path';
 import { publicationFixture } from '../publication-fixture';
 
+function prepareSite(site: string) {
+	const source = path.resolve(import.meta.dirname, '../..');
+	mkdirSync(site);
+	for (const file of [
+		'tooling',
+		'src/lib',
+		'assets',
+		'package.json',
+		'bun.lock',
+		'tsconfig.json'
+	]) {
+		const target = path.join(site, file);
+		mkdirSync(path.dirname(target), { recursive: true });
+		cpSync(path.join(source, file), target, {
+			recursive: true,
+			filter: (file) => !file.includes('/src/lib/generated')
+		});
+	}
+	symlinkSync(path.resolve(source, '../node_modules'), path.join(site, 'node_modules'), 'dir');
+}
+
 test('post-build validation and repeated reconciliation use fresh discovery snapshots', () => {
 	const fixture = publicationFixture();
 	fixture.write('content/sp99-other/note.md', '# Other course');
 	fixture.write('content/sp99-other/attachment.bin', 'Unchanged course attachment');
 	fixture.write('content/sp99-other/image.svg', '<svg>Unchanged course image</svg>');
 	execFileSync('git', ['-C', fixture.repo, 'add', 'content/sp99-other']);
-	const source = path.resolve(import.meta.dirname, '../..');
 	const site = path.join(fixture.repo, 'site');
-	mkdirSync(site);
 	try {
-		for (const file of [
-			'tooling',
-			'src/lib',
-			'assets',
-			'package.json',
-			'bun.lock',
-			'tsconfig.json'
-		]) {
-			const target = path.join(site, file);
-			mkdirSync(path.dirname(target), { recursive: true });
-			cpSync(path.join(source, file), target, {
-				recursive: true,
-				filter: (file) => !file.includes('/src/lib/generated')
-			});
-		}
-		symlinkSync(path.resolve(source, '../node_modules'), path.join(site, 'node_modules'), 'dir');
+		prepareSite(site);
 		const output = execFileSync(
 			'bun',
 			[
@@ -174,3 +178,64 @@ console.log('validated snapshot reconciliation passed');
 		rmSync(fixture.repo, { recursive: true, force: true });
 	}
 }, 30_000);
+
+test('missed policy untracking rejects candidate Git snapshots before accepting output and recovers', () => {
+	const fixture = publicationFixture();
+	const site = path.join(fixture.repo, 'site');
+	fixture.write(
+		'twiki.config.json',
+		JSON.stringify({ version: 1, contentDir: 'content', discovery: 'git', publication: 'policies' })
+	);
+	try {
+		prepareSite(site);
+		const output = execFileSync(
+			'bun',
+			[
+				'-e',
+				`
+import { strict as assert } from 'node:assert';
+import { spyOn } from 'bun:test';
+import fs from 'node:fs';
+import * as childProcess from 'node:child_process';
+import { prepareContent } from './tooling/pipeline';
+import { coursePolicies } from './tooling/lib/publishing';
+const git = (directory, ...args) => childProcess.execFileSync('git', ['-C', directory, ...args], {stdio: 'pipe'});
+const calls = spyOn(childProcess, 'execFileSync');
+await prepareContent(false, undefined, true);
+assert.equal(calls.mock.calls.filter(([, args]) => args?.includes('--error-unmatch')).length, 0);
+calls.mockRestore();
+const manifest = () => JSON.parse(fs.readFileSync('build/generated/content-manifest.json', 'utf8'));
+assert.equal(manifest().pages['sp99-cs101/notes/public'].publication.public, true);
+git(${JSON.stringify(fixture.course)}, 'rm', '--cached', '-f', 'publish.yaml');
+// Outside a captured snapshot, policy validation must see the current index immediately.
+assert.throws(() => coursePolicies(${JSON.stringify(fixture.repo)}), /invalid or untracked/);
+const note = ${JSON.stringify(path.join(fixture.course, 'notes/public.md'))};
+fs.writeFileSync(note, '# Reported edit with an unreported policy index change');
+await assert.rejects(prepareContent(false, new Set([note]), true), /invalid or untracked/);
+assert(!fs.existsSync('build/generated/dev-state.json'));
+git(${JSON.stringify(fixture.course)}, 'add', 'publish.yaml');
+await prepareContent(false, undefined, true);
+assert.equal(manifest().pages['sp99-cs101/notes/public'].publication.public, true);
+assert(fs.readFileSync('build/generated/pages/sp99-cs101/notes/public.json', 'utf8').includes('Reported edit'));
+console.log('missed policy reconciliation passed');
+`
+			],
+			{
+				cwd: site,
+				env: {
+					...process.env,
+					TWIKI_PROJECT_ROOT: fixture.repo,
+					TWIKI_CONFIG_FILE: path.join(fixture.repo, 'twiki.config.json'),
+					TWIKI_CONTENT_DIR: path.join(fixture.repo, 'content'),
+					VITE_PUBLIC_EDITION: 'true'
+				},
+				encoding: 'utf8',
+				maxBuffer: 4 * 1024 * 1024,
+				timeout: 25000
+			}
+		);
+		expect(output).toContain('missed policy reconciliation passed');
+	} finally {
+		rmSync(fixture.repo, { recursive: true, force: true });
+	}
+}, 30000);

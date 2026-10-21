@@ -18,7 +18,8 @@ import {
 	contentWithinProject,
 	withSourceDiscovery,
 	type ResolvedProject,
-	type SourceEntry
+	type SourceEntry,
+	type SourceRepository
 } from './project-config';
 
 function fileStat(file: string): BigIntStats | null {
@@ -57,7 +58,8 @@ export class ContentInputSnapshot {
 		private readonly pipeline: string,
 		private readonly entries: readonly SourceEntry[],
 		private readonly shape: string,
-		private readonly observations: ReadonlyMap<string, string | null>
+		private readonly observations: ReadonlyMap<string, string | null>,
+		private readonly repositories: readonly SourceRepository[]
 	) {
 		this.sources = new Map(
 			entries.map((entry) => [path.join(project.contentDir, entry.relative), entry])
@@ -112,12 +114,17 @@ export class ContentInputSnapshot {
 			pipeline,
 			this.entries.map((entry) => replacements.get(entry.relative) ?? entry),
 			this.shape,
-			observations
+			observations,
+			this.repositories
 		);
 	}
 
 	withDiscovery<T>(build: () => T): T {
-		return withSourceDiscovery(build, { project: this.project, entries: this.entries });
+		return withSourceDiscovery(build, {
+			project: this.project,
+			entries: this.entries,
+			repositories: this.repositories
+		});
 	}
 }
 
@@ -142,7 +149,8 @@ export function captureContentInputs(repo: string, pipeline: string) {
 	}
 	if (project.configFile) observeBytes(project.configFile);
 	observeBytes(path.join(repo, '.gitmodules'), true);
-	const repositories = contentRepositories(repo).map((repository) => {
+	const metadata = contentRepositories(repo);
+	const repositories = metadata.map((repository) => {
 		const { directory, head, tracked, config, worktreeConfig } = repository;
 		observeStat(config);
 		observeStat(worktreeConfig);
@@ -174,7 +182,7 @@ export function captureContentInputs(repo: string, pipeline: string) {
 			recursive
 		])
 	);
-	return new ContentInputSnapshot(project, pipeline, entries, shape, observations);
+	return new ContentInputSnapshot(project, pipeline, entries, shape, observations, metadata);
 }
 
 /** Public full-validation entry point; never use watcher hints for saved-output reuse. */

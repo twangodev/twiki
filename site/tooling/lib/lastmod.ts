@@ -6,7 +6,8 @@ import {
 	resolveProject,
 	declaredContentCourses,
 	contentRelative,
-	gitRepositoryRoot
+	gitRepositoryRoot,
+	sourceRepository
 } from './project-config';
 
 const datesVersion = await stageFingerprint('gitdates');
@@ -107,7 +108,9 @@ export function buildGitDateMap(
 	const loadRepo = (repoDir: string, cacheKey: string): GitDateMap => {
 		let head: string;
 		try {
-			head = headSha(repoDir);
+			const captured = sourceRepository(project, repoDir);
+			if (captured?.head === 'unborn') return { created: {}, modified: {} };
+			head = captured?.head ?? headSha(repoDir);
 		} catch {
 			return { created: {}, modified: {} };
 		}

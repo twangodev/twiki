@@ -11,7 +11,12 @@ import {
 import path from 'node:path';
 import { writeChanged, pruneOutputs } from './output';
 import type { CourseFile } from '../../src/lib/files';
-import { resolveProject, declaredContentCourses, discoverSourceFiles } from './project-config';
+import {
+	resolveProject,
+	declaredContentCourses,
+	discoverSourceFiles,
+	sourceRepository
+} from './project-config';
 import { slugifyFilePath, type FilePath } from './slug';
 import { buildFileIcons } from './file-icons';
 import { buildHistories, type HistoryJob } from './history-pool';
@@ -152,12 +157,17 @@ export async function buildCourseFiles(
 	);
 	const revisions = new Map(
 		(development && !publicEdition ? [...active].filter((course) => declared.has(course)) : []).map(
-			(course) => [
-				course,
-				execFileSync('git', ['-C', path.join(contentRoot, course), 'rev-parse', 'HEAD'], {
-					encoding: 'utf8'
-				}).trim()
-			]
+			(course) => {
+				const directory = path.join(contentRoot, course);
+				const captured = sourceRepository(project, directory);
+				const revision =
+					captured && captured.head !== 'unborn'
+						? captured.head
+						: execFileSync('git', ['-C', directory, 'rev-parse', 'HEAD'], {
+								encoding: 'utf8'
+							}).trim();
+				return [course, revision] as const;
+			}
 		)
 	);
 	for (const tracked of paths) {

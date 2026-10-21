@@ -8,6 +8,7 @@ import {
 	projectSourceVisible,
 	resolveProject,
 	projectIdentity,
+	sourceRepository,
 	type ResolvedProject
 } from './project-config';
 import type { ContentLicense } from '../../src/lib/content-license';
@@ -123,11 +124,21 @@ export function coursePolicies(
 		try {
 			if (!lstatSync(file).isFile() || realpathSync(file) !== file)
 				throw new Error('Policy must be a regular file');
-			execFileSync(
-				'git',
-				['-C', course.directory, 'ls-files', '--error-unmatch', '--', 'publish.yaml'],
-				{ stdio: 'pipe' }
-			);
+			const repository = sourceRepository(project, course.directory);
+			if (repository) {
+				if (
+					!repository.tracked
+						.toString()
+						.split('\0')
+						.some((entry) => entry.slice(entry.indexOf('\t') + 1) === 'publish.yaml')
+				)
+					throw new Error('Policy must be tracked by its course repository');
+			} else
+				execFileSync(
+					'git',
+					['-C', course.directory, 'ls-files', '--error-unmatch', '--', 'publish.yaml'],
+					{ stdio: 'pipe' }
+				);
 			policies.set(course.name, parsePublishPolicy(readFileSync(file, 'utf8')));
 		} catch (error) {
 			throw new Error(`${file}: invalid or untracked publication policy`, { cause: error });

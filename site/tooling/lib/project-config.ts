@@ -195,16 +195,44 @@ export interface SourceEntry {
 	readonly stat: Readonly<BigIntStats>;
 }
 
-const sourceDiscovery = new AsyncLocalStorage<Map<string, SourceEntry[]>>();
+export interface SourceRepository {
+	readonly directory: string;
+	readonly head: string;
+	readonly tracked: Buffer;
+}
+
+interface SourceDiscovery {
+	entries: SourceEntry[];
+	repositories?: ReadonlyMap<string, SourceRepository>;
+}
+
+const sourceDiscovery = new AsyncLocalStorage<Map<string, SourceDiscovery>>();
 
 /** One build uses one discovery snapshot; validation before/after it remains fresh. */
 export function withSourceDiscovery<T>(
 	build: () => T,
-	seed?: { project: ResolvedProject; entries: readonly SourceEntry[] }
+	seed?: {
+		project: ResolvedProject;
+		entries: readonly SourceEntry[];
+		repositories?: readonly SourceRepository[];
+	}
 ): T {
-	const snapshot = new Map<string, SourceEntry[]>();
-	if (seed) snapshot.set(projectIdentity(seed.project), [...seed.entries]);
+	const snapshot = new Map<string, SourceDiscovery>();
+	if (seed)
+		snapshot.set(projectIdentity(seed.project), {
+			entries: [...seed.entries],
+			repositories:
+				seed.repositories && new Map(seed.repositories.map((repo) => [repo.directory, repo]))
+		});
 	return sourceDiscovery.run(snapshot, build);
+}
+
+/** Captured Git state belongs to this source snapshot; other callers must query Git freshly. */
+export function sourceRepository(project: ResolvedProject, directory: string) {
+	return sourceDiscovery
+		.getStore()
+		?.get(projectIdentity(project))
+		?.repositories?.get(path.resolve(directory));
 }
 
 export function discoverSourceFiles(project: ResolvedProject): string[] {
@@ -215,10 +243,10 @@ export function discoverSourceFiles(project: ResolvedProject): string[] {
 export function discoverSourceEntries(project: ResolvedProject): readonly SourceEntry[] {
 	const snapshot = sourceDiscovery.getStore();
 	const key = projectIdentity(project);
-	let files = snapshot?.get(key);
+	let files = snapshot?.get(key)?.entries;
 	if (!files) {
 		files = discoverFiles(project);
-		snapshot?.set(key, files);
+		snapshot?.set(key, { entries: files });
 	}
 	return [...files];
 }
