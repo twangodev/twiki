@@ -25,11 +25,27 @@ const runtimeEnvironment = [
 	'XDG_DATA_HOME'
 ] as const;
 const probes = new Map<string, string>();
-const unavailableFontIdentity = randomBytes(16).toString('hex');
+const unavailableFontIdentity = `fontconfig-unverified-v1:${process.platform}:${randomBytes(16).toString('hex')}`;
+
+const fontFormat =
+	'%{file}\t%{family}\t%{style}\t%{fontversion}\t%{foundry}\t%{index}\t%{antialias}\t%{hinting}\t%{hintstyle}\t%{rgba}\n';
+const fontPatterns = ['', 'sans', 'serif', 'monospace', 'symbol'].flatMap((family) =>
+	['', 'Bold', 'Italic', 'Bold Italic'].map((style) => family + (style ? `:style=${style}` : ''))
+);
+const fontCommands: [string, string[]][] = [
+	['fc-list', ['--format', fontFormat]],
+	...fontPatterns.map(
+		(pattern): [string, string[]] => ['fc-match', ['--format', fontFormat, pattern]]
+	),
+	['fc-conflist', []]
+];
 
 /** Font paths locate inputs; only portable face metadata and content hashes enter the identity. */
-export function rFontIdentity(environment: NodeJS.ProcessEnv = process.env) {
-	const deadline = performance.now() + 5_000;
+function inspectFontIdentity(
+	environment: NodeJS.ProcessEnv,
+	deadline: number,
+	captured?: ReadonlyMap<string, string>
+) {
 	const maximumBytes = 256 * 1024 * 1024;
 	let bytes = 0;
 	const hashes = new Map<string, string>();
@@ -53,6 +69,11 @@ export function rFontIdentity(environment: NodeJS.ProcessEnv = process.env) {
 	const run = (command: string, args: string[]) => {
 		const remaining = Math.floor(deadline - performance.now());
 		if (remaining < 1) throw new Error('Font identity probe timed out');
+		if (captured) {
+			const output = captured.get(JSON.stringify([command, args]));
+			if (output === undefined) throw new Error('Missing font probe output');
+			return output;
+		}
 		return execFileSync(command, args, {
 			env: environment,
 			encoding: 'utf8',
@@ -61,8 +82,6 @@ export function rFontIdentity(environment: NodeJS.ProcessEnv = process.env) {
 			stdio: ['ignore', 'pipe', 'pipe']
 		});
 	};
-	const format =
-		'%{file}\t%{family}\t%{style}\t%{fontversion}\t%{foundry}\t%{index}\t%{antialias}\t%{hinting}\t%{hintstyle}\t%{rgba}\n';
 	const faces = (output: string) =>
 		[
 			...new Set(
@@ -77,16 +96,13 @@ export function rFontIdentity(environment: NodeJS.ProcessEnv = process.env) {
 			)
 		].sort();
 	try {
-		const inventory = faces(run('fc-list', ['--format', format]));
+		const inventory = faces(run('fc-list', ['--format', fontFormat]));
 		if (!inventory.length) throw new Error('Font inventory is empty');
 		const matches = [];
-		for (const family of ['', 'sans', 'serif', 'monospace', 'symbol']) {
-			for (const style of ['', 'Bold', 'Italic', 'Bold Italic']) {
-				const pattern = family + (style ? `:style=${style}` : '');
-				const resolved = faces(run('fc-match', ['--format', format, pattern]));
-				if (!resolved.length) throw new Error('Default font cannot be resolved');
-				matches.push([pattern, resolved]);
-			}
+		for (const pattern of fontPatterns) {
+			const resolved = faces(run('fc-match', ['--format', fontFormat, pattern]));
+			if (!resolved.length) throw new Error('Default font cannot be resolved');
+			matches.push([pattern, resolved]);
 		}
 		const configuration = run('fc-conflist', [])
 			.split('\n')
@@ -106,7 +122,43 @@ export function rFontIdentity(environment: NodeJS.ProcessEnv = process.env) {
 	} catch {
 		// R can use native devices without Fontconfig tools. Render normally, but
 		// previews bypass cache reads, while the process identity keeps source guards stable.
-		return `fontconfig-unverified-v1:${process.platform}:${unavailableFontIdentity}`;
+		return unavailableFontIdentity;
+	}
+}
+
+export function rFontIdentity(environment: NodeJS.ProcessEnv = process.env) {
+	return inspectFontIdentity(environment, performance.now() + 5_000);
+}
+
+/** Fetch independent command outputs with bounded concurrency, never retaining observations. */
+async function freshFontIdentity(environment: NodeJS.ProcessEnv, signal?: AbortSignal) {
+	const deadline = performance.now() + 5_000;
+	const captured = new Map<string, string>();
+	try {
+		for (let offset = 0; offset < fontCommands.length; offset += 4) {
+			const results = await Promise.allSettled(
+				fontCommands.slice(offset, offset + 4).map(async ([command, args]) => {
+					const remaining = Math.floor(deadline - performance.now());
+					if (remaining < 1) throw new Error('Font identity probe timed out');
+					const { stdout } = await runRuntime(command, args, {
+						env: environment,
+						encoding: 'utf8',
+						timeout: Math.min(2_000, remaining),
+						maxBuffer: 1024 * 1024,
+						signal
+					});
+					return [JSON.stringify([command, args]), stdout] as const;
+				})
+			);
+			// All siblings must finish before a failed batch falls back to unverified provenance.
+			for (const result of results) {
+				if (result.status === 'rejected') throw result.reason;
+				captured.set(...result.value);
+			}
+		}
+		return inspectFontIdentity(environment, deadline, captured);
+	} catch {
+		return unavailableFontIdentity;
 	}
 }
 
@@ -179,9 +231,11 @@ export async function freshRRuntimeVersion(
 			timeout: 30_000,
 			signal
 		});
+		// R can fail while asynchronous font probes are still settling.
+		void version.catch(() => {});
 		// Missing R must retain the immediate Source-view fallback.
 		if (!version.child?.pid) await version;
-		const fonts = rFontIdentity(environment);
+		const fonts = await freshFontIdentity(environment, signal);
 		const identity = `${(await version).stdout}\n${fonts}`;
 		probes.set(key, identity);
 		return identity;

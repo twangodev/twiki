@@ -141,15 +141,37 @@ test('unavailable font tools keep R rendering available with a stable process id
 });
 
 test('concurrent preview probes preserve verified font provenance and refresh its bytes', async () => {
-	const { fonts, bin, environment } = fixture();
+	const { root, fonts, bin, face, configuration, environment } = fixture();
 	const first = await freshRRuntimeVersion(environment);
 	expect(first).toBe(rRuntimeVersion(environment, true));
 	writeFileSync(path.join(fonts, 'sans.ttf'), 'changed font content');
 	const changed = await freshRRuntimeVersion(environment);
 	expect(changed).not.toBe(first);
 	expect(changed).toBe(rRuntimeVersion(environment, true));
+	writeFileSync(path.join(root, 'match'), face('serif'));
+	const matched = await freshRRuntimeVersion(environment);
+	expect(matched).not.toBe(changed);
+	expect(matched).toBe(rRuntimeVersion(environment, true));
+	writeFileSync(
+		path.join(configuration, 'override.conf'),
+		'<fontconfig>new configuration</fontconfig>'
+	);
+	const configured = await freshRRuntimeVersion(environment);
+	expect(configured).not.toBe(matched);
+	expect(configured).toBe(rRuntimeVersion(environment, true));
+	writeFileSync(path.join(root, 'inventory'), '');
+	expect(await freshRRuntimeVersion(environment)).toContain('fontconfig-unverified-v1:');
 	rmSync(path.join(bin, 'fc-list'));
 	const unavailable = await freshRRuntimeVersion(environment);
 	expect(unavailable).toContain('fontconfig-unverified-v1:');
 	expect(unavailable).toBe(rRuntimeVersion(environment, true));
+});
+
+test('an early R failure is observed while font commands are still running', async () => {
+	const { bin, environment } = fixture();
+	writeFileSync(path.join(bin, 'Rscript'), '#!/bin/sh\nexit 17\n', { mode: 0o755 });
+	writeFileSync(path.join(bin, 'fc-list'), '#!/bin/sh\n/bin/sleep 0.05\nexit 1\n', {
+		mode: 0o755
+	});
+	await expect(freshRRuntimeVersion(environment)).rejects.toThrow('R Markdown previews require R');
 });
