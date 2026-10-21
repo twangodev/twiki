@@ -5,6 +5,7 @@ import {
 	mkdirSync,
 	mkdtempSync,
 	readFileSync,
+	readdirSync,
 	statSync,
 	rmSync,
 	symlinkSync,
@@ -84,7 +85,16 @@ describe('course file discovery', () => {
 			git('init');
 			git('add', '.');
 			writeFileSync(path.join(course, 'untracked.java'), 'excluded');
-			await buildCourseFiles(site, new Set(['test-course/README']));
+			const emitted = await buildCourseFiles(site, new Set(['test-course/README']));
+			const actual = () =>
+				readdirSync(path.join(site, 'build/generated/assets/_files'), {
+					recursive: true,
+					withFileTypes: true
+				})
+					.filter((entry) => entry.isFile())
+					.map((entry) => path.join(entry.parentPath, entry.name))
+					.sort();
+			expect([...emitted].sort()).toEqual(actual());
 			expect(
 				JSON.parse(
 					readFileSync(path.join(site, 'build/generated/cache/history-current.json'), 'utf8')
@@ -109,11 +119,12 @@ describe('course file discovery', () => {
 			);
 			expect(files.find((file) => file.path === 'binary.dat')?.kind).toBe('binary');
 			const unchanged = statSync(path.join(output, html.download!));
-			await buildCourseFiles(
+			const reused = await buildCourseFiles(
 				site,
 				new Set(['test-course/README']),
 				new Set([path.join(repo, 'content/index.md')])
 			);
+			expect([...reused].sort()).toEqual(actual());
 			expect(statSync(path.join(output, html.download!)).ino).toBe(unchanged.ino);
 			expect(statSync(path.join(output, html.download!)).mtimeMs).toBe(unchanged.mtimeMs);
 			rmSync(path.join(output, html.download!));

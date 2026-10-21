@@ -252,10 +252,11 @@ export async function buildCourseFiles(
 	}
 	mkdirSync(path.join(siteDir, 'src/lib/generated'), { recursive: true });
 	writeChanged(path.join(siteDir, 'src/lib/generated/file-entries.json'), JSON.stringify(entries));
-	buildFileIcons(
+	for (const file of buildFileIcons(
 		siteDir,
 		[...courses.values()].flatMap((files) => files.map((file) => file.path))
-	);
+	))
+		wanted.add(file);
 	for (const course of active) {
 		const fingerprint = fingerprints.get(course);
 		if (fingerprint)
@@ -287,4 +288,5 @@ export async function buildCourseFiles(
 	console.log(
 		`files: ${count} tracked files across ${active.size} changed courses (${courses.size - active.size} reused)`
 	);
+	return wanted;
 }

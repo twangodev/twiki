@@ -81,13 +81,12 @@ export function buildFileIcons(siteDir: string, files: string[]) {
 	}
 	copyChanged(path.join(packageDir, 'LICENSE'), path.join(output, 'LICENSE.txt'));
 	writeChanged(path.join(moduleDir, 'file-icons.json'), JSON.stringify(theme));
-	pruneOutputs(
-		output,
-		new Set(
-			[...used]
-				.map((icon) => path.join(output, `${icon}.svg`))
-				.concat(path.join(output, 'LICENSE.txt'))
-		)
+	const wanted = new Set(
+		[...used]
+			.map((icon) => path.join(output, `${icon}.svg`))
+			.concat(path.join(output, 'LICENSE.txt'))
 	);
+	pruneOutputs(output, wanted);
 	console.log(`icons: ${used.size} local file and folder icons`);
+	return wanted;
 }

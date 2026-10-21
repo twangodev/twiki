@@ -20,6 +20,7 @@ import {
 import { pruneOutputs, writeChanged } from './lib/output';
 import { writeTextExports } from './lib/text-exports';
 import { buildCourseFiles } from './lib/course-files';
+import { assetSources } from './lib/asset-sources';
 import { addNotebookNavigation } from '../src/lib/notebook-nav';
 import type { CourseFile } from '../src/lib/files';
 import { runtimeDataAssets, runtimeDataModuleSource } from './lib/runtime-data-modules';
@@ -51,7 +52,7 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	}
 
 	const manifest = getManifest();
-	await buildCourseFiles(
+	const courseOutputs = await buildCourseFiles(
 		SITE_DIR,
 		new Set(Object.keys(manifest.pages)),
 		changedInputs,
@@ -92,28 +93,17 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 		return htmlAssetSet.has(rel) ? `${rel}.html` : rel;
 	}
 
-	function* walk(dir: string): Generator<string> {
-		for (const entry of readdirSync(dir, { withFileTypes: true })) {
-			const p = path.join(dir, entry.name);
-			if (entry.isDirectory()) yield* walk(p);
-			else yield p;
-		}
-	}
-
 	let copied = 0;
 	let kept = 0;
 	let oversize = false;
 	const wanted = new Set<string>(Object.values(runtimeDataAssets));
 
-	const sources = [
-		...[...walk(srcRoot)]
-			.filter((src) => !path.relative(srcRoot, src).startsWith('_files' + path.sep))
-			.map((src) => ({ src, rel: path.relative(srcRoot, src) })),
-		...[...walk(courseFilesDirectory(SITE_DIR))].map((src) => ({
-			src,
-			rel: path.join('_files', path.relative(courseFilesDirectory(SITE_DIR), src))
-		}))
-	];
+	const sources = assetSources(
+		srcRoot,
+		manifest.assets,
+		courseFilesDirectory(SITE_DIR),
+		courseOutputs
+	);
 	for (const { src, rel: relative } of sources) {
 		const rel = relative.split(path.sep).join('/');
 		const out = destRel(rel);
