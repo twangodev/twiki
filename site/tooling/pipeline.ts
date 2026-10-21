@@ -20,6 +20,7 @@ import {
 	writeProjectSiteConfig,
 	withSourceDiscovery
 } from './lib/project-config';
+import { freshInputFingerprint, minimumParallelOutputs } from './lib/input-validation';
 import type { OutputCheckpoint } from './lib/output-checkpoint';
 import type { ContentCompilation } from './compiler';
 
@@ -169,11 +170,31 @@ async function prepareSnapshot(
 			}
 			// A missed deletion can fail a candidate pass before validation. Retry
 			// only when fresh inputs changed; genuine errors remain fail-closed.
-			const current = await withSourceDiscovery(() => captureContentInputs(repo, key));
+			let current: ContentInputSnapshot | undefined;
+			let outputsCurrent: boolean | undefined;
+			if (
+				verifyOutputs &&
+				!failed &&
+				snapshot &&
+				checkpoint &&
+				checkpoint.fileCount >= minimumParallelOutputs
+			) {
+				const validation = freshInputFingerprint(repo, key);
+				try {
+					outputsCurrent = checkpoint.matchesCurrent();
+				} catch (error) {
+					await validation;
+					throw error;
+				}
+				if ((await validation) === inputs) current = snapshot;
+				else outputsCurrent = undefined;
+			}
+			// A mismatch or unavailable worker needs the full snapshot for reconciliation.
+			current ??= await withSourceDiscovery(() => captureContentInputs(repo, key));
 			if (current.fingerprint === inputs) {
 				// Deferred writes do not attest unchanged files: inspect the entire expected
 				// output tree and repair any mismatch before publishing this build.
-				if (verifyOutputs && (failed || !checkpoint?.matchesCurrent())) {
+				if (verifyOutputs && (failed || !(outputsCurrent ?? checkpoint?.matchesCurrent()))) {
 					verifyOutputs = false;
 					checkpoint = undefined;
 					pending = current.withDiscovery(() => run());

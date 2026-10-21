@@ -72,6 +72,11 @@ export class OutputCheckpoint {
 			throw new Error('Output checkpoint roots must not overlap');
 	}
 
+	/** Number of owned paths that a complete output scan must inspect. */
+	get fileCount() {
+		return this.leaves.size;
+	}
+
 	/** Unobserved effects on surviving hardlinks require a full capture before saving. */
 	get complete() {
 		return !this.unidentifiedLinks && this.unsettled.size === 0;

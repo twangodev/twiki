@@ -115,6 +115,26 @@ try {
   assert.equal(imageReads, 1, 'only fresh filesystem source validation should read the unchanged compiled asset');
   assert.equal(bodyReads, 0, 'validated unchanged bodies should survive a fresh worker restart without rereading bytes');
   assert.equal(documentReads, 0, 'validated unchanged document copies should survive a fresh worker restart without rereading bytes');
+  // Exercise the large-tree strategy without creating tens of thousands of fixture files.
+  const { OutputCheckpoint } = await import('./tooling/lib/output-checkpoint');
+  const descriptor = Object.getOwnPropertyDescriptor(OutputCheckpoint.prototype, 'fileCount');
+  Object.defineProperty(OutputCheckpoint.prototype, 'fileCount', { configurable: true, get: () => 32768 });
+  try {
+  reads = 0;
+  imageReads = 0;
+  fs.writeFileSync(note, read(note, 'utf8') + '\\nSecond edit with compiler metadata');
+  await prepareContent(false, new Set([note]), true);
+  assert.equal(reads, 0, 'fresh source verification should run in the disposable worker');
+  assert.equal(imageReads, 0, 'unchanged assets should only be read by the disposable validator');
+  const validation = await import('./tooling/lib/input-validation');
+  const unavailable = spyOn(validation, 'freshInputFingerprint').mockResolvedValue(undefined);
+  try {
+    reads = 0;
+    fs.writeFileSync(note, read(note, 'utf8') + '\\nEdit with unavailable validation worker');
+    await prepareContent(false, new Set([note]), true);
+    assert.equal(reads, 1, 'failed worker validation must fall back to fresh in-process source reads');
+  } finally { unavailable.mockRestore(); }
+  } finally { Object.defineProperty(OutputCheckpoint.prototype, 'fileCount', descriptor); }
 } finally { spy.mockRestore(); }
 // A deferred pass must repair missing generated blobs from an otherwise reused course.
 const unchangedIndex = 'build/generated/assets/_files/index/sp99-other.json';

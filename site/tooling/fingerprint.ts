@@ -24,6 +24,7 @@ export const stages = {
 			'tooling/pipeline.ts',
 			'tooling/lib/history-worker.ts',
 			'tooling/dev-content-worker.ts',
+			'tooling/dev-input-worker.ts',
 			'tooling/dev-rmd-worker.ts'
 		],
 		assets: [...socialAssets, ...rAssets]

@@ -74,6 +74,10 @@ test('assets and subprocesses invalidate only their declared stages', async () =
 		const history = await fingerprint('history');
 		write('tooling/lib/git-revisions.ts', 'export const value = 2;');
 		expect(await fingerprint('history')).not.toBe(history);
+		const pipeline = await fingerprint('pipeline');
+		write('tooling/dev-input-worker.ts', 'export const value = 2;');
+		expect(await fingerprint('pipeline')).not.toBe(pipeline);
+		expect(await fingerprint('parser')).toBe(parser);
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}
