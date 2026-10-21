@@ -73,6 +73,10 @@ assert.equal(JSON.parse(fs.readFileSync('build/generated/pages/sp99-cs101/notes/
 const saved = JSON.parse(fs.readFileSync('build/generated/dev-state.json', 'utf8'));
 assert.equal(saved.inputs, (await contentInputFingerprint(${JSON.stringify(fixture.repo)}, process.env.TWIKI_PREPARED_CONTENT_KEY)));
 assert.equal(saved.outputs, contentOutputFingerprint(process.cwd()));
+// The structural passes rendered new bodies. Validate their bytes before
+// testing whether a later worker can carry those observations across restart.
+await prepareContent(false, undefined, true);
+assert(JSON.parse(fs.readFileSync('build/generated/dev-state.json', 'utf8')).bodies.files.length > 0);
 // A fresh worker must restore course state only after validating the saved snapshot.
 const restarted = execFileSync('bun', ['-e', ${JSON.stringify(`
 import { strict as assert } from 'node:assert';
@@ -80,13 +84,17 @@ import { spyOn } from 'bun:test';
 import * as fs from 'node:fs';
 import { prepareContent } from './tooling/pipeline';
 const read = fs.readFileSync;
+const index = JSON.parse(read('build/generated/cache/content-current-full.json', 'utf8'));
+const body = process.cwd() + '/build/generated/cache/' + index.pages['sp99-other/note.md'].body;
 const unchanged = ${JSON.stringify(path.join(fixture.repo, 'content/sp99-other/attachment.bin'))};
 const image = ${JSON.stringify(path.join(fixture.repo, 'content/sp99-other/image.svg'))};
 let reads = 0;
 let imageReads = 0;
+let bodyReads = 0;
 const spy = spyOn(fs, 'readFileSync').mockImplementation((file, ...args) => {
   if (String(file) === unchanged) reads++;
   if (String(file) === image) imageReads++;
+  if (String(file) === body) bodyReads++;
   return read(file, ...args);
 });
 const note = ${JSON.stringify(path.join(fixture.course, 'notes/public.md'))};
@@ -94,10 +102,13 @@ try {
   await prepareContent(true, undefined, true);
   reads = 0;
   imageReads = 0;
-  fs.writeFileSync(note, '# First edit after restart');
+  bodyReads = 0;
+  // Preserve catalog metadata so this exercises an ordinary body edit.
+  fs.writeFileSync(note, read(note, 'utf8') + '\\nFirst edit after restart');
   await prepareContent(false, new Set([note]), true);
   assert.equal(reads, 1, 'only fresh filesystem source validation should read the unchanged attachment');
   assert.equal(imageReads, 1, 'only fresh filesystem source validation should read the unchanged compiled asset');
+  assert.equal(bodyReads, 0, 'validated unchanged bodies should survive a fresh worker restart without rereading bytes');
 } finally { spy.mockRestore(); }
 // An omitted watcher event must still invalidate restored course metadata.
 fs.writeFileSync(unchanged, 'Unreported attachment edit');

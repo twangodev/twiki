@@ -3,6 +3,7 @@ import path from 'node:path';
 import { stageFingerprint } from './fingerprint';
 import { trackOutputs, writeChanged } from './lib/output';
 import { restoreDevelopmentOutputs } from './lib/dev-output-state';
+import { captureContentBodyValidation, restoreContentBodyValidation } from './lib/content-cache';
 import {
 	captureContentInputs,
 	captureContentOutputs,
@@ -57,6 +58,8 @@ async function prepareSnapshot(
 		development ? 'request-time-rmd-v1' : undefined
 	]);
 	const marker = path.resolve('build/generated/dev-state.json');
+	const cache = path.resolve('build/generated/cache');
+	const edition = process.env.VITE_PUBLIC_EDITION === 'true' ? 'public' : 'full';
 	const started = performance.now();
 	// Hints can seed an already-required rebuild; accepting saved output always
 	// starts from a full capture, and every build still finishes with a fresh one.
@@ -73,6 +76,7 @@ async function prepareSnapshot(
 			const outputs = saved.inputs === inputs ? captureContentOutputs(site) : undefined;
 			if (snapshot && outputs && saved.outputs === outputs.fingerprint) {
 				snapshot.withDiscovery(() => restoreDevelopmentOutputs(site, project, outputs));
+				restoreContentBodyValidation(cache, edition, saved.bodies);
 				validatedInputs = snapshot;
 				process.env.TWIKI_PREPARED_CONTENT_KEY = key;
 				console.log(
@@ -130,7 +134,14 @@ async function prepareSnapshot(
 			if (current.fingerprint === inputs) {
 				if (failed) throw failure;
 				validatedInputs = current;
-				writeChanged(marker, JSON.stringify({ inputs, outputs: contentOutputFingerprint(site) }));
+				writeChanged(
+					marker,
+					JSON.stringify({
+						inputs,
+						outputs: contentOutputFingerprint(site),
+						bodies: captureContentBodyValidation(cache, edition)
+					})
+				);
 				break;
 			}
 			inputs = current.fingerprint;

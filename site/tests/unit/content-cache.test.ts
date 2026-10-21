@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
 	contentHash,
+	captureContentBodyValidation,
+	restoreContentBodyValidation,
 	emitContentDocument,
 	readContentBody,
 	readContentBodies,
@@ -98,6 +100,63 @@ test('first development validation rereads bodies on demand and rejects later co
 		expect(reader()).toEqual(body);
 		writeFileSync(path.join(cache, relative), JSON.stringify({ ...body, html: 'corrupt' }));
 		expect(() => reader()).toThrow('changed after validation');
+	} finally {
+		readContentBodies(cache, 'full', [], true);
+		rmSync(cache, { recursive: true, force: true });
+	}
+});
+
+test('saved body validation skips unchanged bytes but cannot bless later edits or another edition', () => {
+	const cache = mkdtempSync(path.join(tmpdir(), 'twiki-restored-body-'));
+	const body = { html: '<p>private body payload</p>', markdown: 'private body payload' };
+	try {
+		const relative = writeContentObject(cache, 'full', 'bodies', JSON.stringify(body));
+		const file = path.join(cache, relative);
+		readContentBodies(cache, 'full', [relative], true);
+		const saved = JSON.parse(JSON.stringify(captureContentBodyValidation(cache, 'full')));
+		expect(JSON.stringify(saved)).not.toContain('private body payload');
+		readContentBodies(cache, 'full', [], true);
+		restoreContentBodyValidation(cache, 'full', saved);
+		const read = spyOn(fs, 'readFileSync');
+		try {
+			const readers = readContentBodies(cache, 'full', [relative], true);
+			expect(readers.has(relative)).toBe(true);
+			expect(read.mock.calls).toHaveLength(0);
+			expect(readers.get(relative)?.()).toEqual(body);
+			expect(read.mock.calls).toHaveLength(1);
+		} finally {
+			read.mockRestore();
+		}
+		const observed = fs.statSync(file);
+		writeFileSync(file, JSON.stringify({ ...body, html: 'corrupted body' }));
+		fs.utimesSync(file, observed.atime, observed.mtime);
+		// Capturing after mutation must retain the earlier validated observation.
+		const stale = captureContentBodyValidation(cache, 'full');
+		readContentBodies(cache, 'full', [], true);
+		restoreContentBodyValidation(cache, 'full', stale);
+		expect(readContentBodies(cache, 'full', [relative], true).has(relative)).toBe(false);
+		rmSync(file);
+		restoreContentBodyValidation(cache, 'full', saved);
+		expect(readContentBodies(cache, 'full', [relative], true).has(relative)).toBe(false);
+		const elsewhere = path.join(cache, 'elsewhere.json');
+		writeFileSync(elsewhere, JSON.stringify(body));
+		symlinkSync(elsewhere, file);
+		restoreContentBodyValidation(cache, 'full', saved);
+		expect(readContentBodies(cache, 'full', [relative], true).has(relative)).toBe(false);
+		readContentBodies(cache, 'full', [], true);
+		restoreContentBodyValidation(cache, 'public', saved);
+		expect(captureContentBodyValidation(cache, 'full').files).toHaveLength(0);
+		for (const invalid of [
+			null,
+			{},
+			{ version: 2, files: saved.files },
+			{
+				version: 1,
+				files: [['../escape', 'identity'], [relative, 123], null]
+			}
+		])
+			restoreContentBodyValidation(cache, 'full', invalid);
+		expect(captureContentBodyValidation(cache, 'full').files).toHaveLength(0);
 	} finally {
 		readContentBodies(cache, 'full', [], true);
 		rmSync(cache, { recursive: true, force: true });

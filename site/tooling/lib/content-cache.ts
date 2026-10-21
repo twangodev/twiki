@@ -165,6 +165,38 @@ export function readContentBody(cache: string, relative: string, edition: Conten
 // Keep only validation metadata for the current development selection, never HTML.
 const validatedBodies = new Map<string, string>();
 
+/** Save only prior validation observations, never freshly stat unvalidated bytes. */
+export function captureContentBodyValidation(cache: string, edition: ContentEdition) {
+	const files: [string, string][] = [];
+	for (const [file, stamp] of validatedBodies) {
+		const relative = path.relative(cache, file).split(path.sep).join('/');
+		if (ownedObject(relative, edition, 'bodies')) files.push([relative, stamp]);
+	}
+	return { version: 1, files };
+}
+
+/** Called only after saved engine, source and output identities have been validated. */
+export function restoreContentBodyValidation(
+	cache: string,
+	edition: ContentEdition,
+	saved: unknown
+) {
+	if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 1) return;
+	if (!('files' in saved) || !Array.isArray(saved.files)) return;
+	for (const entry of saved.files) {
+		if (
+			!Array.isArray(entry) ||
+			entry.length !== 2 ||
+			!ownedObject(entry[0], edition, 'bodies') ||
+			typeof entry[1] !== 'string'
+		)
+			continue;
+		// readContentBodies still compares this observation with a fresh owned
+		// file identity before skipping byte validation. Lazy reads recheck hashes.
+		validatedBodies.set(path.resolve(cache, entry[0]), entry[1]);
+	}
+}
+
 function ownedFileStamp(file: string) {
 	try {
 		const info = lstatSync(file, { bigint: true, throwIfNoEntry: false });
