@@ -165,6 +165,14 @@ function ownedFileStamp(file: string) {
 	}
 }
 
+function bodyReader(cache: string, relative: string, edition: ContentEdition) {
+	return () => {
+		const body = readContentBody(cache, relative, edition);
+		if (!body) throw new Error(`Content body changed after validation: ${relative}`);
+		return body;
+	};
+}
+
 /** Validate body references eagerly; read their bytes only when a document needs rebuilding. */
 export function readContentBodies(
 	cache: string,
@@ -180,17 +188,13 @@ export function readContentBodies(
 		selected.add(file);
 		const stamp = development ? ownedFileStamp(file) : undefined;
 		if (stamp && validatedBodies.get(file) === stamp) {
-			readers.set(relative, () => {
-				const body = readContentBody(cache, relative, edition);
-				if (!body) throw new Error(`Content body changed after validation: ${relative}`);
-				return body;
-			});
+			readers.set(relative, bodyReader(cache, relative, edition));
 			continue;
 		}
 		if (development) validatedBodies.delete(file);
 		const body = readContentBody(cache, relative, edition);
 		if (!body) continue;
-		readers.set(relative, () => body);
+		readers.set(relative, development ? bodyReader(cache, relative, edition) : () => body);
 		if (stamp) validatedBodies.set(file, stamp);
 	}
 	if (development)

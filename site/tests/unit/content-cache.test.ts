@@ -89,6 +89,21 @@ test('body references validate changed files, reject symlinks and release obsole
 	}
 });
 
+test('first development validation rereads bodies on demand and rejects later corruption', () => {
+	const cache = mkdtempSync(path.join(tmpdir(), 'twiki-first-body-reader-'));
+	try {
+		const body = { html: '<p>original</p>', markdown: 'original' };
+		const relative = writeContentObject(cache, 'full', 'bodies', JSON.stringify(body));
+		const reader = readContentBodies(cache, 'full', [relative], true).get(relative)!;
+		expect(reader()).toEqual(body);
+		writeFileSync(path.join(cache, relative), JSON.stringify({ ...body, html: 'corrupt' }));
+		expect(() => reader()).toThrow('changed after validation');
+	} finally {
+		readContentBodies(cache, 'full', [], true);
+		rmSync(cache, { recursive: true, force: true });
+	}
+});
+
 test('document emission skips unchanged bytes and repairs changed or missing cache and output files', () => {
 	const cache = mkdtempSync(path.join(tmpdir(), 'twiki-doc-emitter-'));
 	const out = path.join(cache, 'pages/note.json');
