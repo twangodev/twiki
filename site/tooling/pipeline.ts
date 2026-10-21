@@ -123,7 +123,7 @@ async function prepareSnapshot(
 	let checkpoint = previous?.checkpoint;
 	// Only existing non-asset files can defer unchanged asset emission.
 	// The fresh source capture below must still agree before it can be accepted.
-	let verifyOutputs = Boolean(
+	let deferEmission = Boolean(
 		refreshed &&
 		previous?.compilation &&
 		checkpoint?.complete &&
@@ -142,7 +142,7 @@ async function prepareSnapshot(
 		compilation = undefined;
 		const result = await runPipeline(inputs, development, changed, outputs, prior, deferred);
 		compilation = result.compilation;
-		verifyOutputs = result.deferred;
+		deferEmission = result.deferred;
 		return result.changed;
 	};
 	const initial = () =>
@@ -150,18 +150,15 @@ async function prepareSnapshot(
 			development && process.env.TWIKI_PREPARED_CONTENT_KEY !== key ? undefined : changedInputs,
 			checkpoint,
 			previous?.compilation,
-			verifyOutputs
+			deferEmission
 		);
 	const build = snapshot ? snapshot.withDiscovery(initial) : initial();
 	builds.set(key, build);
-	const initialValidation =
-		verifyOutputs && snapshot && checkpoint && checkpoint.fileCount >= minimumParallelOutputs
-			? freshInputFingerprint(
-					repo,
-					key,
-					build.then(() => verifyOutputs)
-				)
-			: undefined;
+	const canValidateInParallel = () =>
+		Boolean(snapshot && checkpoint?.complete && checkpoint.fileCount >= minimumParallelOutputs);
+	const initialValidation = canValidateInParallel()
+		? freshInputFingerprint(repo, key, build.then(canValidateInParallel))
+		: undefined;
 	try {
 		let pending = build;
 		while (true) {
@@ -173,22 +170,15 @@ async function prepareSnapshot(
 				failed = true;
 				failure = error;
 			}
-			if (pending === build && (failed || !verifyOutputs)) await initialValidation;
+			if (pending === build && (failed || !canValidateInParallel())) await initialValidation;
 			if (!development) {
 				if (failed) throw failure;
 				break;
 			}
-			// A missed deletion can fail a candidate pass before validation. Retry
-			// only when fresh inputs changed; genuine errors remain fail-closed.
+			// Fresh inputs distinguish missed source events from genuine build failures.
 			let current: ContentInputSnapshot | undefined;
 			let outputsCurrent: boolean | undefined;
-			if (
-				verifyOutputs &&
-				!failed &&
-				snapshot &&
-				checkpoint &&
-				checkpoint.fileCount >= minimumParallelOutputs
-			) {
+			if (!failed && snapshot && checkpoint && canValidateInParallel()) {
 				const validation =
 					pending === build && initialValidation
 						? initialValidation
@@ -205,10 +195,13 @@ async function prepareSnapshot(
 			// A mismatch or unavailable worker needs the full snapshot for reconciliation.
 			current ??= await withSourceDiscovery(() => captureContentInputs(repo, key));
 			if (current.fingerprint === inputs) {
-				// Deferred writes do not attest unchanged files: inspect the entire expected
-				// output tree and repair any mismatch before publishing this build.
-				if (verifyOutputs && (failed || !(outputsCurrent ?? checkpoint?.matchesCurrent()))) {
-					verifyOutputs = false;
+				// Cached courses can leave outputs untouched even during full emission.
+				// Verify the expected tree before publishing, then reconcile any mismatch.
+				if (
+					(failed && deferEmission) ||
+					(!failed && checkpoint && !(outputsCurrent ?? checkpoint.matchesCurrent()))
+				) {
+					deferEmission = false;
 					checkpoint = undefined;
 					pending = current.withDiscovery(() => run());
 					builds.set(key, pending);
@@ -230,7 +223,7 @@ async function prepareSnapshot(
 				break;
 			}
 			inputs = current.fingerprint;
-			verifyOutputs = false;
+			deferEmission = false;
 			checkpoint = undefined;
 			pending = current.withDiscovery(() => run());
 			builds.set(key, pending);

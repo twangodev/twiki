@@ -317,6 +317,14 @@ for (const publicEdition of [false, true]) {
 				'notes/script.R',
 				'notes/data.csv'
 			]);
+			fixture.write('content/sp99-other/raw.txt', 'Untouched course raw bytes');
+			fixture.write('content/sp99-other/publish.yaml', 'include:\n  - raw.txt\n');
+			fixture.write(
+				'.gitmodules',
+				readFileSync(path.join(fixture.repo, '.gitmodules'), 'utf8') +
+					'\n[submodule "sp99-other"]\npath = content/sp99-other\n'
+			);
+			execFileSync('git', ['-C', fixture.repo, 'add', '.gitmodules', 'content/sp99-other']);
 			prepareSite(site);
 			const output = execFileSync(
 				'bun',
@@ -357,7 +365,7 @@ async function edit(label, expectedPasses, body = original) {
   for (const format of ['md', 'txt']) assert(fs.readFileSync(text('sp99-cs101/notes/public', format), 'utf8').includes(label));
   const saved = JSON.parse(fs.readFileSync('build/generated/dev-state.json', 'utf8'));
   assert.equal(saved.inputs, await contentInputFingerprint(${JSON.stringify(fixture.repo)}, process.env.TWIKI_PREPARED_CONTENT_KEY));
-  assert.equal(saved.outputs, contentOutputFingerprint(process.cwd()));
+  assert.equal(saved.outputs, contentOutputFingerprint(process.cwd()), label);
 }
 await edit('Ordinary prose edit', 1);
 fs.writeFileSync(download('notes/script.R'), 'corrupted generated raw download');
@@ -382,7 +390,7 @@ for (const name of ['worksheet.Rmd', 'script.R', 'data.csv']) {
 const beforeAssetChecks = checks;
 fs.writeFileSync(image, '<svg>reported source asset edit</svg>');
 await prepareContent(false, new Set([image]), true);
-assert.equal(checks, beforeAssetChecks, 'asset edits must retain full asset emission');
+assert(checks > beforeAssetChecks, 'full asset emission must verify untouched cached outputs');
 assert.equal(fs.readFileSync(path.join(staticRoot, 'sp99-cs101/notes/figure.svg'), 'utf8'), fs.readFileSync(image, 'utf8'));
 
 // Narrowed builds must repair omissions even though icon generation is deferred.
@@ -461,9 +469,13 @@ assert(grantedWorksheet.rmdPreview);
 assert.equal(grantedWorksheet.license.name, 'Updated fixture license');
 assert.equal(fs.readFileSync(download('notes/worksheet.Rmd'), 'utf8'), fs.readFileSync(path.join(${JSON.stringify(fixture.course)}, 'notes/worksheet.Rmd'), 'utf8'));
 assert.equal(files().find(file => file.path === 'notes/script.R').license.name, 'Updated fixture license');
+const otherIndex = JSON.parse(fs.readFileSync(path.join(courseFilesDirectory(process.cwd()), 'index/sp99-other.json'), 'utf8'));
+const otherBlob = path.join(staticRoot, otherIndex.find(file => file.path === 'raw.txt').download.slice(1));
+fs.writeFileSync(otherBlob, 'corrupted untouched-course download');
 const beforeChecks = checks;
-await edit('Catalog tag changes', 1, original.replace('tags: [practice]', 'tags: [practice, emission-test]'));
-assert.equal(checks, beforeChecks, 'full emission must not also scan all outputs through the deferred path');
+await edit('Catalog tag changes', 2, original.replace('tags: [practice]', 'tags: [practice, emission-test]'));
+assert(checks > beforeChecks, 'full emission must verify untouched cached outputs before publishing');
+assert.equal(fs.readFileSync(otherBlob, 'utf8'), 'Untouched course raw bytes');
 console.log('note emission and repair verified');
 `
 				],
