@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { getContext, onMount, tick } from 'svelte';
 	import { page } from '$app/state';
 	import { Spring, prefersReducedMotion } from 'svelte/motion';
 	import Maximize2 from '@lucide/svelte/icons/maximize-2';
@@ -8,6 +8,7 @@
 		addToVisited,
 		idForRoute,
 		loadGraph,
+		onGraphInvalidated,
 		localGraphConfig,
 		globalGraphConfig,
 		type GraphData
@@ -15,6 +16,9 @@
 	import GraphView from './GraphView.svelte';
 	import IconButton from '../ui/IconButton.svelte';
 
+	const getContentVersion = getContext<() => string>('twiki:content-version') ?? (() => 'local');
+	const contentVersion = $derived(getContentVersion());
+	let revision = $state(0);
 	let data = $state<GraphData | null>(null);
 	let failed = $state(false);
 	let renderReady = $state(false);
@@ -76,8 +80,21 @@
 		updateWidth();
 		media.addEventListener('change', updateWidth);
 		window.addEventListener('resize', resize);
+		const unsubscribe = onGraphInvalidated(() => revision++);
+		return () => {
+			unsubscribe();
+			media.removeEventListener('change', updateWidth);
+			window.removeEventListener('resize', resize);
+		};
+	});
+	$effect(() => {
+		const version = contentVersion;
+		void revision;
 		let cancelled = false;
-		void Promise.all([loadGraph(), import('./render-graph')]).then(
+		data = null;
+		failed = false;
+		renderReady = false;
+		void Promise.all([loadGraph(fetch, version), import('./render-graph')]).then(
 			([graph]) => {
 				if (!cancelled) data = graph;
 			},
@@ -87,8 +104,6 @@
 		);
 		return () => {
 			cancelled = true;
-			media.removeEventListener('change', updateWidth);
-			window.removeEventListener('resize', resize);
 		};
 	});
 	$effect(() => {

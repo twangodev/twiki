@@ -16,18 +16,39 @@ export interface GraphData {
 	links: GraphLink[];
 }
 
-let graphPromise: Promise<GraphData> | undefined;
+let cached: { version: string; promise: Promise<GraphData> } | undefined;
+const invalidationListeners = new Set<() => void>();
 
-/** Fetch (once) and cache the sitewide graph. */
-export function loadGraph(fetcher: typeof fetch = fetch): Promise<GraphData> {
-	graphPromise ??= fetcher('/graph.json').then((res) => {
-		if (!res.ok) {
-			graphPromise = undefined; // allow retry on transient failure
-			throw new Error(`Failed to load /graph.json: ${res.status}`);
-		}
-		return res.json() as Promise<GraphData>;
-	});
-	return graphPromise;
+/** Share one request within a content version; failed requests may be retried. */
+export function loadGraph(fetcher: typeof fetch = fetch, version = 'local'): Promise<GraphData> {
+	if (cached?.version === version) return cached.promise;
+	const entry = {
+		version,
+		promise: Promise.resolve()
+			.then(() => fetcher('/graph.json'))
+			.then(async (res) => {
+				if (!res.ok) throw new Error(`Failed to load /graph.json: ${res.status}`);
+				return (await res.json()) as GraphData;
+			})
+			.catch((error) => {
+				if (cached === entry) cached = undefined;
+				throw error;
+			})
+	};
+	cached = entry;
+	return entry.promise;
+}
+
+export function invalidateGraph(): void {
+	cached = undefined;
+	for (const listener of invalidationListeners) listener();
+}
+
+export function onGraphInvalidated(listener: () => void): () => void {
+	invalidationListeners.add(listener);
+	return () => {
+		invalidationListeners.delete(listener);
+	};
 }
 
 // Node ordering affects the seeded force layout; keep it stable in graph-model.ts.

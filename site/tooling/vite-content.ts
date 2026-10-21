@@ -97,7 +97,13 @@ export function content(): Plugin {
 						server.ws.send({
 							type: 'custom',
 							event: 'wisconsin:content',
-							data: { recovered, layoutChanged }
+							data: {
+								recovered,
+								layoutChanged,
+								graphChanged: changed?.has(
+									path.resolve(server.config.root, 'build/generated/content-manifest.json')
+								)
+							}
 						});
 					}
 				} catch (error) {

@@ -6,6 +6,7 @@
 	import { invalidate, invalidateAll } from '$app/navigation';
 	import { ModeWatcher } from 'mode-watcher';
 	import { site } from '$lib/config';
+	import { invalidateGraph } from '$lib/components/graph/graph-data';
 	import DocShell from '$lib/components/doc/DocShell.svelte';
 	import type { LayoutData } from './$types';
 
@@ -17,6 +18,7 @@
 	const { children, data }: Props = $props();
 	const nav = $derived(data.nav ?? []);
 	setContext('wisconsin-file-icons', () => data.fileIcons);
+	setContext('twiki:content-version', () => `${data.edition}:${data.contentVersion}`);
 
 	onMount(() => {
 		if (dev) return;
@@ -28,11 +30,14 @@
 	if (import.meta.hot) {
 		const refreshContent = ({
 			recovered,
-			layoutChanged
+			layoutChanged,
+			graphChanged
 		}: {
 			recovered: boolean;
 			layoutChanged?: boolean;
+			graphChanged?: boolean;
 		}) => {
+			if (recovered || graphChanged !== false) invalidateGraph();
 			if (recovered) document.querySelector('vite-error-overlay')?.remove();
 			void (recovered || layoutChanged !== false ? invalidateAll() : invalidate('twiki:content'));
 		};

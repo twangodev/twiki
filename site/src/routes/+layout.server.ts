@@ -8,5 +8,10 @@ export const load: LayoutServerLoad = async ({ platform, url }) => {
 	if (!dev) void url.pathname;
 	const content = requestContent(platform);
 	const [nav, fileIcons] = await Promise.all([content.nav(), content.icons()]);
-	return { nav, fileIcons, edition: content.context.edition };
+	return {
+		nav,
+		fileIcons,
+		edition: content.context.edition,
+		contentVersion: `${content.context.snapshot}:${content.context.applicationVersion}`
+	};
 };

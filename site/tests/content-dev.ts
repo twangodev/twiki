@@ -255,7 +255,11 @@ try {
 		404
 	)
 		throw new Error('Public dev exposes history');
-	const page = await browser.newPage();
+	const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+	let graphRequests = 0;
+	page.on('request', (request) => {
+		if (new URL(request.url()).pathname === '/graph.json') graphRequests++;
+	});
 	page.setDefaultTimeout(5000);
 	page.on('pageerror', (error) => {
 		output += `\nBrowser error: ${error.message}\n`;
@@ -280,6 +284,15 @@ try {
 		return page.getByRole('dialog', { name: 'Note actions' }).isVisible();
 	}, 'client hydration');
 	await page.keyboard.press('Escape');
+	await until(
+		async () =>
+			(await page.locator('[aria-label="Knowledge graph"]').getAttribute('data-graph-ready')) ===
+			'true',
+		'initial graph'
+	);
+	const graph = page.locator('[aria-label="Knowledge graph"]');
+	const originalGraphNodes = Number(await graph.getAttribute('data-graph-nodes'));
+	const initialGraphRequests = graphRequests;
 	const transitions = await page.evaluate(
 		() => (window as Window & { contentTestTransitions: number }).contentTestTransitions
 	);
@@ -298,6 +311,27 @@ try {
 		)) !== transitions
 	)
 		throw new Error('Note navigation waited for a full-page view transition');
+	await until(
+		async () => Number(await graph.getAttribute('data-graph-nodes')) === originalGraphNodes,
+		'graph returns to initial note'
+	);
+	if (graphRequests !== initialGraphRequests)
+		throw new Error('Same-version navigation refetched the graph');
+	fixture.write(
+		'content/sp99-cs101/notes/public.md',
+		fixture.publicNote.replace('tags: [practice]', 'tags: [practice, graph-reload-probe]')
+	);
+	await until(
+		async () => Number(await graph.getAttribute('data-graph-nodes')) === originalGraphNodes + 1,
+		'graph refresh after tag edit'
+	);
+	if (graphRequests !== initialGraphRequests + 1)
+		throw new Error('Graph edit did not fetch exactly one fresh graph');
+	fixture.write('content/sp99-cs101/notes/public.md', fixture.publicNote);
+	await until(
+		async () => Number(await graph.getAttribute('data-graph-nodes')) === originalGraphNodes,
+		'graph restoration after tag edit'
+	);
 	const unchangedPath = path.join(
 		siteDirectory,
 		'build/generated/pages/sp99-cs101/notes/second.json'
