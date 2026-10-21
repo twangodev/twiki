@@ -35,7 +35,7 @@ export function orderedGraphElements(
 	}
 
 	const links: GraphLink[] = [];
-	const tags: string[] = [];
+	const tags = new Set<string>();
 	for (const [source, details] of data) {
 		for (const link of outgoingBySource.get(source) ?? []) {
 			links.push({ source: link.source, target: link.target });
@@ -45,7 +45,7 @@ export function orderedGraphElements(
 		const localTags = details.tags
 			.filter((tag) => !config.removeTags.includes(tag))
 			.map((tag) => `tags/${tag}`);
-		tags.push(...localTags.filter((tag) => !tags.includes(tag)));
+		for (const tag of localTags) tags.add(tag);
 		for (const tag of localTags) links.push({ source, target: tag });
 	}
 
