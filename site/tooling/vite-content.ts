@@ -100,9 +100,7 @@ export function content(): Plugin {
 							data: {
 								recovered,
 								layoutChanged,
-								graphChanged: changed?.has(
-									path.resolve(server.config.root, 'build/generated/content-manifest.json')
-								)
+								graphChanged: changed?.has(path.join(generated, 'graph-version.json'))
 							}
 						});
 					}

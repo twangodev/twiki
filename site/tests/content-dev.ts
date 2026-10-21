@@ -340,6 +340,7 @@ try {
 	await page.evaluate(() => {
 		(window as unknown as { contentTestMarker: string }).contentTestMarker = 'preserved';
 	});
+	const graphRequestsBeforeBodyEdit = graphRequests;
 	const editStart = performance.now();
 	const editedData = contentData(page, '/sp99-cs101/notes/public');
 	// Editors commonly save a temporary file, then replace the original atomically.
@@ -360,6 +361,8 @@ try {
 		async () => (await page.getByRole('button', { name: 'Copy code', exact: true }).count()) === 1,
 		'updated code block enhancement'
 	);
+	if (graphRequests !== graphRequestsBeforeBodyEdit)
+		throw new Error('Body-only edit refetched an unchanged graph');
 	console.log(`Incremental edit visible in ${Math.round(performance.now() - editStart)}ms`);
 	if (statSync(unchangedPath).mtimeMs !== unchangedStat.mtimeMs)
 		throw new Error('Unrelated page was rewritten');

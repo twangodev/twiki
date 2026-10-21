@@ -158,6 +158,33 @@ test('validated compiler metadata avoids disk index reads, stays immutable and r
 	}
 }, 20_000);
 
+test('dev graph versions track graph dependencies rather than ordinary body metadata', async () => {
+	const f = fixture();
+	const options = { siteDir: f.site, repoRoot: f.root, publicEdition: false, development: true };
+	const versionFile = path.join(f.site, 'src/lib/generated/graph-version.json');
+	const version = () => readFileSync(versionFile, 'utf8');
+	try {
+		let previous = await compileContent(options);
+		const initial = version();
+		f.write('source.md', '# Source\n\nA longer body with the same links.\n\n[[target]]\n');
+		previous = await compileContent({ ...options, previous });
+		expect(version()).toBe(initial);
+		f.write('source.md', '# New title\n\n[[target]]\n');
+		previous = await compileContent({ ...options, previous });
+		const renamed = version();
+		expect(renamed).not.toBe(initial);
+		f.write('source.md', '# New title\n\n[[unrelated]]\n');
+		previous = await compileContent({ ...options, previous });
+		const relinked = version();
+		expect(relinked).not.toBe(renamed);
+		rmSync(versionFile);
+		await compileContent({ ...options, previous });
+		expect(version()).toBe(relinked);
+	} finally {
+		f.cleanup();
+	}
+}, 20_000);
+
 test('code-free notes skip Shiki and dev code edits reuse the highlighter across builds', () => {
 	const f = fixture();
 	try {

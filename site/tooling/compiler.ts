@@ -1354,6 +1354,13 @@ export async function compileContent(
 					.map((out) => ({ source: simplifySlug(p.slug), target: out }))
 			)
 		};
+		// Body metadata also changes the manifest. Invalidate the dev graph only
+		// when its actual nodes or links change, preserving the existing canvas.
+		if (options.development)
+			writeChanged(
+				path.join(SITE_DIR, 'src/lib/generated/graph-version.json'),
+				JSON.stringify(contentHash(JSON.stringify(graph)))
+			);
 		const manifest: ContentManifest = {
 			generatedAt: new Date().toISOString(),
 			counts: {
