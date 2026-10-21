@@ -266,6 +266,14 @@ try {
 	)
 		throw new Error('Public dev exposes history');
 	const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+	let fullReloads = 0;
+	page.on('websocket', (socket) => {
+		socket.on('framereceived', ({ payload }) => {
+			try {
+				if (JSON.parse(String(payload)).type === 'full-reload') fullReloads++;
+			} catch { /* Ignore non-JSON frames. */ }
+		});
+	});
 	let graphRequests = 0;
 	page.on('request', (request) => {
 		if (new URL(request.url()).pathname === '/graph.json') graphRequests++;
@@ -301,6 +309,17 @@ try {
 		'initial graph'
 	);
 	const graph = page.locator('[aria-label="Knowledge graph"]');
+	const reloadsBeforeAssetEdit = fullReloads;
+	fixture.write(
+		'content/sp99-cs101/notes/figure.svg',
+		'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="8" fill="red"/></svg>'
+	);
+	await until(async () => fullReloads > reloadsBeforeAssetEdit, 'public asset full reload');
+	await until(
+		async () => (await page.locator('article').innerText()).includes('publicsearchcanary') &&
+			(await graph.getAttribute('data-graph-ready')) === 'true',
+		'public asset reload completion'
+	);
 	const originalGraphNodes = Number(await graph.getAttribute('data-graph-nodes'));
 	const initialGraphRequests = graphRequests;
 	const transitions = await page.evaluate(

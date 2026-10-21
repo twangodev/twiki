@@ -7,6 +7,7 @@ import { watchContentGitDirectory } from './lib/dev-git-state';
 import { rebuildQueue, retryEarlyFailure } from './lib/rebuild-queue';
 import { resolveRuntimeDataImport } from './lib/runtime-data-modules';
 import { resolveProject, projectSourceVisible } from './lib/project-config';
+import { compiledAssetsDirectory, courseFilesDirectory } from './lib/edition-paths.js';
 
 export function content(): Plugin {
 	let stopRmd: (() => void) | undefined;
@@ -90,10 +91,11 @@ export function content(): Plugin {
 								await environment.reloadModule(module);
 						}
 					}
-					const assetRoot = path.resolve(server.config.root, 'build/generated/assets') + path.sep;
+					const assetRoot = compiledAssetsDirectory(server.config.root) + path.sep;
+					const filesRoot = courseFilesDirectory(server.config.root) + path.sep;
 					const changedAsset = [...(changed ?? [])].some(
 						(file) =>
-							file.startsWith(assetRoot) && !file.startsWith(assetRoot + '_files' + path.sep)
+							file.startsWith(assetRoot) && !file.startsWith(filesRoot)
 					);
 					// Browsers cache image/PDF URLs independently of SvelteKit's page data.
 					if (changedAsset) server.ws.send({ type: 'full-reload' });
