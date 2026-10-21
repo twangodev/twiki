@@ -68,7 +68,7 @@ import { compiledAssetsDirectory } from './lib/edition-paths.js';
 import { resolveProject, discoverSourceFiles, declaredContentCourses } from './lib/project-config';
 import {
 	contentHash,
-	readContentBody,
+	readContentBodies,
 	readContentIndex,
 	emitContentDocument,
 	transclusionClosure,
@@ -1078,13 +1078,24 @@ export async function compileContent(
 			])
 		);
 		const sameContext = previousIndex?.context === context;
-		const bodies = new Map<string, ContentBody>();
+		const bodies = new Map<string, () => ContentBody>();
+		const cachedBodies = readContentBodies(
+			CACHE_DIR,
+			edition,
+			sameContext
+				? pages.flatMap((page) => {
+						const body = currentRecords[page.rel].body;
+						return !changedSlugs.has(page.slug) && body ? [body] : [];
+					})
+				: [],
+			options.development
+		);
 		const renderDirty = new Set(changedSlugs);
 		for (const page of pages) {
 			const saved = currentRecords[page.rel];
 			const body =
 				sameContext && !changedSlugs.has(page.slug) && saved.body
-					? readContentBody(CACHE_DIR, saved.body, edition)
+					? cachedBodies.get(saved.body)
 					: undefined;
 			if (body) bodies.set(page.rel, body);
 			else renderDirty.add(page.slug);
@@ -1212,14 +1223,18 @@ export async function compileContent(
 				});
 
 			const record = currentRecords[page.rel];
-			let body = bodies.get(page.rel);
 			if (renderDirty.has(page.slug)) {
 				// Apply after cached parses and transclusions have been resolved.
 				ofmCheckboxes()(page.tree);
-				body = { html: toHtml(page.tree, { allowDangerousHtml: true }), markdown: page.markdown };
+				const body = {
+					html: toHtml(page.tree, { allowDangerousHtml: true }),
+					markdown: page.markdown
+				};
+				bodies.set(page.rel, () => body);
 				record.body = writeContentObject(CACHE_DIR, edition, 'bodies', JSON.stringify(body));
 			}
-			if (!body || !record.body) throw new Error(`Missing resolved content body: ${page.rel}`);
+			const readBody = bodies.get(page.rel);
+			if (!readBody || !record.body) throw new Error(`Missing resolved content body: ${page.rel}`);
 			const meta = {
 				author: contentAuthor(page.frontmatter.author),
 				license: licenseFor(page.rel),
@@ -1252,13 +1267,16 @@ export async function compileContent(
 				record,
 				documentKey,
 				outPath,
-				() => ({
-					...meta,
-					toc: page.toc,
-					backlinks: pageBacklinks,
-					html: body.html,
-					markdown: body.markdown
-				}),
+				() => {
+					const body = readBody();
+					return {
+						...meta,
+						toc: page.toc,
+						backlinks: pageBacklinks,
+						html: body.html,
+						markdown: body.markdown
+					};
+				},
 				options.development
 			);
 			checkSize(outPath);

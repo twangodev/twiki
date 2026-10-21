@@ -1,7 +1,7 @@
 import { expect, test, spyOn } from 'bun:test';
 import { textExportUrl } from '../../src/lib/text-exports';
 
-import fs from 'node:fs';
+import * as fs from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { writeTextExports } from '../../tooling/lib/text-exports';

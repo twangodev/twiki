@@ -152,6 +152,53 @@ export function readContentBody(cache: string, relative: string, edition: Conten
 	}
 }
 
+// Keep only validation metadata for the current development selection, never HTML.
+const validatedBodies = new Map<string, string>();
+
+function ownedFileStamp(file: string) {
+	try {
+		const info = lstatSync(file, { bigint: true, throwIfNoEntry: false });
+		if (!info?.isFile() || realpathSync(file) !== file) return;
+		return [info.dev, info.ino, info.mode, info.size, info.mtimeNs, info.ctimeNs].join(':');
+	} catch {
+		return;
+	}
+}
+
+/** Validate body references eagerly; read their bytes only when a document needs rebuilding. */
+export function readContentBodies(
+	cache: string,
+	edition: ContentEdition,
+	relatives: Iterable<string>,
+	development = false
+) {
+	const readers = new Map<string, () => ContentBody>();
+	const selected = new Set<string>();
+	for (const relative of new Set(relatives)) {
+		if (!ownedObject(relative, edition, 'bodies')) continue;
+		const file = path.resolve(cache, relative);
+		selected.add(file);
+		const stamp = development ? ownedFileStamp(file) : undefined;
+		if (stamp && validatedBodies.get(file) === stamp) {
+			readers.set(relative, () => {
+				const body = readContentBody(cache, relative, edition);
+				if (!body) throw new Error(`Content body changed after validation: ${relative}`);
+				return body;
+			});
+			continue;
+		}
+		if (development) validatedBodies.delete(file);
+		const body = readContentBody(cache, relative, edition);
+		if (!body) continue;
+		readers.set(relative, () => body);
+		if (stamp) validatedBodies.set(file, stamp);
+	}
+	if (development)
+		for (const file of validatedBodies.keys())
+			if (!selected.has(file)) validatedBodies.delete(file);
+	return readers;
+}
+
 function validPage(value: unknown, edition: ContentEdition): value is ContentCachePage {
 	if (!value || typeof value !== 'object') return false;
 	const page = value as ContentCachePage;

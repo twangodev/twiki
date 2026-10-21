@@ -1,6 +1,6 @@
 import { expect, test, spyOn } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import fs from 'node:fs';
+import * as fs from 'node:fs';
 import {
 	cpSync,
 	existsSync,
@@ -105,7 +105,7 @@ test('code-free notes skip Shiki and dev code edits reuse the highlighter across
 				`
 import { strict as assert } from 'node:assert';
 import { spyOn } from 'bun:test';
-import fs from 'node:fs';
+import * as fs from 'node:fs';
 import path from 'node:path';
 import * as shiki from ${JSON.stringify(import.meta.resolve('shiki'))};
 import { compileContent } from ${JSON.stringify(path.resolve(import.meta.dirname, '../../tooling/compiler.ts'))};
@@ -151,18 +151,26 @@ test('Markdown edits avoid rereading unchanged assets in development and still p
 		const cache = path.join(f.site, 'build/generated/cache');
 		const index = JSON.parse(readFileSync(path.join(cache, 'content-current-full.json'), 'utf8'));
 		const unchangedDocument = path.join(cache, index.pages['course/unrelated.md'].document);
+		const unchangedBody = path.join(cache, index.pages['course/unrelated.md'].body);
+		await run();
 		const unchangedOutput = path.join(f.site, 'build/generated/pages/course/unrelated.json');
-		f.write('source.md', '# Source\n\nA Markdown-only edit.\n');
 		const read = spyOn(fs, 'readFileSync');
 		const mkdir = spyOn(fs, 'mkdirSync');
 		restore = () => {
 			read.mockRestore();
 			mkdir.mockRestore();
 		};
+		// Installing a reader spy changes its identity; prime copies with that reader first.
+		await run();
+		read.mockClear();
+		mkdir.mockClear();
+		f.write('source.md', '# Source\n\nA Markdown-only edit.\n');
 		await run();
 		expect(read.mock.calls.filter(([file]) => file === source || file === output)).toHaveLength(0);
 		expect(
-			read.mock.calls.filter(([file]) => file === unchangedDocument || file === unchangedOutput)
+			read.mock.calls.filter(
+				([file]) => file === unchangedDocument || file === unchangedOutput || file === unchangedBody
+			)
 		).toHaveLength(0);
 		expect(
 			mkdir.mock.calls.filter(([directory]) => directory === path.dirname(output))
@@ -173,6 +181,11 @@ test('Markdown edits avoid rereading unchanged assets in development and still p
 		f.write('image.svg', '<svg>after!</svg>');
 		await run();
 		expect(readFileSync(output, 'utf8')).toBe('<svg>after!</svg>');
+		const expected = readFileSync(unchangedOutput, 'utf8');
+		writeFileSync(unchangedBody, '{}');
+		await run();
+		expect(readFileSync(unchangedOutput, 'utf8')).toBe(expected);
+		expect(JSON.parse(readFileSync(unchangedBody, 'utf8')).html).toContain('Unchanged content');
 	} finally {
 		restore?.();
 		f.cleanup();

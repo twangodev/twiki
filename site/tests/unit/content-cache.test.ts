@@ -1,5 +1,5 @@
 import { expect, test, spyOn } from 'bun:test';
-import fs from 'node:fs';
+import * as fs from 'node:fs';
 import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -7,6 +7,7 @@ import {
 	contentHash,
 	emitContentDocument,
 	readContentBody,
+	readContentBodies,
 	readContentIndex,
 	readContentObject,
 	transclusionClosure,
@@ -38,6 +39,55 @@ function page(slug: string, targets: string[] = []): ContentCachePage {
 		transclusionWarnings: []
 	};
 }
+
+test('body references validate changed files, reject symlinks and release obsolete selections without retaining HTML', () => {
+	const cache = mkdtempSync(path.join(tmpdir(), 'twiki-body-references-'));
+	const body = { html: '<p>original</p>', markdown: 'original' };
+	const relative = writeContentObject(cache, 'full', 'bodies', JSON.stringify(body));
+	const file = path.join(cache, relative);
+	const read = () => readContentBodies(cache, 'full', [relative], true);
+	try {
+		expect(read().get(relative)?.()).toEqual(body);
+		const spy = spyOn(fs, 'readFileSync');
+		try {
+			const references = read();
+			expect(spy.mock.calls).toHaveLength(0);
+			expect(references.get(relative)?.()).toEqual(body);
+			expect(spy.mock.calls).toHaveLength(1);
+			spy.mockClear();
+			readContentBodies(cache, 'full', [relative]);
+			expect(spy.mock.calls).toHaveLength(1);
+			spy.mockClear();
+			readContentBodies(cache, 'full', [], true);
+			read();
+			expect(spy.mock.calls).toHaveLength(1);
+		} finally {
+			spy.mockRestore();
+		}
+		const reference = read().get(relative)!;
+		const stamp = fs.statSync(file);
+		writeFileSync(file, JSON.stringify({ html: '<p>modified</p>', markdown: 'modified' }));
+		fs.utimesSync(file, stamp.atime, stamp.mtime);
+		expect(() => reference()).toThrow('changed after validation');
+		expect(read().has(relative)).toBe(false);
+		writeContentObject(cache, 'full', 'bodies', JSON.stringify(body));
+		expect(read().get(relative)?.()).toEqual(body);
+		rmSync(file);
+		expect(read().has(relative)).toBe(false);
+		writeContentObject(cache, 'full', 'bodies', JSON.stringify(body));
+		read();
+		const directory = path.dirname(file);
+		fs.renameSync(directory, directory + '-moved');
+		symlinkSync(directory + '-moved', directory);
+		expect(read().has(relative)).toBe(false);
+		expect(readContentBodies(cache, 'public', [relative], true).size).toBe(0);
+		const invalid = writeContentObject(cache, 'full', 'docs', JSON.stringify(body));
+		expect(readContentBodies(cache, 'full', [invalid], true).size).toBe(0);
+	} finally {
+		readContentBodies(cache, 'full', [], true);
+		rmSync(cache, { recursive: true, force: true });
+	}
+});
 
 test('document emission skips unchanged bytes and repairs changed or missing cache and output files', () => {
 	const cache = mkdtempSync(path.join(tmpdir(), 'twiki-doc-emitter-'));
