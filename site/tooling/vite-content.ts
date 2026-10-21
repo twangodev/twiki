@@ -51,6 +51,8 @@ export function content(): Plugin {
 				string,
 				{ watcher: FSWatcher; recursive: boolean; files: Set<string>; repositories: Set<string> }
 			>();
+			// Chokidar suppresses repeat change events for 50ms. Wait through that
+			// window so a fast failure followed by a correction cannot lose recovery.
 			const queue = rebuildQueue(async () => {
 				if (closed) return;
 				try {
@@ -109,7 +111,7 @@ export function content(): Plugin {
 						err: { message: failure.message, stack: failure.stack ?? '' }
 					});
 				}
-			});
+			}, 50);
 			const { developmentRmd } = await import('./lib/dev-rmd');
 			const rmd = developmentRmd(server.config.root, async () => {
 				await queue.wait();

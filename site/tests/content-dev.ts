@@ -9,6 +9,7 @@ import {
 	cpSync,
 	readFileSync,
 	realpathSync,
+	renameSync,
 	writeFileSync,
 	mkdtempSync,
 	mkdirSync,
@@ -288,10 +289,13 @@ try {
 	});
 	const editStart = performance.now();
 	const editedData = contentData(page, '/sp99-cs101/notes/public');
-	fixture.write(
-		'content/sp99-cs101/notes/public.md',
+	// Editors commonly save a temporary file, then replace the original atomically.
+	const temporaryNote = path.join(fixture.course, 'notes/.public.md.tmp');
+	writeFileSync(
+		temporaryNote,
 		fixture.publicNote + '\nLive content update.\n\n```js\nconsole.log(1);\n```\n'
 	);
+	renameSync(temporaryNote, path.join(fixture.course, 'notes/public.md'));
 	await until(
 		async () => (await page.locator('article').innerText()).includes('Live content update.'),
 		'automatic browser refresh'

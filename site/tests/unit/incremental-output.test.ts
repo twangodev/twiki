@@ -213,6 +213,24 @@ test('a reconciliation collector retains writes from a failed pass when recovery
 	}
 });
 
+test('an idle burst yields once, coalesces edits, and can run again after failure', async () => {
+	let runs = 0;
+	const queue = rebuildQueue(async () => {
+		runs++;
+		if (runs === 1) throw new Error('failed content build');
+	});
+	for (let i = 0; i < 20; i++) queue.schedule();
+	expect(runs).toBe(0);
+	await Promise.resolve();
+	queue.schedule();
+	expect(runs).toBe(0);
+	await expect(queue.wait()).rejects.toThrow('failed content build');
+	expect(runs).toBe(1);
+	queue.schedule();
+	await queue.wait();
+	expect(runs).toBe(2);
+});
+
 test('a burst during a running content build produces only one follow-up', async () => {
 	let release!: () => void;
 	let started!: () => void;

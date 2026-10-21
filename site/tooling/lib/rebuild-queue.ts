@@ -1,5 +1,5 @@
 /** Coalesce a burst and retain at most one follow-up while a build is running. */
-export function rebuildQueue(build: () => Promise<void>, delay = 100) {
+export function rebuildQueue(build: () => Promise<void>, delay = 0) {
 	let dirty = false;
 	let running = false;
 	let pending = Promise.resolve();
