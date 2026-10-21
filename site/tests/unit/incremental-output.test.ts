@@ -1,4 +1,5 @@
-import { expect, test } from 'bun:test';
+import { expect, test, spyOn } from 'bun:test';
+import * as fs from 'node:fs';
 import {
 	mkdtempSync,
 	mkdirSync,
@@ -13,8 +14,46 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { writeChanged, copyChanged, pruneOutputs, trackOutputs } from '../../tooling/lib/output';
+import {
+	writeChanged,
+	copyChanged,
+	pruneOutputs,
+	trackOutputs,
+	restoreCopy
+} from '../../tooling/lib/output';
 import { rebuildQueue } from '../../tooling/lib/rebuild-queue';
+
+test('restored copies skip validated bytes but reject source and output edits made after observation', () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'twiki-restored-copy-'));
+	const source = path.join(root, 'source');
+	const output = path.join(root, 'output');
+	try {
+		writeFileSync(source, 'original');
+		writeFileSync(output, 'original');
+		const input = statSync(source, { bigint: true });
+		const generated = statSync(output, { bigint: true });
+		const read = spyOn(fs, 'readFileSync');
+		try {
+			restoreCopy(source, output, input, generated);
+			copyChanged(source, output, true);
+			expect(read.mock.calls).toHaveLength(0);
+			writeFileSync(source, 'edited after observation');
+			restoreCopy(source, output, input, generated);
+			copyChanged(source, output, true);
+			expect(readFileSync(output, 'utf8')).toBe('edited after observation');
+			const currentInput = statSync(source, { bigint: true });
+			const currentOutput = statSync(output, { bigint: true });
+			writeFileSync(output, 'corrupt output');
+			restoreCopy(source, output, currentInput, currentOutput);
+			copyChanged(source, output, true);
+			expect(readFileSync(output, 'utf8')).toBe('edited after observation');
+		} finally {
+			read.mockRestore();
+		}
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
 
 test('a changed source reader must validate previously copied bytes before reuse', () => {
 	const root = mkdtempSync(path.join(tmpdir(), 'twiki-copy-validation-'));

@@ -2,9 +2,10 @@ import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { stageFingerprint } from './fingerprint';
 import { trackOutputs, writeChanged } from './lib/output';
-import { restoreDevelopmentCourseFiles } from './lib/course-file-state';
+import { restoreDevelopmentOutputs } from './lib/dev-output-state';
 import {
 	captureContentInputs,
+	captureContentOutputs,
 	contentOutputFingerprint,
 	type ContentInputSnapshot
 } from './lib/dev-state';
@@ -69,8 +70,9 @@ async function prepareSnapshot(
 	if (development && reuse && existsSync(marker)) {
 		try {
 			const saved = JSON.parse(readFileSync(marker, 'utf8'));
-			if (saved.inputs === inputs && saved.outputs === contentOutputFingerprint(site)) {
-				restoreDevelopmentCourseFiles(site, project);
+			const outputs = saved.inputs === inputs ? captureContentOutputs(site) : undefined;
+			if (snapshot && outputs && saved.outputs === outputs.fingerprint) {
+				snapshot.withDiscovery(() => restoreDevelopmentOutputs(site, project, outputs));
 				validatedInputs = snapshot;
 				process.env.TWIKI_PREPARED_CONTENT_KEY = key;
 				console.log(

@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto';
 
+export const imageExtensions = new Set(['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']);
+export const assetExtensions = new Set([...imageExtensions, '.pdf', '.html']);
+
 const excludedDirectories = new Set([
 	'node_modules',
 	'vendor',

@@ -1,6 +1,6 @@
 import { htmlAssetPaths, rewriteContentUrls } from './lib/content-urls';
 import { fileRoute } from '../src/lib/files';
-import { browsablePath } from './lib/file-policy';
+import { browsablePath, assetExtensions, imageExtensions } from './lib/file-policy';
 import { preserveCurrency } from './lib/currency';
 /** Render tracked notes, resolve links and transclusions, and emit pages, assets, and graph data. */
 import fs from 'node:fs';
@@ -110,9 +110,6 @@ export async function compileContent(
 			? compiledAssetsDirectory(SITE_DIR)
 			: path.join(OUT_DIR, publicEdition ? 'public-assets' : 'assets');
 
-	const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']);
-	const ASSET_EXTS = new Set([...IMAGE_EXTS, '.pdf', '.html']);
-
 	const SIZE_WARN = 20 * 1024 * 1024;
 	const SIZE_FAIL = 25 * 1024 * 1024;
 
@@ -166,7 +163,7 @@ export async function compileContent(
 			if (dotLed(rel)) continue;
 			const ext = (getFileExtension(rel) ?? '').toLowerCase();
 			const kind: SourceFile['kind'] =
-				ext === '.md' ? 'page' : ASSET_EXTS.has(ext) ? 'asset' : 'other';
+				ext === '.md' ? 'page' : assetExtensions.has(ext) ? 'asset' : 'other';
 			files.push({
 				rel,
 				abs: path.join(CONTENT_DIR, rel),
@@ -1334,7 +1331,7 @@ export async function compileContent(
 				drafts: drafts.length,
 				assets: assetsSrc.length,
 				images: assetsSrc.filter((a) =>
-					IMAGE_EXTS.has((getFileExtension(a.rel) ?? '').toLowerCase())
+					imageExtensions.has((getFileExtension(a.rel) ?? '').toLowerCase())
 				).length,
 				pdfs: assetsSrc.filter((a) => a.rel.toLowerCase().endsWith('.pdf')).length,
 				htmlAssets: assetsSrc.filter((a) => a.rel.toLowerCase().endsWith('.html')).length,

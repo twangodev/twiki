@@ -7,7 +7,8 @@ import {
 	renameSync,
 	rmSync,
 	statSync,
-	writeFileSync
+	writeFileSync,
+	type BigIntStats
 } from 'node:fs';
 import path from 'node:path';
 
@@ -18,11 +19,27 @@ const copiedOutputs = new Map<
 	{ source: string; input: string; output: string; read: SourceReader }
 >();
 
-function fileStamp(file: string) {
-	const stat = statSync(file, { bigint: true, throwIfNoEntry: false });
+function copyStamp(stat: Readonly<BigIntStats> | undefined) {
 	return stat?.isFile()
 		? [stat.dev, stat.ino, stat.mode, stat.size, stat.mtimeNs, stat.ctimeNs].join(':')
 		: undefined;
+}
+
+function fileStamp(file: string) {
+	return copyStamp(statSync(file, { bigint: true, throwIfNoEntry: false }));
+}
+
+/** Restore only copies proven by validated source AND output snapshots, using their original observations. */
+export function restoreCopy(
+	source: string,
+	destination: string,
+	sourceStat: Readonly<BigIntStats>,
+	outputStat: Readonly<BigIntStats>
+) {
+	const input = copyStamp(sourceStat);
+	const output = copyStamp(outputStat);
+	if (input && output)
+		copiedOutputs.set(destination, { source, input, output, read: readFileSync });
 }
 
 /** A shared collector retains invalidations across failed or repeated passes. */

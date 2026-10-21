@@ -8,6 +8,7 @@ test('post-build validation and repeated reconciliation use fresh discovery snap
 	const fixture = publicationFixture();
 	fixture.write('content/sp99-other/note.md', '# Other course');
 	fixture.write('content/sp99-other/attachment.bin', 'Unchanged course attachment');
+	fixture.write('content/sp99-other/image.svg', '<svg>Unchanged course image</svg>');
 	execFileSync('git', ['-C', fixture.repo, 'add', 'content/sp99-other']);
 	const source = path.resolve(import.meta.dirname, '../..');
 	const site = path.join(fixture.repo, 'site');
@@ -74,19 +75,25 @@ import { strict as assert } from 'node:assert';
 import { spyOn } from 'bun:test';
 import * as fs from 'node:fs';
 import { prepareContent } from './tooling/pipeline';
-await prepareContent(true, undefined, true);
 const read = fs.readFileSync;
 const unchanged = ${JSON.stringify(path.join(fixture.repo, 'content/sp99-other/attachment.bin'))};
+const image = ${JSON.stringify(path.join(fixture.repo, 'content/sp99-other/image.svg'))};
 let reads = 0;
+let imageReads = 0;
 const spy = spyOn(fs, 'readFileSync').mockImplementation((file, ...args) => {
   if (String(file) === unchanged) reads++;
+  if (String(file) === image) imageReads++;
   return read(file, ...args);
 });
 const note = ${JSON.stringify(path.join(fixture.course, 'notes/public.md'))};
 try {
+  await prepareContent(true, undefined, true);
+  reads = 0;
+  imageReads = 0;
   fs.writeFileSync(note, '# First edit after restart');
   await prepareContent(false, new Set([note]), true);
   assert.equal(reads, 1, 'only fresh filesystem source validation should read the unchanged attachment');
+  assert.equal(imageReads, 1, 'only fresh filesystem source validation should read the unchanged compiled asset');
 } finally { spy.mockRestore(); }
 // An omitted watcher event must still invalidate restored course metadata.
 fs.writeFileSync(unchanged, 'Unreported attachment edit');

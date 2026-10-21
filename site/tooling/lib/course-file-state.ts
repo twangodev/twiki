@@ -26,16 +26,16 @@ export function courseNoteKey(course: string, slugs: Iterable<string>) {
 }
 
 /** Restore only after the pipeline validates saved development inputs AND outputs. */
-export function restoreDevelopmentCourseFiles(site: string, project: ResolvedProject) {
+export function restoreDevelopmentCourseFiles(
+	site: string,
+	project: ResolvedProject,
+	slugs: Iterable<string>
+) {
 	const publicEdition = process.env.VITE_PUBLIC_EDITION === 'true';
 	const output = courseFilesDirectory(site);
 	const directory = path.join(output, 'index');
 	const restored = new Map<string, CourseOutput>();
 	if (!existsSync(directory)) return;
-	const manifest = JSON.parse(
-		readFileSync(path.join(site, 'build/generated/content-manifest.json'), 'utf8')
-	);
-	const slugs = Object.keys(manifest.pages);
 	for (const name of readdirSync(directory)) {
 		if (!name.endsWith('.json')) continue;
 		const course = name.slice(0, -5);

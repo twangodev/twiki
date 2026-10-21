@@ -8,11 +8,30 @@ import { publicationFixture } from '../publication-fixture';
 import { nestedPublicationFixture } from '../nested-publication-fixture';
 import {
 	captureContentInputs,
+	captureContentOutputs,
 	contentInputFingerprint,
 	contentOutputFingerprint
 } from '../../tooling/lib/dev-state';
 import { resolveProject, withSourceDiscovery } from '../../tooling/lib/project-config';
 import { contentGit, contentRepositories } from '../../tooling/lib/dev-git-state';
+
+test('output snapshots retain the exact validated file identities without observing newer edits', () => {
+	const fixture = publicationFixture();
+	try {
+		const site = path.join(fixture.repo, 'site');
+		const file = path.join(site, 'build/generated/assets/image.svg');
+		mkdirSync(path.dirname(file), { recursive: true });
+		writeFileSync(file, 'original');
+		const captured = captureContentOutputs(site);
+		expect(captured.fingerprint).toBe(contentOutputFingerprint(site));
+		expect(captured.files.get(file)?.size).toBe(8n);
+		writeFileSync(file, 'changed after capture');
+		expect(captured.files.get(file)?.size).toBe(8n);
+		expect(captured.fingerprint).not.toBe(contentOutputFingerprint(site));
+	} finally {
+		rmSync(fixture.repo, { recursive: true, force: true });
+	}
+});
 
 test('public development output validation includes its separate assets, course files and static tree', () => {
 	const fixture = publicationFixture();
