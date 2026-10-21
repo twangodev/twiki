@@ -310,7 +310,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { prepareContent } from './tooling/pipeline';
 import { contentInputFingerprint, contentOutputFingerprint } from './tooling/lib/dev-state';
-import { staticDirectory, courseFilesDirectory } from './tooling/lib/edition-paths.js';
+import { staticDirectory, courseFilesDirectory, compiledAssetsDirectory } from './tooling/lib/edition-paths.js';
 import { textExportUrl } from './src/lib/text-exports';
 import { OutputCheckpoint } from './tooling/lib/output-checkpoint';
 let checks = 0;
@@ -342,6 +342,32 @@ async function edit(label, expectedPasses, body = original) {
   assert.equal(saved.outputs, contentOutputFingerprint(process.cwd()));
 }
 await edit('Ordinary prose edit', 1);
+// Narrowed builds must repair omissions even though icon generation is deferred.
+const icons = path.join(courseFilesDirectory(process.cwd()), 'icons');
+const iconName = fs.readdirSync(icons).find(name => name.endsWith('.svg'));
+assert(iconName);
+const icon = path.join(icons, iconName);
+const staticIcon = path.join(staticRoot, '_files/icons', iconName);
+const iconBytes = fs.readFileSync(icon);
+fs.rmSync(icon);
+fs.rmSync(staticIcon);
+await edit('Repair missing unchanged icons', 2);
+assert.deepEqual(fs.readFileSync(icon), iconBytes);
+assert.deepEqual(fs.readFileSync(staticIcon), iconBytes);
+const iconMetadata = 'src/lib/generated/file-icons.json';
+const metadataBytes = fs.readFileSync(iconMetadata);
+fs.rmSync(iconMetadata);
+await edit('Repair missing icon metadata', 1);
+assert.deepEqual(fs.readFileSync(iconMetadata), metadataBytes);
+// Unexpected file names must trigger full pruning, never become trusted outputs.
+const unexpectedPage = 'build/generated/pages/unexpected.json';
+const unexpectedAsset = path.join(compiledAssetsDirectory(process.cwd()), 'unexpected.svg');
+fs.writeFileSync(unexpectedPage, '{"unexpected":true}');
+fs.writeFileSync(unexpectedAsset, '<svg>unexpected</svg>');
+await edit('Prune unexpected generated names', 2);
+assert(!fs.existsSync(unexpectedPage));
+assert(!fs.existsSync(unexpectedAsset));
+
 const otherDocument = 'build/generated/pages/sp99-cs101/notes/second.json';
 const originalDocument = fs.readFileSync(otherDocument);
 fs.writeFileSync(otherDocument, '{"corrupted":true}');

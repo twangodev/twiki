@@ -36,6 +36,7 @@ export function previewText(bytes: Uint8Array): { text: string } | undefined {
 	}
 }
 
+/** Deferred validation requires unchanged file names and a final full-output check. */
 export async function buildCourseFiles(
 	siteDir: string,
 	noteSlugs: Set<string>,
@@ -247,11 +248,14 @@ export async function buildCourseFiles(
 	}
 	mkdirSync(path.join(siteDir, 'src/lib/generated'), { recursive: true });
 	writeChanged(path.join(siteDir, 'src/lib/generated/file-entries.json'), JSON.stringify(entries));
-	for (const file of buildFileIcons(
-		siteDir,
-		[...courses.values()].flatMap((files) => files.map((file) => file.path))
-	))
-		wanted.add(file);
+	// Existing-note edits cannot change file names; output validation still checks every icon.
+	if (!deferOutputValidation || !previous) {
+		for (const file of buildFileIcons(
+			siteDir,
+			[...courses.values()].flatMap((files) => files.map((file) => file.path))
+		))
+			wanted.add(file);
+	}
 	for (const course of active) {
 		const fingerprint = fingerprints.get(course);
 		if (fingerprint)

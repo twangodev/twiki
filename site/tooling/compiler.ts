@@ -1133,6 +1133,7 @@ export async function compileContent(
 			])
 		);
 		const sameContext = previousIndex?.context === context;
+		const deferredEmission = Boolean(options.deferOutputValidation && previous && sameContext);
 		const bodies = new Map<string, () => ContentBody>();
 		const cachedBodies = readContentBodies(
 			CACHE_DIR,
@@ -1243,14 +1244,13 @@ export async function compileContent(
 			// html assets: extensionless at slug, exactly like quartz's Assets emitter
 			const dest = path.join(ASSETS_DIR, asset.slug);
 			// An explicit editor event must read bytes even when filesystem identities collide.
-			const size =
-				options.deferOutputValidation && previous && sameContext
-					? Number(asset.stat.size)
-					: copyChanged(
-							asset.abs,
-							dest,
-							options.development && !options.changedInputs?.has(asset.abs)
-						);
+			const size = deferredEmission
+				? Number(asset.stat.size)
+				: copyChanged(
+						asset.abs,
+						dest,
+						options.development && !options.changedInputs?.has(asset.abs)
+					);
 			if (size === undefined) throw new Error(`Missing compiled asset: ${asset.rel}`);
 			wantedAssets.add(dest);
 			assetBytes += checkSize(dest, size);
@@ -1341,7 +1341,7 @@ export async function compileContent(
 					};
 				},
 				options.development,
-				Boolean(options.deferOutputValidation && previous && sameContext)
+				deferredEmission
 			);
 			checkSize(outPath, size);
 		}
@@ -1376,7 +1376,7 @@ export async function compileContent(
 				outPath,
 				() => ({ ...meta, toc: page.toc, html: '' }),
 				options.development,
-				Boolean(options.deferOutputValidation && previous && sameContext)
+				deferredEmission
 			);
 			const parts = page.slug.split('/');
 			for (let i = 1; i < parts.length; i++) folderSet.add(parts.slice(0, i).join('/'));
@@ -1472,12 +1472,15 @@ export async function compileContent(
 			console.error('SIZE FAILURES:\n' + sizeViolations.join('\n'));
 			throw new Error('Content exceeds the deployment asset limit');
 		}
-		pruneOutputs(path.join(OUT_DIR, 'pages'), wantedPages);
-		pruneOutputs(
-			ASSETS_DIR,
-			wantedAssets,
-			(file) => !publicEdition && file === path.join(ASSETS_DIR, '_files')
-		);
+		// A narrowed pass keeps the same namespace; the final output scan repairs unexpected files.
+		if (!deferredEmission) {
+			pruneOutputs(path.join(OUT_DIR, 'pages'), wantedPages);
+			pruneOutputs(
+				ASSETS_DIR,
+				wantedAssets,
+				(file) => !publicEdition && file === path.join(ASSETS_DIR, '_files')
+			);
+		}
 		const index: ContentCacheIndex = {
 			schema: 1,
 			renderer: PIPELINE_VERSION,
