@@ -200,7 +200,8 @@ export async function buildCourseFiles(
 		const blob = `${hash}.${suffix}`;
 		file.download = `/_files/blobs/${blob}`;
 		retain(course, path.join(output, 'blobs', blob));
-		if (!existsSync(path.join(output, 'blobs', blob)))
+		// A full reconciliation must repair bytes, not just missing blob names.
+		if (!deferOutputValidation || !existsSync(path.join(output, 'blobs', blob)))
 			writeChanged(path.join(output, 'blobs', blob), bytes);
 		if (suffix === 'pdf') file.kind = 'pdf';
 		else if (inlineImages.has(suffix)) file.kind = 'image';

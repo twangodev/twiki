@@ -360,6 +360,10 @@ async function edit(label, expectedPasses, body = original) {
   assert.equal(saved.outputs, contentOutputFingerprint(process.cwd()));
 }
 await edit('Ordinary prose edit', 1);
+fs.writeFileSync(download('notes/script.R'), 'corrupted generated raw download');
+await edit('Repair corrupted raw download blob', 2);
+assert.equal(fs.readFileSync(download('notes/script.R'), 'utf8'), fs.readFileSync(path.join(${JSON.stringify(fixture.course)}, 'notes/script.R'), 'utf8'));
+
 for (const name of ['worksheet.Rmd', 'script.R', 'data.csv']) {
   const raw = path.join(${JSON.stringify(fixture.course)}, 'notes', name);
   const previousPreview = files().find(file => file.path === 'notes/worksheet.Rmd').rmdPreview;
