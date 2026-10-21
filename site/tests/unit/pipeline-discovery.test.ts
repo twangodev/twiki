@@ -431,6 +431,10 @@ assert.equal(fs.readFileSync(download('notes/second.md'), 'utf8'), fs.readFileSy
 fs.writeFileSync(image, '<svg>unreported source image edit</svg>');
 await edit('Reported note alongside an unreported image edit', 2);
 assert.equal(fs.readFileSync(staticImage, 'utf8'), fs.readFileSync(image, 'utf8'));
+const rawScript = path.join(${JSON.stringify(fixture.course)}, 'notes/script.R');
+fs.appendFileSync(rawScript, '\\n# Unreported raw source edit\\n');
+await edit('Reported note alongside an unreported raw source edit', 2);
+assert.equal(fs.readFileSync(download('notes/script.R'), 'utf8'), fs.readFileSync(rawScript, 'utf8'));
 const policy = ${JSON.stringify(path.join(fixture.course, 'publish.yaml'))};
 fs.writeFileSync(policy, fs.readFileSync(policy, 'utf8').replace('  - notes/worksheet.Rmd\\n', ''));
 await prepareContent(false, new Set([policy]), true);
@@ -443,6 +447,16 @@ if (${publicEdition}) {
   assert.equal(worksheet.locked, false);
   assert(worksheet.download);
 }
+fs.writeFileSync(policy, fs.readFileSync(policy, 'utf8')
+  .replace('include:\\n', 'include:\\n  - notes/worksheet.Rmd\\n')
+  .replace('name: CC BY 4.0', 'name: Updated fixture license'));
+await prepareContent(false, new Set([policy]), true);
+const grantedWorksheet = files().find(file => file.path === 'notes/worksheet.Rmd');
+assert.equal(grantedWorksheet.locked, false);
+assert(grantedWorksheet.rmdPreview);
+assert.equal(grantedWorksheet.license.name, 'Updated fixture license');
+assert.equal(fs.readFileSync(download('notes/worksheet.Rmd'), 'utf8'), fs.readFileSync(path.join(${JSON.stringify(fixture.course)}, 'notes/worksheet.Rmd'), 'utf8'));
+assert.equal(files().find(file => file.path === 'notes/script.R').license.name, 'Updated fixture license');
 const beforeChecks = checks;
 await edit('Catalog tag changes', 1, original.replace('tags: [practice]', 'tags: [practice, emission-test]'));
 assert.equal(checks, beforeChecks, 'full emission must not also scan all outputs through the deferred path');
