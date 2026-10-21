@@ -3,13 +3,13 @@ import {
 	existsSync,
 	lstatSync,
 	readFileSync,
-	readdirSync,
 	readlinkSync,
 	realpathSync,
 	type BigIntStats
 } from 'node:fs';
 import path from 'node:path';
 import { contentGit, contentRepositories } from './dev-git-state';
+import { OutputCheckpoint } from './output-checkpoint';
 import {
 	resolveProject,
 	discoverSourceEntries,
@@ -192,38 +192,23 @@ export async function contentInputFingerprint(repo: string, pipeline: string) {
 
 /** A production build or missing/modified output invalidates the saved dev result. */
 export function contentOutputFingerprint(site: string) {
-	return fingerprintContentOutputs(site);
+	return captureContentOutputs(site).fingerprint;
 }
 
 export interface ContentOutputSnapshot {
 	readonly fingerprint: string;
 	readonly files: ReadonlyMap<string, Readonly<BigIntStats>>;
+	readonly checkpoint: OutputCheckpoint;
 }
 
 /** Retain the exact identities checked during startup, never newer observations. */
 export function captureContentOutputs(site: string): ContentOutputSnapshot {
-	const files = new Map<string, Readonly<BigIntStats>>();
-	const fingerprint = fingerprintContentOutputs(site, (file, stat) => {
-		if (stat?.isFile()) files.set(path.resolve(file), stat);
-	});
-	return { fingerprint, files };
+	const { checkpoint, files } = OutputCheckpoint.capture(site, contentOutputRoots());
+	return { fingerprint: checkpoint.fingerprint(), files, checkpoint };
 }
 
-function fingerprintContentOutputs(
-	site: string,
-	observe?: (file: string, stat: Readonly<BigIntStats> | null) => void
-) {
-	const hash = createHash('sha256');
-	function walk(file: string) {
-		const stat = fileStat(file);
-		if (stat?.isDirectory()) {
-			for (const name of readdirSync(file).sort()) walk(path.join(file, name));
-		} else {
-			observe?.(file, stat);
-			hash.update(JSON.stringify([path.relative(site, file), stamp(file, stat)]));
-		}
-	}
-	for (const file of [
+function contentOutputRoots() {
+	return [
 		'build/generated/content-manifest.json',
 		'build/generated/expected-404.json',
 		'build/generated/expected-missing-id.json',
@@ -238,7 +223,5 @@ function fingerprintContentOutputs(
 			: []),
 		'src/lib/generated',
 		'static'
-	])
-		walk(path.join(site, file));
-	return hash.digest('hex');
+	];
 }

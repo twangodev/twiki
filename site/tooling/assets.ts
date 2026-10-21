@@ -5,6 +5,7 @@ import {
 	cpSync,
 	existsSync,
 	linkSync,
+	lstatSync,
 	mkdirSync,
 	readdirSync,
 	readFileSync,
@@ -17,7 +18,7 @@ import {
 	courseFilesDirectory,
 	compiledAssetsDirectory
 } from './lib/edition-paths.js';
-import { pruneOutputs, writeChanged } from './lib/output';
+import { pruneOutputs, recordOutput, removeOutput, writeChanged } from './lib/output';
 import { writeTextExports } from './lib/text-exports';
 import { buildCourseFiles } from './lib/course-files';
 import { assetSources } from './lib/asset-sources';
@@ -43,7 +44,19 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 	if (process.env.VITE_PUBLIC_EDITION === 'true') {
 		for (const name of ['fonts', 'favicon.ico']) {
 			const source = path.join(SITE_DIR, 'static', name);
-			if (existsSync(source)) cpSync(source, path.join(STATIC_DIR, name), { recursive: true });
+			if (existsSync(source)) {
+				const destination = path.join(STATIC_DIR, name);
+				cpSync(source, destination, { recursive: true });
+				if (development) {
+					const observe = (file: string) => {
+						const info = lstatSync(file, { bigint: true });
+						if (info.isDirectory())
+							for (const child of readdirSync(file)) observe(path.join(file, child));
+						else recordOutput(file, info);
+					};
+					observe(destination);
+				}
+			}
 		}
 	}
 
@@ -128,12 +141,19 @@ export async function prepareAssets(changedInputs?: Set<string>, development = f
 				continue;
 			}
 			unlinkSync(dest);
+			removeOutput(dest);
 		}
 		mkdirSync(path.dirname(dest), { recursive: true });
+		let linked = false;
 		try {
 			linkSync(src, dest); // hardlink: free, instant
+			linked = true;
 		} catch {
 			copyFileSync(src, dest);
+		}
+		if (development) {
+			if (linked) recordOutput(src);
+			recordOutput(dest);
 		}
 		copied++;
 	}

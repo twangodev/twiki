@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import {
 	existsSync,
+	lstatSync,
 	mkdirSync,
 	readFileSync,
 	readdirSync,
@@ -11,8 +12,29 @@ import {
 	type BigIntStats
 } from 'node:fs';
 import path from 'node:path';
+import type { OutputCheckpoint } from './output-checkpoint';
 
 const changes = new AsyncLocalStorage<Set<string>>();
+const checkpoints = new AsyncLocalStorage<OutputCheckpoint | undefined>();
+
+/** Record only known writes or byte-validated output observations in the active pass. */
+export function recordOutput(file: string, info?: Readonly<BigIntStats>) {
+	const checkpoint = checkpoints.getStore();
+	if (!checkpoint) return;
+	if (info) {
+		checkpoint.record(file, info);
+		return;
+	}
+	if (!checkpoint.handles(file)) return;
+	const observed = lstatSync(file, { bigint: true, throwIfNoEntry: false });
+	if (!observed) throw new Error(`Generated output disappeared before observation: ${file}`);
+	checkpoint.record(file, observed);
+}
+
+/** Record a known deletion, including its effect on surviving hardlink aliases. */
+export function removeOutput(file: string) {
+	checkpoints.getStore()?.remove(file);
+}
 type SourceReader = (source: string) => Uint8Array | undefined;
 const copiedOutputs = new Map<
 	string,
@@ -71,16 +93,27 @@ export function restoreCopy(
 }
 
 /** A shared collector retains invalidations across failed or repeated passes. */
-export async function trackOutputs(build: () => Promise<unknown>, files = new Set<string>()) {
-	await changes.run(files, build);
+export async function trackOutputs(
+	build: () => Promise<unknown>,
+	files = new Set<string>(),
+	checkpoint?: OutputCheckpoint
+) {
+	await changes.run(files, () => checkpoints.run(checkpoint, build));
 	return files;
 }
 
 /** Replace changed files atomically; preserve unchanged mtimes and hardlinked assets. */
 export function writeChanged(file: string, data: string | Uint8Array) {
 	const bytes = Buffer.from(data);
-	if (existsSync(file) && statSync(file).size === bytes.length && readFileSync(file).equals(bytes))
+	const existing = lstatSync(file, { bigint: true, throwIfNoEntry: false });
+	if (
+		existing?.isFile() &&
+		existing.size === BigInt(bytes.length) &&
+		readFileSync(file).equals(bytes)
+	) {
+		recordOutput(file, existing);
 		return;
+	}
 	mkdirSync(path.dirname(file), { recursive: true });
 	const temporary = `${file}.tmp-${process.pid}`;
 	try {
@@ -90,6 +123,7 @@ export function writeChanged(file: string, data: string | Uint8Array) {
 		rmSync(temporary, { force: true });
 	}
 	changes.getStore()?.add(path.resolve(file));
+	recordOutput(file);
 }
 
 /** Return validated output size; dev reuse requires matching source and output identities. */
@@ -113,6 +147,7 @@ export function copyChanged(
 		) {
 			const output = statSync(file, { bigint: true, throwIfNoEntry: false });
 			if (output && previous.output === copyStamp(output)) {
+				recordOutput(file, output);
 				size = Number(output.size);
 				continue;
 			}
@@ -155,6 +190,7 @@ export function pruneOutputs(
 				empty = false;
 			} else {
 				rmSync(file);
+				removeOutput(file);
 				copiedOutputs.delete(file);
 				changes.getStore()?.add(path.resolve(file));
 				removed++;

@@ -1,13 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import {
-	existsSync,
-	lstatSync,
-	mkdirSync,
-	readFileSync,
-	realpathSync,
-	copyFileSync
-} from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { writeChanged, pruneOutputs } from './output';
 import type { CourseFile } from '../../src/lib/files';
@@ -205,7 +198,7 @@ export async function buildCourseFiles(
 		file.download = `/_files/blobs/${blob}`;
 		retain(course, path.join(output, 'blobs', blob));
 		if (!existsSync(path.join(output, 'blobs', blob)))
-			copyFileSync(source, path.join(output, 'blobs', blob));
+			writeChanged(path.join(output, 'blobs', blob), bytes);
 		if (suffix === 'pdf') file.kind = 'pdf';
 		else if (inlineImages.has(suffix)) file.kind = 'image';
 		else if (previewText(bytes)) file.kind = 'text';

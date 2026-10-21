@@ -12,7 +12,6 @@ import {
 import {
 	captureContentInputs,
 	captureContentOutputs,
-	contentOutputFingerprint,
 	type ContentInputSnapshot
 } from './lib/dev-state';
 import {
@@ -21,12 +20,14 @@ import {
 	writeProjectSiteConfig,
 	withSourceDiscovery
 } from './lib/project-config';
+import type { OutputCheckpoint } from './lib/output-checkpoint';
 
 const state = globalThis as typeof globalThis & {
 	wisconsinContentBuilds?: Map<string, Promise<Set<string>>>;
 };
 
 let validatedInputs: ContentInputSnapshot | undefined;
+let validatedOutputs: { key: string; checkpoint: OutputCheckpoint } | undefined;
 
 export async function prepareContent(
 	reuse = false,
@@ -38,6 +39,7 @@ export async function prepareContent(
 			return await prepareSnapshot(reuse, changedInputs, development);
 		} catch (error) {
 			validatedInputs = undefined;
+			validatedOutputs = undefined;
 			throw error;
 		}
 	});
@@ -84,13 +86,16 @@ async function prepareSnapshot(
 				restoreContentBodyValidation(cache, edition, saved.bodies);
 				restoreContentDocumentValidation(cache, site, edition, saved.documents, outputs.files);
 				validatedInputs = snapshot;
+				validatedOutputs = { key, checkpoint: outputs.checkpoint };
 				process.env.TWIKI_PREPARED_CONTENT_KEY = key;
 				console.log(
 					`content startup: reused saved output in ${Math.round(performance.now() - started)}ms`
 				);
 				return new Set<string>();
 			}
+			if (outputs) validatedOutputs = undefined;
 		} catch {
+			validatedOutputs = undefined;
 			/* Reconcile incomplete or stale generated output. */
 		}
 	}
@@ -110,12 +115,16 @@ async function prepareSnapshot(
 		return builds.get(key);
 	rmSync(marker, { force: true });
 	const changed = new Set<string>();
+	let checkpoint =
+		development && validatedOutputs?.key === key ? validatedOutputs.checkpoint : undefined;
+	validatedOutputs = undefined;
 	// A changed renderer or configuration must reconcile all courses, including unchanged worksheets.
 	const run = () =>
 		runPipeline(
 			development && process.env.TWIKI_PREPARED_CONTENT_KEY !== key ? undefined : changedInputs,
 			development,
-			changed
+			changed,
+			checkpoint
 		);
 	const build = snapshot ? snapshot.withDiscovery(run) : run();
 	builds.set(key, build);
@@ -140,18 +149,21 @@ async function prepareSnapshot(
 			if (current.fingerprint === inputs) {
 				if (failed) throw failure;
 				validatedInputs = current;
+				checkpoint = checkpoint?.complete ? checkpoint : captureContentOutputs(site).checkpoint;
 				writeChanged(
 					marker,
 					JSON.stringify({
 						inputs,
-						outputs: contentOutputFingerprint(site),
+						outputs: checkpoint.fingerprint(),
 						bodies: captureContentBodyValidation(cache, edition),
 						documents: captureContentDocumentValidation(cache, site, edition)
 					})
 				);
+				validatedOutputs = { key, checkpoint };
 				break;
 			}
 			inputs = current.fingerprint;
+			checkpoint = undefined;
 			pending = current.withDiscovery(() => runPipeline(undefined, true, changed));
 			builds.set(key, pending);
 		}
@@ -167,7 +179,8 @@ async function prepareSnapshot(
 async function runPipeline(
 	changedInputs?: Set<string>,
 	development = false,
-	outputs = new Set<string>()
+	outputs = new Set<string>(),
+	checkpoint?: OutputCheckpoint
 ) {
 	const start = performance.now();
 	// A saved development snapshot does not need the parser or asset renderers.
@@ -177,16 +190,20 @@ async function runPipeline(
 		import('./lib/publishing')
 	]);
 	const changed = await withPublicationPolicies(() =>
-		trackOutputs(async () => {
-			const compiled = performance.now();
-			await compileContent({ development });
-			const assets = performance.now();
-			await prepareAssets(changedInputs, development);
-			if (development)
-				console.log(
-					`content stages: compiler ${Math.round(assets - compiled)}ms, assets ${Math.round(performance.now() - assets)}ms`
-				);
-		}, outputs)
+		trackOutputs(
+			async () => {
+				const compiled = performance.now();
+				await compileContent({ development });
+				const assets = performance.now();
+				await prepareAssets(changedInputs, development);
+				if (development)
+					console.log(
+						`content stages: compiler ${Math.round(assets - compiled)}ms, assets ${Math.round(performance.now() - assets)}ms`
+					);
+			},
+			outputs,
+			checkpoint
+		)
 	);
 	console.log(
 		`content pipeline: ${((performance.now() - start) / 1000).toFixed(2)}s, ${changed.size} changed outputs`
