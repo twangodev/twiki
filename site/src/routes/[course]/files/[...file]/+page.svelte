@@ -17,6 +17,7 @@
 	import FileIcon from '$lib/components/files/FileIcon.svelte';
 	import FileTabs from '$lib/components/files/FileTabs.svelte';
 	import FileCode from '$lib/components/files/FileCode.svelte';
+	import FileRmdPreview from '$lib/components/files/FileRmdPreview.svelte';
 	import FileHistory from '$lib/components/files/FileHistory.svelte';
 	import type { FileBlame, FileChange } from '$lib/file-history';
 	import { fileWorkspace } from '$lib/components/files/file-workspace.svelte';
@@ -32,8 +33,9 @@
 	let blame = $state<FileBlame>();
 	let selectedCommit = $state('');
 	let sourceText = $state<string>();
+	let rmdUnavailable = $state(false);
 	let rmdMode = $state<'read' | 'interactive' | 'source'>(
-		untrack(() => (data.rmd ? 'read' : 'source'))
+		untrack(() => (data.file?.rmdPreview ? 'read' : 'source'))
 	);
 	let diff = $state<{ text: string; commit: FileChange }>();
 	$effect(() => {
@@ -43,7 +45,8 @@
 		blame = undefined;
 		selectedCommit = '';
 		sourceText = undefined;
-		rmdMode = data.rmd ? 'read' : 'source';
+		rmdUnavailable = false;
+		rmdMode = data.file?.rmdPreview ? 'read' : 'source';
 	});
 	const activeTab = $derived(workspace.tabs.find((tab) => sameFile(tab, data)));
 	function rememberPosition() {
@@ -138,8 +141,8 @@
 							{#each [['read', 'Read'], ['interactive', 'Interactive'], ['source', 'Source']] as [mode, label]}
 								<button
 									class={action}
-									disabled={mode === 'read' && !data.rmd}
-									class:opacity-50={mode === 'read' && !data.rmd}
+									disabled={mode === 'read' && (!data.file?.rmdPreview || rmdUnavailable)}
+									class:opacity-50={mode === 'read' && (!data.file?.rmdPreview || rmdUnavailable)}
 									class:bg-bg={rmdMode === mode}
 									aria-pressed={rmdMode === mode}
 									onclick={() => (rmdMode = mode as typeof rmdMode)}>{label}</button
@@ -212,15 +215,16 @@
 	<div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
 		{#if data.file?.locked}
 			<div class="min-w-0 flex-1 overflow-auto p-4"><LockedContent /></div>
-		{:else if rmdMode === 'read' && data.rmd && !diff}
+		{:else if rmdMode === 'read' && data.file?.rmdPreview && !diff}
 			<div class="min-h-0 min-w-0 flex-1 overflow-auto bg-surface p-4 sm:p-8" bind:this={viewport}>
-				<article
-					class="rmd-reading prose mx-auto max-w-3xl rounded border border-border bg-bg p-5 shadow-sm sm:p-10 dark:prose-invert"
-					aria-label="Rendered worksheet"
-				>
-					<h1>{data.rmd.title}</h1>
-					{@html data.rmd.html}
-				</article>
+				<FileRmdPreview
+					url={data.file.rmdPreview}
+					revision={data}
+					unavailable={() => {
+						rmdUnavailable = true;
+						rmdMode = 'source';
+					}}
+				/>
 			</div>
 		{:else if rmdMode === 'interactive' && /\.rmd$/i.test(data.path) && data.file?.download && !diff}
 			<div class="min-h-0 min-w-0 flex-1">

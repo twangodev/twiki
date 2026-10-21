@@ -3,7 +3,6 @@ import path from 'node:path';
 import { stageFingerprint } from './fingerprint';
 import { trackOutputs, writeChanged } from './lib/output';
 import { contentInputFingerprint, contentOutputFingerprint } from './lib/dev-state';
-import { rRendererIdentity } from './lib/r-runtime';
 import {
 	resolveProject,
 	projectIdentity,
@@ -40,7 +39,7 @@ async function prepareSnapshot(
 		process.env.VITE_PUBLIC_EDITION,
 		await stageFingerprint('pipeline'),
 		development,
-		development ? rRendererIdentity(repo) : undefined
+		development ? 'request-time-rmd-v1' : undefined
 	]);
 	const marker = path.resolve('build/generated/dev-state.json');
 	const started = performance.now();

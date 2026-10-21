@@ -9,8 +9,12 @@ import { resolveRuntimeDataImport } from './lib/runtime-data-modules';
 import { resolveProject, projectSourceVisible } from './lib/project-config';
 
 export function content(): Plugin {
+	let stopRmd: (() => void) | undefined;
 	return {
 		name: 'wisconsin-content',
+		closeBundle() {
+			stopRmd?.();
+		},
 		enforce: 'pre',
 		resolveId(source) {
 			return resolveRuntimeDataImport(source, this.environment.config);
@@ -105,6 +109,14 @@ export function content(): Plugin {
 					});
 				}
 			});
+			const { developmentRmd } = await import('./lib/dev-rmd');
+			const rmd = developmentRmd(server.config.root, async () => {
+				await queue.wait();
+				if (failure) throw failure;
+			});
+			stopRmd = () => rmd.close();
+			server.httpServer?.once('close', stopRmd);
+
 			const rebuild = (file: string) => {
 				forceRebuild = true;
 				changedInputs.add(file);
@@ -226,6 +238,7 @@ export function content(): Plugin {
 						if (failure) return next(failure);
 						// Keep optional renderers and history builders off the startup path.
 						const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
+						if (await rmd.serve(request, response)) return;
 						if (pathname.startsWith('/__content/history')) {
 							const { serveDevHistory } = await import('./lib/dev-history');
 							if (serveDevHistory(request, response, server.config.root, repo)) return;

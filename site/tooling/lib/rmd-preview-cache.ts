@@ -31,6 +31,21 @@ export function rmdCourseInputs(files: CourseFile[]) {
 	});
 }
 
+/** Stable source context for request-time development previews. */
+export function devRmdVersion(files: CourseFile[]) {
+	return sha256(rmdCourseInputs(files));
+}
+
+export function setDevRmdPreviews(course: string, files: CourseFile[]) {
+	const version = devRmdVersion(files);
+	for (const file of files) {
+		delete file.rmdPreview;
+		if (!file.locked && file.download && /\.rmd$/i.test(file.path)) {
+			file.rmdPreview = `/__content/rmd?${new URLSearchParams({ course, file: file.path, v: version })}`;
+		}
+	}
+}
+
 export function rmdPreviewKey(inputs: RmdPreviewInputs) {
 	return sha256(
 		`${inputs.runtime}\n${inputs.policy}\n${inputs.course}\n${inputs.inputs}\n${inputs.worksheet}`

@@ -29,6 +29,8 @@ fixture.write(
 		'include:\n  - projects/nested.md\n'
 	)
 );
+fixture.write('content/sp99-cs101/notes/worksheet.Rmd', '# Lazy worksheet\n\n```{r}\n1 + 1\n```\n');
+execFileSync('git', ['-C', fixture.course, 'add', 'notes/worksheet.Rmd']);
 const isolated = mkdtempSync(path.join(tmpdir(), 'wisconsin-content-dev-'));
 const source = path.resolve(import.meta.dirname, '..');
 const siteDirectory = path.join(isolated, 'site');
@@ -93,7 +95,10 @@ function startServer(publicEdition = true) {
 			env: {
 				...process.env,
 				TWIKI_CONTENT_REPO: fixture.repo,
-				VITE_PUBLIC_EDITION: String(publicEdition)
+				VITE_PUBLIC_EDITION: String(publicEdition),
+				RSCRIPT: path.join(isolated, 'missing-rscript'),
+				R_REQUIRE_PROFILE: '0',
+				R_CACHE_ONLY: '0'
 			},
 			stdio: ['ignore', 'pipe', 'pipe']
 		}
@@ -448,12 +453,37 @@ try {
 		)) !== 'preserved'
 	)
 		throw new Error('File edit reloaded the browser');
+	let releasePreview!: () => void;
+	const previewPending = new Promise<void>((resolve) => {
+		releasePreview = resolve;
+	});
+	await filePage.route('**/__content/rmd?*', async (route) => {
+		await previewPending;
+		await route.fulfill({
+			json: { title: 'Lazy rendered worksheet', html: '<p>Selected computed result</p>' }
+		});
+	});
+	await filePage.goto(origin + '/sp99-cs101/files/notes/worksheet.Rmd');
+	await filePage.getByText('Rendering worksheet…', { exact: true }).waitFor({ timeout: 30000 });
+	if (!(await filePage.getByRole('button', { name: 'Source', exact: true }).isEnabled()))
+		throw new Error('Slow R rendering blocked worksheet controls');
+	releasePreview();
+	await filePage
+		.getByRole('article', { name: 'Rendered worksheet' })
+		.getByText('Selected computed result')
+		.waitFor();
+	await filePage.unroute('**/__content/rmd?*');
+	await filePage.reload();
+	await until(
+		async () => (await filePage.locator('.cm-content').innerText()).includes('Lazy worksheet'),
+		'lazy worksheet Source fallback without R'
+	);
 	await filePage.close();
 	await restart(false);
 	if (!output.includes('reused saved output'))
 		throw new Error('Lazy history invalidated startup cache');
 	console.log(
-		`Content dev integration passed: restart reuse, offline edits, missing output, lazy history, refresh, failure recovery, add, delete, revoke (${((performance.now() - started) / 1000).toFixed(2)}s)`
+		`Content dev integration passed: restart reuse, offline edits, missing output, lazy history, lazy worksheet fallback, refresh, failure recovery, add, delete, revoke (${((performance.now() - started) / 1000).toFixed(2)}s)`
 	);
 } finally {
 	await browser.close();

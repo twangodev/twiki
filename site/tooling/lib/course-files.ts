@@ -25,6 +25,7 @@ import { stageFingerprint } from '../fingerprint';
 import { courseFingerprint, readCourseCache, saveCourseCache } from './course-cache';
 import { publicationFilter, courseLicenseResolver } from './publishing';
 import { buildRmdPreviews } from './rmd-previews';
+import { setDevRmdPreviews } from './rmd-preview-cache';
 import { browsablePath } from './file-policy';
 export { browsablePath, fileHistoryPolicyKey } from './file-policy';
 const inlineImages = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif']);
@@ -221,8 +222,10 @@ export async function buildCourseFiles(
 	const entries: { course: string; file: string }[] = [];
 	for (const [course, files] of courses) {
 		if (publicEdition && !files.length) continue;
-		if (active.has(course))
-			await buildRmdPreviews(siteDir, course, files, output, (file) => retain(course, file));
+		if (active.has(course)) {
+			if (development) setDevRmdPreviews(course, files);
+			else await buildRmdPreviews(siteDir, course, files, output, (file) => retain(course, file));
+		}
 		retain(course, path.join(output, 'index', `${course}.json`));
 		writeChanged(path.join(output, 'index', `${course}.json`), JSON.stringify(files));
 		if (publicEdition) {

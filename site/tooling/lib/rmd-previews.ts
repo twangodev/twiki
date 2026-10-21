@@ -1,5 +1,6 @@
 import { stageFingerprint } from '../fingerprint';
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -12,9 +13,11 @@ import {
 	readRmdPreviewResult,
 	rmdCourseInputs,
 	rmdPreviewKey,
-	rmdPreviewRecord
+	rmdPreviewRecord,
+	type RmdPreviewResult
 } from './rmd-preview-cache';
 
+const runR = promisify(execFile);
 const runner = path.join(import.meta.dirname, 'knit-rmd.R');
 const digest = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const limit = 25 * 1024 * 1024;
@@ -25,16 +28,29 @@ export async function buildRmdPreviews(
 	course: string,
 	files: CourseFile[],
 	output: string,
-	retain: (file: string) => void
+	retain: (file: string) => void,
+	options: {
+		worksheet?: string;
+		publish?: boolean;
+		refreshRuntime?: boolean;
+		signal?: AbortSignal;
+	} = {}
 ) {
+	const results = new Map<string, { key: string; result: RmdPreviewResult }>();
 	const worksheets = files.filter(
-		(file) => !file.locked && file.download && /\.rmd$/i.test(file.path)
+		(file) =>
+			!file.locked &&
+			file.download &&
+			/\.rmd$/i.test(file.path) &&
+			(!options.worksheet || file.path === options.worksheet)
 	);
-	if (!worksheets.length) return;
+	if (!worksheets.length) return results;
 	const cacheOnly = process.env.R_CACHE_ONLY === '1';
 	let runtime: string;
 	try {
-		runtime = cacheOnly ? lockedRRuntime(site) : rRuntimeVersion();
+		runtime = cacheOnly
+			? lockedRRuntime(site)
+			: rRuntimeVersion(process.env, options.refreshRuntime);
 	} catch (error) {
 		if (cacheOnly || process.env.R_REQUIRE_PROFILE === '1')
 			throw new Error(
@@ -44,7 +60,7 @@ export async function buildRmdPreviews(
 		const message = error instanceof Error ? error.message : String(error);
 		console.warn(`rmd: ${message} Using Source and Interactive views.`);
 		for (const worksheet of worksheets) delete worksheet.rmdPreview;
-		return;
+		return results;
 	}
 	verifyRRenderProfile(site, runtime);
 	const available = files.filter((file) => !file.locked && file.download);
@@ -72,10 +88,10 @@ export async function buildRmdPreviews(
 				const figures = path.join(scratch, 'figures');
 				mkdirSync(figures);
 				const knitted = path.join(scratch, 'knitted.md');
-				execFileSync(
+				await runR(
 					process.env.RSCRIPT ?? 'Rscript',
 					['--vanilla', runner, path.join(working, worksheet.path), knitted, figures],
-					{ cwd: working, timeout: 120_000, maxBuffer: 8 * 1024 * 1024, stdio: 'pipe' }
+					{ cwd: working, timeout: 120_000, maxBuffer: 8 * 1024 * 1024, signal: options.signal }
 				);
 				let markdown = readFileSync(knitted, 'utf8');
 				const blobs: string[] = [];
@@ -119,6 +135,8 @@ export async function buildRmdPreviews(
 				rmSync(scratch, { recursive: true, force: true });
 			}
 		}
+		results.set(worksheet.path, { key, result });
+		if (options.publish === false) continue;
 		for (const blob of result.blobs) {
 			const destination = path.join(output, 'blobs', blob);
 			writeChanged(destination, readFileSync(path.join(cache, blob)));
@@ -126,4 +144,5 @@ export async function buildRmdPreviews(
 		}
 		worksheet.rmdPreview = `/_files/blobs/${result.preview}`;
 	}
+	return results;
 }
