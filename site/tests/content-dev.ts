@@ -167,10 +167,20 @@ try {
 	if ((await fetch(origin + '/_og/notes/missing.png')).status !== 404)
 		throw new Error('Unknown social image did not return 404');
 
+	// Another edition's retained outputs must not invalidate or leak into public serving.
+	const privateArtifact = path.join(siteDirectory, 'static/private-output.md');
+	writeFileSync(privateArtifact, 'Private edition content must stay private.');
+	const privateAssets = path.join(siteDirectory, 'build/generated/assets');
+	mkdirSync(privateAssets, { recursive: true });
+	writeFileSync(path.join(privateAssets, 'private-output.bin'), 'Private compiled bytes.');
+
 	await restart();
 	if (!output.includes('reused saved output') || statSync(initialPage).mtimeMs !== initialTime)
 		throw new Error(`Restart did not reuse output: ${output}`);
 	console.log(output.match(/content startup: .*/)?.[0]);
+	if ((await fetch(origin + '/private-output.md')).status !== 404)
+		throw new Error('Public dev serves a retained private text export');
+
 	const pipelineCount = () => (output.match(/content pipeline:/g) ?? []).length;
 	const reuseCount = () => (output.match(/reused saved output/g) ?? []).length;
 	async function metadataReuse(change: () => void, label: string) {

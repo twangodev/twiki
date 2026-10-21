@@ -49,6 +49,32 @@ test('public development output validation includes its separate assets, course 
 			rmSync(file);
 			expect(contentOutputFingerprint(site)).not.toBe(before);
 		}
+		for (const relative of ['build/generated/assets/private.bin', 'static/private.txt']) {
+			const file = path.join(site, relative);
+			mkdirSync(path.dirname(file), { recursive: true });
+			writeFileSync(file, 'private edition output');
+			const before = contentOutputFingerprint(site);
+			writeFileSync(file, 'unrelated private edition change');
+			expect(contentOutputFingerprint(site)).toBe(before);
+			rmSync(file);
+			expect(contentOutputFingerprint(site)).toBe(before);
+		}
+		for (const relative of ['static/fonts/font.woff2', 'static/favicon.ico']) {
+			const file = path.join(site, relative);
+			mkdirSync(path.dirname(file), { recursive: true });
+			writeFileSync(file, 'shared engine input');
+			const before = contentOutputFingerprint(site);
+			writeFileSync(file, 'changed shared engine input');
+			expect(contentOutputFingerprint(site)).not.toBe(before);
+			rmSync(file);
+			expect(contentOutputFingerprint(site)).not.toBe(before);
+		}
+		process.env.VITE_PUBLIC_EDITION = 'false';
+		const privateFile = path.join(site, 'static/private.txt');
+		writeFileSync(privateFile, 'private output');
+		const privateBefore = contentOutputFingerprint(site);
+		writeFileSync(privateFile, 'changed private output');
+		expect(contentOutputFingerprint(site)).not.toBe(privateBefore);
 	} finally {
 		if (edition === undefined) delete process.env.VITE_PUBLIC_EDITION;
 		else process.env.VITE_PUBLIC_EDITION = edition;

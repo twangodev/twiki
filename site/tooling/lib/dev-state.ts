@@ -206,20 +206,21 @@ export function captureContentOutputs(site: string): ContentOutputSnapshot {
 }
 
 function contentOutputRoots() {
+	const publicEdition = process.env.VITE_PUBLIC_EDITION === 'true';
 	return [
 		'build/generated/content-manifest.json',
 		'build/generated/expected-404.json',
 		'build/generated/expected-missing-id.json',
 		'build/generated/pages',
-		'build/generated/assets',
-		...(process.env.VITE_PUBLIC_EDITION === 'true'
+		...(publicEdition
 			? [
 					'build/generated/public-assets',
 					'build/generated/public-files',
 					'build/generated/public-static'
 				]
-			: []),
+			: ['build/generated/assets']),
 		'src/lib/generated',
-		'static'
+		// Public statics are copied from these shared engine inputs, never the private output tree.
+		...(publicEdition ? ['static/fonts', 'static/favicon.ico'] : ['static'])
 	];
 }
