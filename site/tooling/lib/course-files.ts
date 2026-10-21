@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import { writeChanged, pruneOutputs } from './output';
+import { writeChanged, pruneOutputs, pruneOutputFiles } from './output';
 import type { CourseFile } from '../../src/lib/files';
 import {
 	resolveProject,
@@ -234,7 +234,10 @@ export async function buildCourseFiles(
 			entries.push(...[...paths].map((file) => ({ course, file })));
 		}
 	}
-	pruneOutputs(output, wanted, (file) => file === path.join(output, 'icons'));
+	if (deferOutputValidation && previous) {
+		// The global wanted set preserves blobs shared with unchanged courses.
+		for (const course of active) pruneOutputFiles(previous.get(course)?.outputs ?? [], wanted);
+	} else pruneOutputs(output, wanted, (file) => file === path.join(output, 'icons'));
 	if (!publicEdition && !development) {
 		const history = [...outputByCourse].flatMap(([course, outputs]) =>
 			[...outputs]

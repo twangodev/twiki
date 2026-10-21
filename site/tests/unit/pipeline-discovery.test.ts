@@ -425,11 +425,15 @@ assert.deepEqual(fs.readFileSync(iconMetadata), metadataBytes);
 // Unexpected file names must trigger full pruning, never become trusted outputs.
 const unexpectedPage = 'build/generated/pages/unexpected.json';
 const unexpectedAsset = path.join(compiledAssetsDirectory(process.cwd()), 'unexpected.svg');
+const unexpectedDownload = path.join(courseFilesDirectory(process.cwd()), 'blobs/unexpected.bin');
 fs.writeFileSync(unexpectedPage, '{"unexpected":true}');
 fs.writeFileSync(unexpectedAsset, '<svg>unexpected</svg>');
 await edit('Prune unexpected generated names', 2);
 assert(!fs.existsSync(unexpectedPage));
 assert(!fs.existsSync(unexpectedAsset));
+fs.writeFileSync(unexpectedDownload, 'unexpected raw download');
+await edit('Prune an unexpected raw download', 2);
+assert(!fs.existsSync(unexpectedDownload));
 
 const otherDocument = 'build/generated/pages/sp99-cs101/notes/second.json';
 const originalDocument = fs.readFileSync(otherDocument);

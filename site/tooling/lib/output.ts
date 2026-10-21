@@ -170,6 +170,18 @@ export function copyChanged(
 	return bytes.byteLength;
 }
 
+function removePrunedOutput(file: string) {
+	rmSync(file, { force: true });
+	removeOutput(file);
+	copiedOutputs.delete(file);
+	changes.getStore()?.add(path.resolve(file));
+}
+
+/** Prune known owned files; callers must independently validate the complete namespace. */
+export function pruneOutputFiles(files: Iterable<string>, wanted: ReadonlySet<string>) {
+	for (const file of files) if (!wanted.has(file)) removePrunedOutput(file);
+}
+
 /** Paths are absolute. Each caller prunes only the directory it owns. */
 export function pruneOutputs(
 	directory: string,
@@ -189,10 +201,7 @@ export function pruneOutputs(
 			} else if (wanted.has(file)) {
 				empty = false;
 			} else {
-				rmSync(file);
-				removeOutput(file);
-				copiedOutputs.delete(file);
-				changes.getStore()?.add(path.resolve(file));
+				removePrunedOutput(file);
 				removed++;
 			}
 		}
