@@ -7,6 +7,8 @@ import {
 	contentHash,
 	captureContentBodyValidation,
 	restoreContentBodyValidation,
+	captureContentDocumentValidation,
+	restoreContentDocumentValidation,
 	emitContentDocument,
 	readContentBody,
 	readContentBodies,
@@ -160,6 +162,115 @@ test('saved body validation skips unchanged bytes but cannot bless later edits o
 	} finally {
 		readContentBodies(cache, 'full', [], true);
 		rmSync(cache, { recursive: true, force: true });
+	}
+});
+
+test('restored document copies skip validated bytes and repair later cache or output changes', () => {
+	const site = mkdtempSync(path.join(tmpdir(), 'twiki-restored-doc-'));
+	const cache = path.join(site, 'cache');
+	const out = path.join(site, 'build/generated/pages/note.json');
+	const record = page('note');
+	const document = { html: '<p>original document</p>', markdown: 'original document' };
+	let creates = 0;
+	const emit = (development = true) =>
+		emitContentDocument(
+			cache,
+			'full',
+			record,
+			'same',
+			out,
+			() => {
+				creates++;
+				return document;
+			},
+			development
+		);
+	try {
+		emit();
+		const object = path.join(cache, record.document!);
+		const saved = JSON.parse(JSON.stringify(captureContentDocumentValidation(cache, site, 'full')));
+		expect(saved.files).toHaveLength(1);
+		expect(captureContentDocumentValidation(cache, site, 'public').files).toHaveLength(0);
+		const observed = new Map([[out, fs.statSync(out, { bigint: true })]]);
+		// Clear development copy state without changing the output bytes or identity.
+		emit(false);
+		restoreContentDocumentValidation(cache, site, 'full', saved, observed);
+		const read = spyOn(fs, 'readFileSync');
+		try {
+			emit();
+			expect(read.mock.calls).toHaveLength(0);
+		} finally {
+			read.mockRestore();
+		}
+		writeFileSync(out, 'corrupt output');
+		restoreContentDocumentValidation(cache, site, 'full', saved, observed);
+		emit();
+		expect(JSON.parse(readFileSync(out, 'utf8'))).toEqual(document);
+		writeFileSync(object, 'corrupt cache');
+		// Capturing after mutation must never bless a newer unvalidated source stamp.
+		const stale = captureContentDocumentValidation(cache, site, 'full');
+		restoreContentDocumentValidation(cache, site, 'full', stale, observed);
+		emit();
+		expect(creates).toBe(2);
+		expect(JSON.parse(readFileSync(object, 'utf8'))).toEqual(document);
+		rmSync(object);
+		restoreContentDocumentValidation(cache, site, 'full', saved, observed);
+		emit();
+		expect(creates).toBe(3);
+		expect(JSON.parse(readFileSync(out, 'utf8'))).toEqual(document);
+	} finally {
+		rmSync(site, { recursive: true, force: true });
+	}
+});
+
+test('document copy reuse rejects symlink ancestors even when cached inode and timestamps match', () => {
+	const cache = mkdtempSync(path.join(tmpdir(), 'twiki-doc-symlink-'));
+	const out = path.join(cache, 'pages/note.json');
+	const record = page('note');
+	const emit = () =>
+		emitContentDocument(cache, 'full', record, 'same', out, () => ({ html: 'body' }), true);
+	try {
+		emit();
+		const directory = path.dirname(path.join(cache, record.document!));
+		fs.renameSync(directory, directory + '-moved');
+		symlinkSync(directory + '-moved', directory);
+		expect(emit).toThrow('owned directory ancestors');
+	} finally {
+		rmSync(cache, { recursive: true, force: true });
+	}
+});
+
+test('restored document proofs reject edition changes, malformed state and aliased destinations', () => {
+	const site = mkdtempSync(path.join(tmpdir(), 'twiki-doc-proof-boundaries-'));
+	const cache = path.join(site, 'cache');
+	const out = path.join(site, 'build/generated/pages/note.json');
+	const record = page('note');
+	const emit = (development = true) =>
+		emitContentDocument(cache, 'full', record, 'same', out, () => ({ html: 'body' }), development);
+	try {
+		emit();
+		const saved = captureContentDocumentValidation(cache, site, 'full');
+		const observed = new Map([[out, fs.statSync(out, { bigint: true })]]);
+		const alias = structuredClone(saved);
+		alias.files[0][1] = 'build/generated/pages/../pages/note.json';
+		for (const [edition, state] of [
+			['public', saved],
+			['full', { version: 2, files: saved.files }],
+			['full', alias],
+			['full', { version: 1, files: [null, [], [123, 'bad', 1, 2]] }]
+		] as const) {
+			emit(false);
+			restoreContentDocumentValidation(cache, site, edition, state, observed);
+			const read = spyOn(fs, 'readFileSync');
+			try {
+				emit();
+				expect(read.mock.calls.length).toBeGreaterThan(0);
+			} finally {
+				read.mockRestore();
+			}
+		}
+	} finally {
+		rmSync(site, { recursive: true, force: true });
 	}
 });
 

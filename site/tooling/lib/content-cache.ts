@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
-import { lstatSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
+import { lstatSync, mkdirSync, readFileSync, realpathSync, type BigIntStats } from 'node:fs';
 import path from 'node:path';
 import type { FullSlug } from './slug';
-import { copyChanged, writeChanged } from './output';
+import { captureCopyValidation, copyChanged, restoreCopyValidation, writeChanged } from './output';
 
 export type ContentEdition = 'public' | 'full';
 export interface ContentSummary {
@@ -117,7 +117,11 @@ export function emitContentDocument(
 	create: () => unknown,
 	development = false
 ): number {
-	if (record.documentKey === key && ownedObject(record.document, edition, 'docs')) {
+	if (
+		record.documentKey === key &&
+		ownedObject(record.document, edition, 'docs') &&
+		ownedFileStamp(path.resolve(cache, record.document))
+	) {
 		const copied = copyChanged(
 			path.resolve(cache, record.document),
 			destination,
@@ -140,6 +144,64 @@ export function emitContentDocument(
 		return copied;
 	} else writeChanged(destination, bytes);
 	return bytes.byteLength;
+}
+
+function pageDocumentPath(relative: unknown): relative is string {
+	return (
+		typeof relative === 'string' &&
+		relative.startsWith('build/generated/pages/') &&
+		relative.endsWith('.json') &&
+		!relative.includes('\\') &&
+		!relative.split('/').some((segment) => !segment || segment === '.' || segment === '..')
+	);
+}
+
+/** Persist only validated document copies inside this edition and site. */
+export function captureContentDocumentValidation(
+	cache: string,
+	site: string,
+	edition: ContentEdition
+) {
+	const files: [string, string, string, string][] = [];
+	for (const copy of captureCopyValidation(readObjectFile)) {
+		const source = path.relative(cache, copy.source).split(path.sep).join('/');
+		const destination = path.relative(site, copy.destination).split(path.sep).join('/');
+		if (ownedObject(source, edition, 'docs') && pageDocumentPath(destination))
+			files.push([source, destination, copy.input, copy.output]);
+	}
+	return { version: 1, files };
+}
+
+/** The caller has already matched saved engine, source and output fingerprints. */
+export function restoreContentDocumentValidation(
+	cache: string,
+	site: string,
+	edition: ContentEdition,
+	saved: unknown,
+	outputs: ReadonlyMap<string, Readonly<BigIntStats>>
+) {
+	if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 1) return;
+	if (!('files' in saved) || !Array.isArray(saved.files)) return;
+	for (const entry of saved.files) {
+		if (
+			!Array.isArray(entry) ||
+			entry.length !== 4 ||
+			!ownedObject(entry[0], edition, 'docs') ||
+			!pageDocumentPath(entry[1]) ||
+			typeof entry[2] !== 'string' ||
+			typeof entry[3] !== 'string'
+		)
+			continue;
+		const [source, destination, input, output] = entry;
+		const file = path.resolve(site, destination);
+		const observed = outputs.get(file);
+		if (observed)
+			restoreCopyValidation(
+				{ source: path.resolve(cache, source), destination: file, input, output },
+				observed,
+				readObjectFile
+			);
+	}
 }
 
 export function readContentBody(cache: string, relative: string, edition: ContentEdition) {

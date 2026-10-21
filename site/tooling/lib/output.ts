@@ -19,6 +19,34 @@ const copiedOutputs = new Map<
 	{ source: string; input: string; output: string; read: SourceReader }
 >();
 
+export interface CopyValidation {
+	source: string;
+	destination: string;
+	input: string;
+	output: string;
+}
+
+/** Capture original byte-validation observations, restricted to one reader contract. */
+export function* captureCopyValidation(read: SourceReader): Generator<CopyValidation> {
+	for (const [destination, copy] of copiedOutputs)
+		if (copy.read === read) {
+			const { source, input, output } = copy;
+			yield { source, destination, input, output };
+		}
+}
+
+/** Restore only when the independently validated output still matches the copy observation. */
+export function restoreCopyValidation(
+	copy: CopyValidation,
+	observed: Readonly<BigIntStats>,
+	read: SourceReader
+) {
+	if (copy.output === copyStamp(observed)) {
+		const { destination, ...identity } = copy;
+		copiedOutputs.set(destination, { ...identity, read });
+	}
+}
+
 function copyStamp(stat: Readonly<BigIntStats> | undefined) {
 	return stat?.isFile()
 		? [stat.dev, stat.ino, stat.mode, stat.size, stat.mtimeNs, stat.ctimeNs].join(':')

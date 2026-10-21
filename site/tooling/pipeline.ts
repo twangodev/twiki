@@ -3,7 +3,12 @@ import path from 'node:path';
 import { stageFingerprint } from './fingerprint';
 import { trackOutputs, writeChanged } from './lib/output';
 import { restoreDevelopmentOutputs } from './lib/dev-output-state';
-import { captureContentBodyValidation, restoreContentBodyValidation } from './lib/content-cache';
+import {
+	captureContentBodyValidation,
+	restoreContentBodyValidation,
+	captureContentDocumentValidation,
+	restoreContentDocumentValidation
+} from './lib/content-cache';
 import {
 	captureContentInputs,
 	captureContentOutputs,
@@ -77,6 +82,7 @@ async function prepareSnapshot(
 			if (snapshot && outputs && saved.outputs === outputs.fingerprint) {
 				snapshot.withDiscovery(() => restoreDevelopmentOutputs(site, project, outputs));
 				restoreContentBodyValidation(cache, edition, saved.bodies);
+				restoreContentDocumentValidation(cache, site, edition, saved.documents, outputs.files);
 				validatedInputs = snapshot;
 				process.env.TWIKI_PREPARED_CONTENT_KEY = key;
 				console.log(
@@ -139,7 +145,8 @@ async function prepareSnapshot(
 					JSON.stringify({
 						inputs,
 						outputs: contentOutputFingerprint(site),
-						bodies: captureContentBodyValidation(cache, edition)
+						bodies: captureContentBodyValidation(cache, edition),
+						documents: captureContentDocumentValidation(cache, site, edition)
 					})
 				);
 				break;

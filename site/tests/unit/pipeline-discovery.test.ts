@@ -86,15 +86,19 @@ import { prepareContent } from './tooling/pipeline';
 const read = fs.readFileSync;
 const index = JSON.parse(read('build/generated/cache/content-current-full.json', 'utf8'));
 const body = process.cwd() + '/build/generated/cache/' + index.pages['sp99-other/note.md'].body;
+const document = process.cwd() + '/build/generated/pages/sp99-other/note.json';
+const cachedDocument = process.cwd() + '/build/generated/cache/' + index.pages['sp99-other/note.md'].document;
 const unchanged = ${JSON.stringify(path.join(fixture.repo, 'content/sp99-other/attachment.bin'))};
 const image = ${JSON.stringify(path.join(fixture.repo, 'content/sp99-other/image.svg'))};
 let reads = 0;
 let imageReads = 0;
 let bodyReads = 0;
+let documentReads = 0;
 const spy = spyOn(fs, 'readFileSync').mockImplementation((file, ...args) => {
   if (String(file) === unchanged) reads++;
   if (String(file) === image) imageReads++;
   if (String(file) === body) bodyReads++;
+  if (String(file) === document || String(file) === cachedDocument) documentReads++;
   return read(file, ...args);
 });
 const note = ${JSON.stringify(path.join(fixture.course, 'notes/public.md'))};
@@ -103,12 +107,14 @@ try {
   reads = 0;
   imageReads = 0;
   bodyReads = 0;
+  documentReads = 0;
   // Preserve catalog metadata so this exercises an ordinary body edit.
   fs.writeFileSync(note, read(note, 'utf8') + '\\nFirst edit after restart');
   await prepareContent(false, new Set([note]), true);
   assert.equal(reads, 1, 'only fresh filesystem source validation should read the unchanged attachment');
   assert.equal(imageReads, 1, 'only fresh filesystem source validation should read the unchanged compiled asset');
   assert.equal(bodyReads, 0, 'validated unchanged bodies should survive a fresh worker restart without rereading bytes');
+  assert.equal(documentReads, 0, 'validated unchanged document copies should survive a fresh worker restart without rereading bytes');
 } finally { spy.mockRestore(); }
 // An omitted watcher event must still invalidate restored course metadata.
 fs.writeFileSync(unchanged, 'Unreported attachment edit');
