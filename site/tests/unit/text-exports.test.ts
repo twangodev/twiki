@@ -4,7 +4,7 @@ import { textExportUrl } from '../../src/lib/text-exports';
 import * as fs from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
-import { writeTextExports } from '../../tooling/lib/text-exports';
+import { restoreTextExports, writeTextExports } from '../../tooling/lib/text-exports';
 import { pruneOutputs } from '../../tooling/lib/output';
 
 test('text extensions append to canonical note URLs', () => {
@@ -75,6 +75,45 @@ test('text exports reuse unchanged documents and repair edits, corruption and de
 		expect(fs.existsSync(markdown)).toBe(false);
 		expect(fs.existsSync(text)).toBe(false);
 		expect(fs.readFileSync(path.join(output, 'llms.txt'), 'utf8')).not.toContain(page.title);
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test('restored text exports reuse observed identities and reject later source or output edits', () => {
+	const root = fs.mkdtempSync(path.join(tmpdir(), 'twiki-text-restore-'));
+	const output = path.join(root, 'static');
+	const documents = path.join(root, 'pages');
+	const document = path.join(documents, 'note.json');
+	const page = { slug: 'note', title: 'Original title' };
+	const markdown = path.join(output, 'note.md');
+	const text = path.join(output, 'note.txt');
+	const emit = () => writeTextExports(output, documents, [page], new Set(), true);
+	try {
+		fs.mkdirSync(documents);
+		fs.writeFileSync(document, JSON.stringify({ ...page, markdown: 'Original body' }));
+		// Production writes leave no in-memory development copy state.
+		writeTextExports(output, documents, [page]);
+		const observations = new Map(
+			[document, markdown, text].map((file) => [file, fs.statSync(file, { bigint: true })])
+		);
+		restoreTextExports(output, documents, [page], observations);
+		const read = spyOn(fs, 'readFileSync');
+		try {
+			emit();
+			expect(read.mock.calls.filter(([file]) => String(file) === document)).toHaveLength(0);
+		} finally {
+			read.mockRestore();
+		}
+		fs.writeFileSync(text, 'corrupt');
+		restoreTextExports(output, documents, [page], observations);
+		emit();
+		expect(fs.readFileSync(text, 'utf8')).toBe(fs.readFileSync(markdown, 'utf8'));
+		fs.writeFileSync(document, JSON.stringify({ ...page, markdown: 'Changed body' }));
+		restoreTextExports(output, documents, [page], observations);
+		emit();
+		expect(fs.readFileSync(markdown, 'utf8')).toContain('Changed body');
+		expect(fs.readFileSync(text, 'utf8')).toContain('Changed body');
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true });
 	}

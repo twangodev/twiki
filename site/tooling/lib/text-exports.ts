@@ -1,5 +1,5 @@
-import { copyChanged, writeChanged } from './output';
-import { readFileSync } from 'node:fs';
+import { copyChanged, restoreCopy, writeChanged } from './output';
+import { readFileSync, type BigIntStats } from 'node:fs';
 import path from 'node:path';
 import type { ManifestPage, PageDoc } from '../../src/lib/types';
 import { site } from '../../src/lib/config';
@@ -15,6 +15,30 @@ function textExportBytes(file: string) {
 	if (Buffer.byteLength(text) > 25 * 1024 * 1024)
 		throw new Error(`Text export exceeds deployment size limit: ${page.slug}`);
 	return Buffer.from(text);
+}
+
+function exportFile(directory: string, slug: string, format: 'md' | 'txt') {
+	return path.join(directory, decodeURIComponent(textExportUrl(slug, format)).slice(1));
+}
+
+/** Seed only identities observed by the validated saved-output snapshot. */
+export function restoreTextExports(
+	directory: string,
+	pageDirectory: string,
+	pages: Pick<ManifestPage, 'slug' | 'locked'>[],
+	outputs: ReadonlyMap<string, Readonly<BigIntStats>>
+) {
+	for (const page of pages) {
+		if (page.locked) continue;
+		const source = path.join(pageDirectory, `${page.slug}.json`);
+		const input = outputs.get(source);
+		if (!input) continue;
+		for (const format of ['md', 'txt'] as const) {
+			const file = exportFile(directory, page.slug, format);
+			const output = outputs.get(file);
+			if (output) restoreCopy(source, file, input, output, textExportBytes);
+		}
+	}
 }
 
 /** Called separately for each edition; locked outlines never become text exports. */
@@ -41,10 +65,7 @@ export function writeTextExports(
 		if (page.locked) continue;
 		const destinations: string[] = [];
 		for (const format of ['md', 'txt'] as const) {
-			const file = path.join(
-				directory,
-				decodeURIComponent(textExportUrl(page.slug, format)).slice(1)
-			);
+			const file = exportFile(directory, page.slug, format);
 			if (
 				assets.has(path.relative(directory, file)) ||
 				written.has(path.relative(directory, file)) ||

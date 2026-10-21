@@ -34,12 +34,12 @@ export function restoreCopy(
 	source: string,
 	destination: string,
 	sourceStat: Readonly<BigIntStats>,
-	outputStat: Readonly<BigIntStats>
+	outputStat: Readonly<BigIntStats>,
+	read: SourceReader = readFileSync
 ) {
 	const input = copyStamp(sourceStat);
 	const output = copyStamp(outputStat);
-	if (input && output)
-		copiedOutputs.set(destination, { source, input, output, read: readFileSync });
+	if (input && output) copiedOutputs.set(destination, { source, input, output, read });
 }
 
 /** A shared collector retains invalidations across failed or repeated passes. */
