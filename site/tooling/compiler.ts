@@ -83,10 +83,12 @@ import {
 	contentHash,
 	readContentBodies,
 	readContentIndex,
+	readContentParse,
 	emitContentDocument,
 	transclusionClosure,
 	writeContentIndex,
 	writeContentObject,
+	writeContentParse,
 	type ContentBody,
 	type ContentCacheIndex,
 	type ContentCachePage,
@@ -496,7 +498,7 @@ export async function compileContent(
 		parseCacheFiles.add(path.relative(CACHE_DIR, cacheFile).split(path.sep).join('/'));
 		if (fs.existsSync(cacheFile)) {
 			try {
-				const saved = JSON.parse(fs.readFileSync(cacheFile, 'utf8')) as PageParse;
+				const saved = readContentParse(CACHE_DIR, cacheKey) as PageParse | undefined;
 				if (
 					!saved ||
 					saved.slug !== file.slug ||
@@ -630,8 +632,7 @@ export async function compileContent(
 			tree
 		};
 
-		fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
-		writeChanged(cacheFile, JSON.stringify(page));
+		writeContentParse(CACHE_DIR, cacheKey, page);
 		return page;
 	}
 

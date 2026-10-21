@@ -108,6 +108,35 @@ function fixture() {
 	};
 }
 
+test('a corrupted parsed tree is reparsed when an unchanged note needs resolution again', async () => {
+	const f = fixture();
+	try {
+		const options = {
+			siteDir: f.site,
+			repoRoot: f.root,
+			publicEdition: false,
+			development: true
+		};
+		const first = await compileContent(options);
+		const key = first.index.pages['course/source.md'].parseKey;
+		const file = path.join(f.site, 'build/generated/cache/stage1', key.slice(0, 2), key + '.json');
+		const stored = JSON.parse(readFileSync(file, 'utf8'));
+		const page = stored.page ?? stored;
+		page.tree = { type: 'root', children: [{ type: 'text', value: 'CORRUPTED_PARSE_BODY' }] };
+		writeFileSync(file, JSON.stringify(stored));
+		f.write('target.md', '---\ntags: [context-change]\n---\n# Target\n\nTarget content.\n');
+		await compileContent({
+			...options,
+			previous: first,
+			changedInputs: new Set([path.join(f.course, 'target.md')])
+		});
+		expect(JSON.parse(f.pages()['course/source.json']).html).not.toContain('CORRUPTED_PARSE_BODY');
+		await f.reference();
+	} finally {
+		f.cleanup();
+	}
+});
+
 test('validated compiler metadata avoids disk index reads, stays immutable and repairs cached products', async () => {
 	const f = fixture();
 	const options = { siteDir: f.site, repoRoot: f.root, publicEdition: false, development: true };

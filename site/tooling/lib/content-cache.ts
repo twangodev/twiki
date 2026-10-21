@@ -365,23 +365,51 @@ function validPage(value: unknown, edition: ContentEdition): value is ContentCac
 	);
 }
 
-export function readContentIndex(cache: string, edition: ContentEdition, renderer: string) {
+function readCheckedPayload(cache: string, relative: string) {
 	try {
-		const bytes = readRegular(cache, `content-current-${edition}.json`);
+		const bytes = readRegular(cache, relative);
 		if (!bytes) return;
 		const serialized = bytes.toString();
-		const { checksum, ...index } = JSON.parse(serialized);
+		const { checksum, ...payload } = JSON.parse(serialized);
 		// The writer appends the checksum to an already serialized payload.
 		// Validate those bytes without serializing the whole catalog again.
 		const suffix = `,"checksum":${JSON.stringify(checksum)}}`;
 		const checked =
 			serialized.endsWith(suffix) &&
 			checksum === contentHash(serialized.slice(0, -suffix.length) + '}');
+		if (checked || checksum === contentHash(JSON.stringify(payload))) return payload;
+	} catch {
+		return;
+	}
+}
+
+function writeCheckedPayload(cache: string, relative: string, value: object) {
+	const payload = JSON.stringify(value);
+	writeOwned(cache, relative, `${payload.slice(0, -1)},"checksum":"${contentHash(payload)}"}`);
+}
+
+function parsePath(key: string) {
+	if (!digest.test(key)) throw new Error('Invalid parsed content cache key');
+	return `stage1/${key.slice(0, 2)}/${key}.json`;
+}
+
+export function readContentParse(cache: string, key: string): unknown {
+	const saved = readCheckedPayload(cache, parsePath(key));
+	return saved?.schema === 1 && saved.key === key ? saved.page : undefined;
+}
+
+export function writeContentParse(cache: string, key: string, page: object) {
+	writeCheckedPayload(cache, parsePath(key), { schema: 1, key, page });
+}
+
+export function readContentIndex(cache: string, edition: ContentEdition, renderer: string) {
+	try {
+		const index = readCheckedPayload(cache, `content-current-${edition}.json`);
 		if (
+			!index ||
 			index.schema !== 1 ||
 			index.renderer !== renderer ||
 			!digest.test(index.context) ||
-			(!checked && checksum !== contentHash(JSON.stringify(index))) ||
 			!index.pages ||
 			typeof index.pages !== 'object' ||
 			Array.isArray(index.pages) ||
@@ -413,12 +441,7 @@ export function writeContentIndex(
 	edition: ContentEdition,
 	index: ContentCacheIndex
 ) {
-	const payload = JSON.stringify(index);
-	writeOwned(
-		cache,
-		`content-current-${edition}.json`,
-		`${payload.slice(0, -1)},"checksum":"${contentHash(payload)}"}`
-	);
+	writeCheckedPayload(cache, `content-current-${edition}.json`, index);
 	const files = new Set<string>([`content-current-${edition}.json`]);
 	for (const page of Object.values(index.pages)) {
 		if (page.body) files.add(page.body);

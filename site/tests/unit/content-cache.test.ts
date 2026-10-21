@@ -13,15 +13,45 @@ import {
 	readContentBody,
 	readContentBodies,
 	readContentIndex,
+	readContentParse,
 	readContentObject,
 	transclusionClosure,
 	writeContentIndex,
 	writeContentObject,
+	writeContentParse,
 	type ContentCachePage
 } from '../../tooling/lib/content-cache';
+
+
 import { OutputCheckpoint } from '../../tooling/lib/output-checkpoint';
 import { trackOutputs } from '../../tooling/lib/output';
 import type { FullSlug } from '../../tooling/lib/slug';
+
+test('parsed caches validate bytes, source keys, and owned regular entries', () => {
+	const cache = mkdtempSync(path.join(tmpdir(), 'twiki-parsed-cache-'));
+	try {
+		const key = 'a'.repeat(64);
+		const other = 'b'.repeat(64);
+		const file = path.join(cache, 'stage1/aa', key + '.json');
+		const otherFile = path.join(cache, 'stage1/bb', other + '.json');
+		const page = { slug: 'course/note', tree: { type: 'root', children: [] } };
+		writeContentParse(cache, key, page);
+		expect(readContentParse(cache, key)).toEqual(page);
+		const valid = readFileSync(file);
+		writeFileSync(file, valid.toString().replace('course/note', 'course/fake'));
+		expect(readContentParse(cache, key)).toBeUndefined();
+		writeContentParse(cache, other, page);
+		writeFileSync(otherFile, valid);
+		expect(readContentParse(cache, other)).toBeUndefined();
+		fs.unlinkSync(file);
+		symlinkSync(otherFile, file);
+		expect(readContentParse(cache, key)).toBeUndefined();
+		expect(() => writeContentParse(cache, key, page)).toThrow('owned regular files');
+		expect(() => readContentParse(cache, '../note')).toThrow('Invalid parsed content cache key');
+	} finally {
+		rmSync(cache, { recursive: true, force: true });
+	}
+});
 
 function page(slug: string, targets: string[] = []): ContentCachePage {
 	return {
