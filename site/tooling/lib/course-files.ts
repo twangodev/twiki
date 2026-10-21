@@ -40,7 +40,8 @@ export async function buildCourseFiles(
 	siteDir: string,
 	noteSlugs: Set<string>,
 	changedInputs?: Set<string>,
-	development = false
+	development = false,
+	deferOutputValidation = false
 ) {
 	const project = resolveProject(siteDir);
 	const repo = project.root;
@@ -122,7 +123,8 @@ export async function buildCourseFiles(
 				)
 			)
 				continue;
-			if (![...cached.outputs].every(existsSync)) continue;
+			// The narrowed pipeline verifies all outputs independently and retries a full pass on mismatch.
+			if (!deferOutputValidation && ![...cached.outputs].every(existsSync)) continue;
 			courses.set(course, cached.files);
 			outputByCourse.set(course, cached.outputs);
 			for (const file of cached.outputs) wanted.add(file);

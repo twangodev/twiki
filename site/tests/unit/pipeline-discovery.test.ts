@@ -116,6 +116,14 @@ try {
   assert.equal(bodyReads, 0, 'validated unchanged bodies should survive a fresh worker restart without rereading bytes');
   assert.equal(documentReads, 0, 'validated unchanged document copies should survive a fresh worker restart without rereading bytes');
 } finally { spy.mockRestore(); }
+// A deferred pass must repair missing generated blobs from an otherwise reused course.
+const unchangedIndex = 'build/generated/assets/_files/index/sp99-other.json';
+const previousAttachment = JSON.parse(fs.readFileSync(unchangedIndex, 'utf8')).find(file => file.path === 'attachment.bin');
+const generatedAttachment = 'build/generated/assets' + previousAttachment.download;
+fs.rmSync(generatedAttachment);
+fs.writeFileSync(note, read(note, 'utf8') + '\\nEdit after removing an unchanged course blob');
+await prepareContent(false, new Set([note]), true);
+assert.equal(fs.readFileSync(generatedAttachment, 'utf8'), 'Unchanged course attachment');
 // An omitted watcher event must still invalidate restored course metadata.
 fs.writeFileSync(unchanged, 'Unreported attachment edit');
 fs.writeFileSync(note, '# Reported alongside an unreported course edit');

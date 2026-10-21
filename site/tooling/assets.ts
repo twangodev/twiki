@@ -70,7 +70,8 @@ export async function prepareAssets(
 		SITE_DIR,
 		new Set(Object.keys(manifest.pages)),
 		changedInputs,
-		development
+		development,
+		changedOutputs !== undefined
 	);
 	if (process.env.VITE_PUBLIC_EDITION === 'true') {
 		const entries = JSON.parse(
