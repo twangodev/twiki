@@ -3,7 +3,7 @@
 	import './layout.css';
 	import { onMount, setContext, type Snippet } from 'svelte';
 	import { dev } from '$app/environment';
-	import { onNavigate, invalidate, invalidateAll } from '$app/navigation';
+	import { invalidate, invalidateAll } from '$app/navigation';
 	import { ModeWatcher } from 'mode-watcher';
 	import { site } from '$lib/config';
 	import DocShell from '$lib/components/doc/DocShell.svelte';
@@ -39,27 +39,6 @@
 		import.meta.hot.on('wisconsin:content', refreshContent);
 		import.meta.hot.dispose(() => import.meta.hot?.off('wisconsin:content', refreshContent));
 	}
-
-	// Subtle crossfade between pages via the View Transitions API
-	// (https://svelte.dev/blog/view-transitions). Progressive enhancement:
-	// no-ops in browsers without document.startViewTransition, and skipped
-	// for users who prefer reduced motion. Duration is tuned in foundation.css.
-	onNavigate((navigation) => {
-		if (
-			navigation.from?.route.id?.includes('/files/') &&
-			navigation.to?.route.id?.includes('/files/')
-		)
-			return;
-		if (!document.startViewTransition) return;
-		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-		return new Promise((resolve) => {
-			document.startViewTransition(async () => {
-				resolve();
-				await navigation.complete;
-			});
-		});
-	});
 </script>
 
 <svelte:head>

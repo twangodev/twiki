@@ -260,6 +260,16 @@ try {
 	page.on('pageerror', (error) => {
 		output += `\nBrowser error: ${error.message}\n`;
 	});
+	await page.addInitScript(() => {
+		const marker = window as Window & { contentTestTransitions: number };
+		marker.contentTestTransitions = 0;
+		const start = document.startViewTransition;
+		if (start)
+			document.startViewTransition = function (...args) {
+				marker.contentTestTransitions++;
+				return start.apply(document, args);
+			};
+	});
 	await page.goto(origin + '/sp99-cs101/notes/public');
 	await until(
 		async () => (await page.locator('article').innerText()).includes('publicsearchcanary'),
@@ -270,6 +280,9 @@ try {
 		return page.getByRole('dialog', { name: 'Note actions' }).isVisible();
 	}, 'client hydration');
 	await page.keyboard.press('Escape');
+	const transitions = await page.evaluate(
+		() => (window as Window & { contentTestTransitions: number }).contentTestTransitions
+	);
 	for (const target of ['second', 'public']) {
 		const route = `/sp99-cs101/notes/${target}`;
 		const response = contentData(page, route);
@@ -279,6 +292,12 @@ try {
 			throw new Error('Dev navigation downloaded the shared layout again');
 		await page.waitForURL(origin + route);
 	}
+	if (
+		(await page.evaluate(
+			() => (window as Window & { contentTestTransitions: number }).contentTestTransitions
+		)) !== transitions
+	)
+		throw new Error('Note navigation waited for a full-page view transition');
 	const unchangedPath = path.join(
 		siteDirectory,
 		'build/generated/pages/sp99-cs101/notes/second.json'

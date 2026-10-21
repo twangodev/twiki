@@ -117,22 +117,3 @@ samp,
 pre {
 	font-family: var(--font-mono);
 }
-
-/* ---------------------------------------------------------------------------
-   View transitions: subtle, quick crossfade between pages (onNavigate +
-   document.startViewTransition in +layout.svelte). Reduced motion is already
-   guarded in JS; the media query here is belt-and-braces.
---------------------------------------------------------------------------- */
-@media (prefers-reduced-motion: no-preference) {
-	::view-transition-old(root),
-	::view-transition-new(root) {
-		animation-duration: 120ms;
-		animation-timing-function: ease;
-	}
-}
-@media (prefers-reduced-motion: reduce) {
-	::view-transition-old(root),
-	::view-transition-new(root) {
-		animation: none;
-	}
-}
