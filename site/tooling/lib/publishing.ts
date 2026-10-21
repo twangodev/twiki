@@ -5,7 +5,7 @@ import path from 'node:path';
 import { parseDocument } from 'yaml';
 import {
 	declaredContentCourses,
-	projectSourceVisible,
+	projectSourceFilter,
 	resolveProject,
 	projectIdentity,
 	sourceRepository,
@@ -152,12 +152,13 @@ export function publicationResolver(
 	repo: string,
 	project: ResolvedProject = resolveProject(process.cwd(), repo)
 ) {
-	if (project.publication === 'public')
+	if (project.publication === 'public') {
+		const visible = projectSourceFilter(project);
 		return (relative: string) => ({
-			public:
-				projectSourceVisible(project, relative) && !relative.split('/').includes('publish.yaml'),
+			public: visible(relative) && !relative.split('/').includes('publish.yaml'),
 			reason: 'Project publication is public; reserved paths stay private.'
 		});
+	}
 	if (project.publication === 'private')
 		return (_relative: string) => ({ public: false, reason: 'Project publication is private.' });
 	const policies = coursePolicies(repo, project);

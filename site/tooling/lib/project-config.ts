@@ -178,17 +178,18 @@ function sourceVisible(relative: string) {
 		relative === 'publish.yaml'
 	);
 }
+/** Prepare the reserved-path policy once for one resolved project snapshot. */
+export function projectSourceFilter(project: ResolvedProject) {
+	const atRoot = path.resolve(project.contentDir) === path.resolve(project.root);
+	const config = project.configFile
+		? path.relative(project.contentDir, path.resolve(project.configFile)).split(path.sep).join('/')
+		: undefined;
+	return (relative: string) =>
+		sourceVisible(relative) && !(atRoot && projectFiles.has(relative)) && relative !== config;
+}
+
 export function projectSourceVisible(project: ResolvedProject, relative: string) {
-	return (
-		sourceVisible(relative) &&
-		!(
-			path.resolve(project.contentDir) === path.resolve(project.root) && projectFiles.has(relative)
-		) &&
-		!(
-			project.configFile &&
-			path.resolve(project.contentDir, relative) === path.resolve(project.configFile)
-		)
-	);
+	return projectSourceFilter(project)(relative);
 }
 export interface SourceEntry {
 	readonly relative: string;
@@ -256,8 +257,9 @@ function discoverFiles(project: ResolvedProject): SourceEntry[] {
 	if (!existsSync(project.contentDir)) throw new Error('Content directory does not exist');
 	const root = realpathSync(project.contentDir);
 	const paths = new Map<string, SourceEntry>();
+	const visible = projectSourceFilter(project);
 	const add = (relative: string) => {
-		if (paths.has(relative) || !projectSourceVisible(project, relative)) return;
+		if (paths.has(relative) || !visible(relative)) return;
 		const file = path.join(project.contentDir, relative);
 		try {
 			const stat = lstatSync(file, { bigint: true });

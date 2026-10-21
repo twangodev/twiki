@@ -16,6 +16,7 @@ import {
 	discoverSourceFiles,
 	discoverSourceEntries,
 	parseProjectConfig,
+	projectSourceFilter,
 	resolveProject,
 	withSourceDiscovery,
 	writeProjectSiteConfig
@@ -117,6 +118,55 @@ describe('consumer project configuration and discovery', () => {
 			expect(project.site.author.name).toBe('');
 			expect(publicationResolver(root, project)('index.md').public).toBe(false);
 			expect(declaredContentCourses(project)).toEqual([]);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+	test('prepared source policy preserves project and custom configuration boundaries', () => {
+		const root = temporary();
+		try {
+			const base = resolveProject('/unrelated/site', undefined, { TWIKI_PROJECT_ROOT: root });
+			for (const nested of [false, true]) {
+				const project = {
+					...base,
+					contentDir: nested ? path.join(root, 'vault') : root,
+					configFile: path.join(root, nested ? 'vault/settings/engine.ts' : 'settings/engine.ts'),
+					publication: 'public' as const
+				};
+				const visible = projectSourceFilter(project);
+				const published = publicationResolver(root, project);
+				for (const file of [
+					'settings/engine.ts',
+					'../outside.md',
+					'nested/../outside.md',
+					'.env',
+					'keys/private.key'
+				]) {
+					expect(visible(file)).toBe(false);
+					expect(published(file).public).toBe(false);
+				}
+				for (const file of ['index.md', 'settings/example.ts', 'nested/package.json']) {
+					expect(visible(file)).toBe(true);
+					expect(published(file).public).toBe(true);
+				}
+				mkdirSync(path.join(project.contentDir, 'settings'), { recursive: true });
+				writeFileSync(project.configFile, 'export default { version: 1 };');
+				writeFileSync(
+					path.join(project.contentDir, 'settings/example.ts'),
+					'export const example = true;'
+				);
+				const discovered = discoverSourceFiles(project);
+				expect(discovered).not.toContain('settings/engine.ts');
+				expect(discovered).toContain('settings/example.ts');
+				expect(visible('package.json')).toBe(nested);
+				expect(visible('publish.yaml')).toBe(true);
+				expect(published('publish.yaml').public).toBe(false);
+				const externalConfig = projectSourceFilter({
+					...project,
+					configFile: path.join(root, '../outside/engine.ts')
+				});
+				expect(externalConfig('settings/engine.ts')).toBe(true);
+			}
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
