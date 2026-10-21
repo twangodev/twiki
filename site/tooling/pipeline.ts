@@ -154,6 +154,14 @@ async function prepareSnapshot(
 		);
 	const build = snapshot ? snapshot.withDiscovery(initial) : initial();
 	builds.set(key, build);
+	const initialValidation =
+		verifyOutputs && snapshot && checkpoint && checkpoint.fileCount >= minimumParallelOutputs
+			? freshInputFingerprint(
+					repo,
+					key,
+					build.then(() => verifyOutputs)
+				)
+			: undefined;
 	try {
 		let pending = build;
 		while (true) {
@@ -165,6 +173,7 @@ async function prepareSnapshot(
 				failed = true;
 				failure = error;
 			}
+			if (pending === build && (failed || !verifyOutputs)) await initialValidation;
 			if (!development) {
 				if (failed) throw failure;
 				break;
@@ -180,7 +189,10 @@ async function prepareSnapshot(
 				checkpoint &&
 				checkpoint.fileCount >= minimumParallelOutputs
 			) {
-				const validation = freshInputFingerprint(repo, key);
+				const validation =
+					pending === build && initialValidation
+						? initialValidation
+						: freshInputFingerprint(repo, key);
 				try {
 					outputsCurrent = checkpoint.matchesCurrent();
 				} catch (error) {

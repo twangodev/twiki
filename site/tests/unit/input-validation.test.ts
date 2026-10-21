@@ -42,6 +42,29 @@ test('disposable source validators observe current bytes, structure and configur
 		const policy = await freshInputFingerprint(root, 'engine');
 		expect(policy).not.toBe(added);
 		expect(policy).toBe(await capture());
+		let completeBuild!: () => void;
+		const build = new Promise<void>((resolve) => {
+			completeBuild = resolve;
+		});
+		let settled = false;
+		const pending = freshInputFingerprint(root, 'engine', build).then((value) => {
+			settled = true;
+			return value;
+		});
+		try {
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			expect(settled).toBe(false);
+			writeFileSync(note, '# Written while compilation was active');
+		} finally {
+			completeBuild();
+		}
+		expect(await freshInputFingerprint(root, 'engine', Promise.resolve(false))).toBeUndefined();
+		const afterBuild = await pending;
+		expect(afterBuild).not.toBe(policy);
+		expect(afterBuild).toBe(await capture());
+		expect(
+			await freshInputFingerprint(root, 'engine', Promise.reject(new Error('failed build')))
+		).toBeUndefined();
 		rmSync(path.join(root, 'notes'), { recursive: true });
 		expect(await freshInputFingerprint(root, 'engine')).toBeUndefined();
 	} finally {
