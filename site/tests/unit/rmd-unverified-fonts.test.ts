@@ -47,7 +47,7 @@ test.skipIf(!available)(
 			const wrapper = path.join(bin, 'Rscript');
 			writeFileSync(
 				wrapper,
-				`#!/bin/sh\nif [ "$2" != "-e" ]; then echo render >> ${quote(renders)}; fi\nexec ${quote(executable)} "$@"\n`,
+				`#!/bin/sh\nis_probe() { for argument in "$@"; do if [ "$argument" = "-e" ]; then return 0; fi; done; return 1; }\nif ! is_probe "$@"; then echo render >> ${quote(renders)}; fi\nexec ${quote(executable)} "$@"\n`,
 				{ mode: 0o755 }
 			);
 			process.env.PATH = `${bin}${path.delimiter}${originalPath ?? ''}`;

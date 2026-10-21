@@ -47,7 +47,7 @@ function fixture() {
 	);
 	write(
 		'bin/Rscript',
-		'#!/bin/sh\nif [ "$2" = "-e" ]; then printf "R fixture; knitr 1; native png 1\\n"; else printf "# Worksheet\\n\\nVerified result\\n" > "$4"; fi\n',
+		'#!/bin/sh\nis_probe() { for argument in "$@"; do if [ "$argument" = "-e" ]; then return 0; fi; done; return 1; }\nif is_probe "$@"; then printf "R fixture; knitr 1; native png 1\\n"; else printf "# Worksheet\\n\\nVerified result\\n" > "$4"; fi\n',
 		true
 	);
 	write('content/test-course/worksheet.Rmd', '# Worksheet\n\n```{r}\n1 + 1\n```');
@@ -249,7 +249,7 @@ test('CI requires its pinned renderer while normal local R can use a different a
 		lock();
 		writeFileSync(
 			executable,
-			'#!/bin/sh\nif [ "$2" = "-e" ]; then printf "R fixture; knitr 2; native png 1\\n"; else printf "# Worksheet\\n\\nNew local renderer\\n" > "$4"; fi\n',
+			'#!/bin/sh\nis_probe() { for argument in "$@"; do if [ "$argument" = "-e" ]; then return 0; fi; done; return 1; }\nif is_probe "$@"; then printf "R fixture; knitr 2; native png 1\\n"; else printf "# Worksheet\\n\\nNew local renderer\\n" > "$4"; fi\n',
 			{ mode: 0o755 }
 		);
 		const runtime = rRuntimeVersion(environment, true);
@@ -326,7 +326,7 @@ test('locked catalog additions invalidate rendered wikilinks while authorized so
 	try {
 		writeFileSync(
 			executable,
-			`#!/bin/sh\nif [ "$2" = "-e" ]; then printf "R fixture; knitr 1; native png 1\\n"; else printf '%s\\n' ${quote('# Worksheet\n\n[[private]]\n\n![[picture.png]]')} > "$4"; fi\n`,
+			`#!/bin/sh\nis_probe() { for argument in "$@"; do if [ "$argument" = "-e" ]; then return 0; fi; done; return 1; }\nif is_probe "$@"; then printf "R fixture; knitr 1; native png 1\\n"; else printf '%s\\n' ${quote('# Worksheet\n\n[[private]]\n\n![[picture.png]]')} > "$4"; fi\n`,
 			{ mode: 0o755 }
 		);
 		const image = 'fixture image bytes',

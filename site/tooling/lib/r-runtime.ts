@@ -136,8 +136,10 @@ function selection(environment: NodeJS.ProcessEnv) {
 
 const runtimeArguments = [
 	'--vanilla',
+	// Inspect provenance without attaching packages used only by worksheet execution.
+	'--default-packages=NULL',
 	'-e',
-	'cat(R.version.string); for (p in c("knitr", "evaluate", "highr", "xfun", "yaml")) cat(p, as.character(packageVersion(p))); cat("\\n"); dput(R.version); dput(capabilities()); dput(extSoftVersion()); dput(grDevices::grSoftVersion()); dput(Sys.getlocale()); dput(Sys.timezone()); packages <- utils::installed.packages(); packages <- packages[order(packages[, "Package"], packages[, "Version"], packages[, "Built"]), c("Package", "Version", "Built"), drop = FALSE]; cat("\\n", apply(packages, 1, paste, collapse = " "), sep = "\\n")'
+	'cat(R.version.string); for (p in c("knitr", "evaluate", "highr", "xfun", "yaml")) cat(p, as.character(utils::packageVersion(p))); cat("\\n"); dput(R.version); dput(capabilities()); dput(extSoftVersion()); dput(grDevices::grSoftVersion()); dput(Sys.getlocale()); dput(Sys.timezone()); packages <- utils::installed.packages(); packages <- packages[order(packages[, "Package"], packages[, "Version"], packages[, "Built"]), c("Package", "Version", "Built"), drop = FALSE]; cat("\\n", apply(packages, 1, paste, collapse = " "), sep = "\\n")'
 ];
 const runRuntime = promisify(execFile);
 
