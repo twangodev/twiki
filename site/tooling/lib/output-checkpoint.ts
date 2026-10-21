@@ -234,22 +234,54 @@ export class OutputCheckpoint {
 	static capture(site: string, roots: readonly string[]) {
 		const checkpoint = new OutputCheckpoint(site, roots);
 		const files = new Map<string, Readonly<BigIntStats>>();
-		function walk(file: string, root = false) {
+		function walk(file: string, root = false): Branch | Leaf | undefined {
 			const info = lstatSync(file, { bigint: true, throwIfNoEntry: false });
 			if (!info) {
-				if (root) checkpoint.remove(file);
-				else throw new Error(`Output changed during checkpoint capture: ${file}`);
+				if (!root) throw new Error(`Output changed during checkpoint capture: ${file}`);
 				return;
 			}
 			if (info.isDirectory()) {
-				if (root) checkpoint.record(file, info);
-				for (const name of readdirSync(file)) walk(path.join(file, name));
-			} else {
-				checkpoint.record(file, info);
-				if (info.isFile()) files.set(file, info);
+				const branch = new Branch();
+				for (const name of readdirSync(file)) {
+					const child = walk(path.join(file, name));
+					if (child) branch.children.set(name, child);
+				}
+				return root || branch.children.size ? branch : undefined;
 			}
+			const observed = identity(info);
+			const hash = digest([
+				'leaf',
+				observed.map(String),
+				info.isSymbolicLink() ? readlinkSync(file) : ''
+			]);
+			let leaf: Leaf;
+			if (info.isFile() && info.dev !== 0n && info.ino > 0n) {
+				const inode = `${info.dev}:${info.ino}`;
+				let group = checkpoint.inodes.get(inode);
+				if (!group) {
+					group = { leaf: { hash, identity: observed, inode }, paths: new Set() };
+					checkpoint.inodes.set(inode, group);
+				}
+				// All aliases share one leaf before any directory hashes are computed.
+				leaf = group.leaf;
+				leaf.hash = hash;
+				leaf.identity = observed;
+				group.paths.add(file);
+			} else
+				leaf = { hash, identity: observed, unidentifiedLinks: info.isFile() && info.nlink > 1n };
+			checkpoint.leaves.set(file, leaf);
+			if (info.isFile()) files.set(file, info);
+			return leaf;
 		}
-		for (const root of roots) walk(path.join(checkpoint.site, root), true);
+		for (const root of roots) {
+			const file = path.join(checkpoint.site, root);
+			const node = walk(file, true);
+			if (node instanceof Branch) {
+				const anchor = checkpoint.branch(root, true);
+				for (const [name, child] of node.children) anchor.children.set(name, child);
+			} else if (node) checkpoint.place(root, node);
+			else checkpoint.remove(file);
+		}
 		// A full scan observes each path independently, including aliases whose
 		// filesystem identifiers are unsuitable for incremental grouping.
 		checkpoint.unidentifiedLinks = false;

@@ -262,3 +262,34 @@ test('sentinel inode identifiers never merge independent files and force fresh c
 		f.cleanup();
 	}
 });
+
+test('bulk capture matches incremental assembly and retains hardlink groups for later writes', () => {
+	const f = fixture();
+	try {
+		f.write('manifest.json');
+		f.write('pages/deep/note.json');
+		f.write('static/shared.txt');
+		fs.linkSync(f.file('static/shared.txt'), f.file('pages/shared.txt'));
+		fs.symlinkSync('../static/shared.txt', f.file('pages/link'));
+		fs.mkdirSync(f.file('pages/empty'));
+		const expected = new OutputCheckpoint(f.site, f.roots);
+		const regular = [
+			'manifest.json',
+			'pages/deep/note.json',
+			'static/shared.txt',
+			'pages/shared.txt'
+		];
+		for (const relative of ['pages', 'static', ...regular, 'pages/link'])
+			expected.record(f.file(relative), f.info(relative));
+		const bulk = f.capture();
+		expect(bulk.checkpoint.fingerprint()).toBe(expected.fingerprint());
+		expect([...bulk.files.keys()].sort()).toEqual(regular.map(f.file).sort());
+		const changed = f.write('static/shared.txt', 'Changed through a shared inode');
+		expected.record(f.file('static/shared.txt'), changed);
+		bulk.checkpoint.record(f.file('static/shared.txt'), changed);
+		expect(bulk.checkpoint.fingerprint()).toBe(expected.fingerprint());
+		expect(bulk.checkpoint.fingerprint()).toBe(f.capture().checkpoint.fingerprint());
+	} finally {
+		f.cleanup();
+	}
+});
