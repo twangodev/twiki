@@ -3,7 +3,7 @@ import { fileRoute } from '../src/lib/files';
 import { browsablePath, assetExtensions, imageExtensions } from './lib/file-policy';
 import { preserveCurrency } from './lib/currency';
 /** Render tracked notes, resolve links and transclusions, and emit pages, assets, and graph data. */
-import fs from 'node:fs';
+import fs, { type BigIntStats } from 'node:fs';
 import { writeChanged, copyChanged, pruneOutputs } from './lib/output';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -65,7 +65,12 @@ import { publicationResolver, courseLicenseResolver } from './lib/publishing';
 import { protectPublicLinks } from './lib/public-links';
 import { stageFingerprint } from './fingerprint';
 import { compiledAssetsDirectory } from './lib/edition-paths.js';
-import { resolveProject, discoverSourceFiles, declaredContentCourses } from './lib/project-config';
+import {
+	resolveProject,
+	discoverSourceEntries,
+	declaredContentCourses
+} from './lib/project-config';
+import { contentSourceReader } from './lib/content-source';
 import {
 	contentHash,
 	readContentBodies,
@@ -124,6 +129,7 @@ export async function compileContent(
 	interface SourceFile {
 		rel: string; // path relative to content/
 		abs: string;
+		stat: Readonly<BigIntStats>;
 		slug: FullSlug;
 		kind: 'page' | 'asset' | 'other';
 		/** in Quartz's RESOLUTION slug set (build.ts globs "**\/*.*": basename must
@@ -152,10 +158,10 @@ export async function compileContent(
 
 	function discover(): { files: SourceFile[]; submoduleNames: string[] } {
 		const courses = declaredContentCourses(project);
-		const rels = discoverSourceFiles(project);
+		const entries = discoverSourceEntries(project);
 
 		const files: SourceFile[] = [];
-		for (const rel of rels) {
+		for (const { relative: rel, stat } of entries) {
 			if (rel.split('/').includes('publish.yaml')) continue;
 			// Discovery already selects regular, contained files for this build snapshot.
 			// The pipeline reconciles source changes with fresh post-build discovery.
@@ -167,6 +173,7 @@ export async function compileContent(
 			files.push({
 				rel,
 				abs: path.join(CONTENT_DIR, rel),
+				stat,
 				slug: slugifyFilePath(rel as FilePath),
 				kind,
 				inResolution: globVisible(rel)
@@ -936,10 +943,14 @@ export async function compileContent(
 		const sourceByRel = new Map(pagesSrc.map((file) => [file.rel, file]));
 		let compactHits = 0;
 		const parses: PageParse[] = [];
+		const readSource = contentSourceReader(
+			pagesSrc,
+			PIPELINE_VERSION,
+			options.development && options.incremental !== false && project.discovery === 'git'
+		);
 		for (const f of pagesSrc) {
 			try {
-				const raw = fs.readFileSync(f.abs, 'utf8');
-				const parseKey = sha256(`${PIPELINE_VERSION}|${f.rel}|${raw}`);
+				const { raw, parseKey } = readSource(f);
 				parseCacheFiles.add(`stage1/${parseKey.slice(0, 2)}/${parseKey}.json`);
 				const saved = previousIndex?.pages[f.rel];
 				if (saved?.parseKey === parseKey && saved.summary.slug === f.slug) {

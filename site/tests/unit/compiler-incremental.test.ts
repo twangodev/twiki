@@ -1,6 +1,7 @@
 import { expect, test, spyOn } from 'bun:test';
 import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
+import fsDefault from 'node:fs';
 import {
 	cpSync,
 	existsSync,
@@ -56,11 +57,22 @@ function fixture() {
 	git(course, 'commit', '-m', 'Fixture');
 	git(root, 'add', '.gitmodules');
 	git(root, 'commit', '-m', 'Fixture course registration');
-	const run = async (incremental = true, publicEdition = false, destination = site) => {
+	const run = async (
+		incremental = true,
+		publicEdition = false,
+		destination = site,
+		development = false
+	) => {
 		const logs: string[] = [];
 		const log = spyOn(console, 'log').mockImplementation((value) => logs.push(String(value)));
 		try {
-			await compileContent({ siteDir: destination, repoRoot: root, publicEdition, incremental });
+			await compileContent({
+				siteDir: destination,
+				repoRoot: root,
+				publicEdition,
+				incremental,
+				development
+			});
 		} finally {
 			log.mockRestore();
 		}
@@ -225,6 +237,27 @@ test('Markdown edits avoid rereading unchanged assets in development and still p
 		f.cleanup();
 	}
 });
+
+test('ordinary dev edits skip unchanged source reads and match a fresh production compile', async () => {
+	const f = fixture();
+	try {
+		await f.run(true, false, f.site, true);
+		f.write('source.md', '# Source\n\n[[target]]\n\nOrdinary body edit.\n');
+		const source = path.join(f.course, 'source.md');
+		const unrelated = path.join(f.course, 'unrelated.md');
+		const read = spyOn(fsDefault, 'readFileSync');
+		try {
+			await f.run(true, false, f.site, true);
+			expect(read.mock.calls.filter(([file]) => String(file) === unrelated)).toHaveLength(0);
+			expect(read.mock.calls.filter(([file]) => String(file) === source)).toHaveLength(1);
+		} finally {
+			read.mockRestore();
+		}
+		await f.reference();
+	} finally {
+		f.cleanup();
+	}
+}, 20_000);
 
 test('identical and ordinary note builds skip unchanged ASTs and body serialization while updating backlinks and recovering missing outputs', async () => {
 	const f = fixture();
