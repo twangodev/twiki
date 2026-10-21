@@ -88,10 +88,17 @@ function readBlob(cache: string, record: PreviewRecord, blob: string) {
 	return bytes;
 }
 
+interface PreviewJob {
+	readonly worker: ChildProcess;
+	result: Promise<string | undefined>;
+	users: number;
+	finished: boolean;
+}
+
 /** Render one requested worksheet outside Vite; keep generated previews in the consumer cache. */
 export function developmentRmd(site: string, ready: () => Promise<void>) {
 	const workers = new Set<ChildProcess>();
-	const pending = new Map<string, Promise<string | undefined>>();
+	const pending = new Map<string, PreviewJob>();
 	let closed = false;
 	function stop(worker: ChildProcess) {
 		try {
@@ -101,12 +108,12 @@ export function developmentRmd(site: string, ready: () => Promise<void>) {
 			if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
 		}
 	}
-	function render(url: URL) {
+	async function render(url: URL, signal: AbortSignal) {
+		if (signal.aborted) throw new Error('Preview request cancelled');
 		const request = url.pathname + url.search;
 		let active = pending.get(request);
-		if (active) return active;
-		active = new Promise<string | undefined>((resolve, reject) => {
-			if (closed) return reject(new Error('Preview service closed'));
+		if (!active) {
+			if (closed) throw new Error('Preview service closed');
 			const worker = spawn('bun', [path.join(site, 'tooling/dev-rmd-worker.ts'), request], {
 				cwd: site,
 				env: process.env,
@@ -114,23 +121,46 @@ export function developmentRmd(site: string, ready: () => Promise<void>) {
 				stdio: ['ignore', 'inherit', 'inherit', 'ipc']
 			});
 			workers.add(worker);
-			const timer = setTimeout(() => {
-				stop(worker);
-				reject(new Error('Worksheet preview timed out'));
-			}, 150_000);
-			worker.once('message', (message: { key?: string; error?: string }) => {
-				if (message.error) reject(new Error(message.error));
-				else resolve(message.key);
+			const result = new Promise<string | undefined>((resolve, reject) => {
+				const timer = setTimeout(() => {
+					stop(worker);
+					reject(new Error('Worksheet preview timed out'));
+				}, 150_000);
+				worker.once('message', (message: { key?: string; error?: string }) => {
+					if (message.error) reject(new Error(message.error));
+					else resolve(message.key);
+				});
+				worker.once('error', reject);
+				worker.once('close', () => {
+					clearTimeout(timer);
+					workers.delete(worker);
+					reject(new Error('Preview worker exited before returning a result'));
+				});
 			});
-			worker.once('error', reject);
-			worker.once('close', () => {
-				clearTimeout(timer);
-				workers.delete(worker);
-				reject(new Error('Preview worker exited before returning a result'));
+			const job = { worker, result, users: 0, finished: false };
+			job.result = result.finally(() => {
+				job.finished = true;
+				// A cancelled render may already have a replacement for the same URL.
+				if (pending.get(request) === job) pending.delete(request);
 			});
-		}).finally(() => pending.delete(request));
-		pending.set(request, active);
-		return active;
+			pending.set(request, job);
+			active = job;
+		}
+		active.users++;
+		let cancelled!: () => void;
+		const cancellation = new Promise<never>((_resolve, reject) => {
+			cancelled = () => reject(new Error('Preview request cancelled'));
+			signal.addEventListener('abort', cancelled, { once: true });
+		});
+		try {
+			return await Promise.race([active.result, cancellation]);
+		} finally {
+			signal.removeEventListener('abort', cancelled);
+			if (--active.users === 0 && !active.finished) {
+				if (pending.get(request) === active) pending.delete(request);
+				stop(active.worker);
+			}
+		}
 	}
 	return {
 		async serve(request: IncomingMessage, response: ServerResponse) {
@@ -164,13 +194,22 @@ export function developmentRmd(site: string, ready: () => Promise<void>) {
 					response.end(request.method === 'HEAD' ? undefined : bytes);
 				} else {
 					let key: string | undefined;
+					const abort = new AbortController();
+					const disconnected = () => {
+						if (!response.writableEnded) abort.abort();
+					};
+					response.once('close', disconnected);
+					if (response.destroyed) abort.abort();
 					try {
-						key = await render(url);
+						key = await render(url, abort.signal);
 					} catch (error) {
+						if (abort.signal.aborted) return true;
 						console.error(error);
 						response.statusCode = 503;
 						response.end('Worksheet preview unavailable');
 						return true;
+					} finally {
+						response.off('close', disconnected);
 					}
 					// A policy or source edit may finish while R is running. Wait and authorize again.
 					await ready();

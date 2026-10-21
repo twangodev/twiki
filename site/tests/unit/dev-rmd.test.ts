@@ -22,6 +22,83 @@ import type { CourseFile } from '../../src/lib/files';
 const hash = (bytes: string) => createHash('sha256').update(bytes).digest('hex');
 const source = path.resolve(import.meta.dirname, '../..');
 
+test.each([1, 2])('abandoned preview jobs stop after all %i subscribers disconnect and can restart', async (count) => {
+	const site = mkdtempSync(path.join(tmpdir(), 'twiki-rmd-disconnect-'));
+	const files: CourseFile[] = [{
+		path: 'worksheet.Rmd', kind: 'text', size: 10,
+		download: `/_files/blobs/${hash('source')}.bin`
+	}];
+	setDevRmdPreviews('course', files);
+	const index = path.join(site, 'build/generated/assets/_files/index/course.json');
+	mkdirSync(path.dirname(index), { recursive: true });
+	writeFileSync(index, JSON.stringify(files));
+	mkdirSync(path.join(site, 'tooling'));
+	writeFileSync(path.join(site, 'tooling/dev-rmd-worker.ts'), `
+import fs from 'node:fs';
+process.on('SIGTERM', () => {
+  fs.writeFileSync('stopped', String(process.pid));
+  setTimeout(() => process.exit(0), 100);
+});
+fs.appendFileSync('started', String(process.pid)+'\\n');
+setInterval(() => {}, 1000);
+`);
+	const previews = developmentRmd(site, async () => {});
+	let requests = 0;
+	const server = createServer((request, response) => {
+		requests++;
+		void previews.serve(request, response);
+	});
+	await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+	const url = `http://127.0.0.1:${(server.address() as { port: number }).port}${files[0].rmdPreview}`;
+	const controllers: AbortController[] = [];
+	const fetchPreview = () => {
+		const controller = new AbortController();
+		controllers.push(controller);
+		return fetch(url, { signal: controller.signal }).catch((error) => error);
+	};
+	const waitFor = async (check: () => boolean) => {
+		const deadline = Date.now() + 2000;
+		while (!check() && Date.now() < deadline) await Bun.sleep(10);
+		expect(check()).toBe(true);
+	};
+	const starts = () => existsSync(path.join(site, 'started'))
+		? readFileSync(path.join(site, 'started'), 'utf8').trim().split('\n') : [];
+	const stopped = () => existsSync(path.join(site, 'stopped'))
+		? readFileSync(path.join(site, 'stopped'), 'utf8') : undefined;
+	try {
+		const pending = Array.from({ length: count }, fetchPreview);
+		await waitFor(() => starts().length === 1 && requests === count);
+		const original = starts()[0];
+		if (count === 2) {
+			controllers[0].abort();
+			expect((await pending[0]).name).toBe('AbortError');
+			await Bun.sleep(100);
+			expect(stopped()).toBeUndefined();
+		}
+		controllers[count - 1].abort();
+		expect((await pending[count - 1]).name).toBe('AbortError');
+		await waitFor(() => stopped() === original);
+		// Start a replacement before the cancelled worker has exited. Its finalizer
+		// must not delete the replacement and allow another duplicate render.
+		const replacement = [fetchPreview(), fetchPreview()];
+		await waitFor(() => starts().length === 2);
+		await Bun.sleep(200);
+		replacement.push(fetchPreview());
+		await waitFor(() => requests === count + 3);
+		await Bun.sleep(50);
+		expect(starts()).toHaveLength(2);
+		for (const controller of controllers) controller.abort();
+		for (const response of await Promise.all(replacement)) expect(response.name).toBe('AbortError');
+		await waitFor(() => stopped() === starts()[1]);
+	} finally {
+		for (const controller of controllers) controller.abort();
+		previews.close();
+		await Bun.sleep(150);
+		await new Promise<void>((resolve) => server.close(() => resolve()));
+		rmSync(site, { recursive: true, force: true });
+	}
+});
+
 test('development file preparation exposes lazy worksheets without probing R, including after Markdown edits', async () => {
 	const root = mkdtempSync(path.join(tmpdir(), 'twiki-rmd-lazy-catalog-'));
 	const site = path.join(root, 'site');
