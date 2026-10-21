@@ -4,7 +4,7 @@ import type { Plugin } from 'vite';
 import { prepareContent } from './pipeline';
 import { developmentContent } from './lib/dev-content';
 import { watchContentGitDirectory } from './lib/dev-git-state';
-import { rebuildQueue } from './lib/rebuild-queue';
+import { rebuildQueue, retryEarlyFailure } from './lib/rebuild-queue';
 import { resolveRuntimeDataImport } from './lib/runtime-data-modules';
 import { resolveProject, projectSourceVisible } from './lib/project-config';
 
@@ -51,8 +51,8 @@ export function content(): Plugin {
 				string,
 				{ watcher: FSWatcher; recursive: boolean; files: Set<string>; repositories: Set<string> }
 			>();
-			// Chokidar suppresses repeat change events for 50ms. Wait through that
-			// window so a fast failure followed by a correction cannot lose recovery.
+			// Chokidar suppresses repeat changes for 50ms. Retry early failures
+			// after that window so a suppressed correction still recovers.
 			const queue = rebuildQueue(async () => {
 				if (closed) return;
 				try {
@@ -60,16 +60,23 @@ export function content(): Plugin {
 					changedInputs = new Set();
 					const reuse = !forceRebuild && !failure;
 					forceRebuild = false;
-					if (gitTopologyChanged) {
-						// Clear before awaiting so events arriving during discovery remain pending.
-						gitTopologyChanged = false;
-						await refreshGitWatchers();
-					}
-					// Git can refresh an index or another worktree's ref without changing
-					// our inputs. Validate its snapshot; content events and failure
-					// recovery still force reconciliation.
-					const changed = await preparation.prepare(reuse, inputs);
-					const recovered = Boolean(failure);
+					let earlyFailure = false;
+					const changed = await retryEarlyFailure(async () => {
+						try {
+							if (gitTopologyChanged) {
+								// Clear before awaiting so events arriving during discovery remain pending.
+								gitTopologyChanged = false;
+								await refreshGitWatchers();
+							}
+							// Git metadata can change without changing our content snapshot.
+							return await preparation.prepare(reuse, inputs);
+						} catch (error) {
+							earlyFailure = true;
+							gitTopologyChanged = true;
+							throw error;
+						}
+					}, 50);
+					const recovered = Boolean(failure) || earlyFailure;
 					failure = undefined;
 					if (!changed?.size && !recovered) return;
 					const reader = path.resolve(server.config.root, 'src/lib/server/content.ts');
@@ -115,7 +122,7 @@ export function content(): Plugin {
 						err: { message: failure.message, stack: failure.stack ?? '' }
 					});
 				}
-			}, 50);
+			});
 			const { developmentRmd } = await import('./lib/dev-rmd');
 			const rmd = developmentRmd(server.config.root, async () => {
 				await queue.wait();

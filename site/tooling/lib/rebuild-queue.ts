@@ -23,3 +23,16 @@ export function rebuildQueue(build: () => Promise<void>, delay = 0) {
 		wait: () => pending
 	};
 }
+
+/** Retry a fast failure after watcher suppression expires, without delaying successful work. */
+export async function retryEarlyFailure<T>(build: () => Promise<T>, window: number) {
+	const started = performance.now();
+	try {
+		return await build();
+	} catch (error) {
+		const remaining = window - (performance.now() - started);
+		if (remaining <= 0) throw error;
+		await new Promise((resolve) => setTimeout(resolve, Math.ceil(remaining)));
+		return build();
+	}
+}

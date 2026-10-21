@@ -372,6 +372,19 @@ try {
 		)) !== 'preserved'
 	)
 		throw new Error('Content edit reloaded the browser');
+	// A correction within Chokidar's suppression window must not leave a failed build stuck.
+	fixture.write('content/sp99-cs101/notes/public.md', fixture.publicNote + '\n![[slides]]\n');
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	fixture.write(
+		'content/sp99-cs101/notes/public.md',
+		fixture.publicNote + '\nRapid correction survived.\n'
+	);
+	await until(
+		async () =>
+			(await page.locator('article').textContent())?.includes('Rapid correction survived.') ??
+			false,
+		'recovery from a correction inside the watcher suppression window'
+	);
 	fixture.write('content/sp99-cs101/notes/public.md', fixture.publicNote + '\n![[slides]]\n');
 	await until(
 		async () =>

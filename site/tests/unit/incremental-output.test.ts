@@ -21,7 +21,7 @@ import {
 	trackOutputs,
 	restoreCopy
 } from '../../tooling/lib/output';
-import { rebuildQueue } from '../../tooling/lib/rebuild-queue';
+import { rebuildQueue, retryEarlyFailure } from '../../tooling/lib/rebuild-queue';
 
 test('copy results report emitted byte sizes for empty and transformed outputs, including reuse', () => {
 	const root = mkdtempSync(path.join(tmpdir(), 'twiki-copy-sizes-'));
@@ -292,4 +292,49 @@ test('a burst during a running content build produces only one follow-up', async
 	release();
 	await queue.wait();
 	expect(runs).toBe(2);
+});
+
+test('early failures recover corrections hidden by the watcher suppression window', async () => {
+	let valid = false;
+	let runs = 0;
+	const correction = setTimeout(() => {
+		valid = true;
+	}, 10);
+	try {
+		const result = await retryEarlyFailure(async () => {
+			runs++;
+			if (!valid) throw new Error('incomplete save');
+			return 'corrected';
+		}, 30);
+		expect(result).toBe('corrected');
+		expect(runs).toBe(2);
+	} finally {
+		clearTimeout(correction);
+	}
+});
+
+test('suppression recovery retries once and leaves successful work alone', async () => {
+	let runs = 0;
+	await expect(
+		retryEarlyFailure(async () => {
+			runs++;
+			throw new Error('invalid content');
+		}, 10)
+	).rejects.toThrow('invalid content');
+	expect(runs).toBe(2);
+	runs = 0;
+	expect(await retryEarlyFailure(async () => ++runs, 50)).toBe(1);
+	expect(runs).toBe(1);
+});
+
+test('failures after the suppression window do not trigger another build', async () => {
+	let runs = 0;
+	await expect(
+		retryEarlyFailure(async () => {
+			runs++;
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			throw new Error('invalid content');
+		}, 1)
+	).rejects.toThrow('invalid content');
+	expect(runs).toBe(1);
 });
