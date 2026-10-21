@@ -8,7 +8,7 @@ import { resolveProject, sourceRepository } from '../../tooling/lib/project-conf
 import { buildGitDateMap } from '../../tooling/lib/lastmod';
 import { coursePolicies } from '../../tooling/lib/publishing';
 
-test('repository observations stay inside their source snapshot and fresh scopes detect later HEAD changes', () => {
+test('repository observations stay inside their source snapshot and fresh scopes detect later HEAD changes', async () => {
 	const fixture = publicationFixture();
 	fixture.write(
 		'twiki.config.json',
@@ -18,7 +18,7 @@ test('repository observations stay inside their source snapshot and fresh scopes
 		const project = resolveProject(process.cwd(), fixture.repo);
 		const cache = path.join(fixture.repo, 'date-cache');
 		const dates = buildGitDateMap(fixture.repo, cache, project);
-		const snapshot = captureContentInputs(fixture.repo, 'engine');
+		const snapshot = await captureContentInputs(fixture.repo, 'engine');
 		const note = path.join(fixture.course, 'notes/public.md');
 		fixture.write('content/sp99-cs101/notes/public.md', fixture.publicNote + '\nKnown edit');
 		const refreshed = snapshot.refresh(project, 'engine', new Set([note]))!;
@@ -67,7 +67,7 @@ test('repository observations stay inside their source snapshot and fresh scopes
 		expect(snapshot.withDiscovery(() => sourceRepository(project, fixture.course)?.head)).toBe(
 			head
 		);
-		const current = captureContentInputs(fixture.repo, 'engine');
+		const current = await captureContentInputs(fixture.repo, 'engine');
 		expect(current.fingerprint).not.toBe(snapshot.fingerprint);
 		expect(current.withDiscovery(() => sourceRepository(project, fixture.course)?.head)).not.toBe(
 			head
@@ -77,7 +77,7 @@ test('repository observations stay inside their source snapshot and fresh scopes
 	}
 });
 
-test('a parent-tracked policy cannot validate an untracked course policy', () => {
+test('a parent-tracked policy cannot validate an untracked course policy', async () => {
 	const fixture = publicationFixture();
 	fixture.write(
 		'twiki.config.json',
@@ -104,7 +104,7 @@ test('a parent-tracked policy cannot validate an untracked course policy', () =>
 			'content/sp99-cs101/publish.yaml'
 		);
 		const project = resolveProject(process.cwd(), fixture.repo);
-		const snapshot = captureContentInputs(fixture.repo, 'engine');
+		const snapshot = await captureContentInputs(fixture.repo, 'engine');
 		expect(() => snapshot.withDiscovery(() => coursePolicies(fixture.repo, project))).toThrow(
 			'invalid or untracked'
 		);

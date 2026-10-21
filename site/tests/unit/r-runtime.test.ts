@@ -6,7 +6,7 @@ import { rRendererIdentity, rRuntimeVersion } from '../../tooling/lib/r-runtime'
 import { contentInputFingerprint } from '../../tooling/lib/dev-state';
 import { publicationFixture } from '../publication-fixture';
 
-test('unverified fonts keep refreshed renderer and source fingerprints stable within a process', () => {
+test('unverified fonts keep refreshed renderer and source fingerprints stable within a process', async () => {
 	const { repo, course, write } = publicationFixture();
 	const bin = path.join(repo, 'bin');
 	const executable = path.join(repo, 'Rscript');
@@ -17,11 +17,11 @@ test('unverified fonts keep refreshed renderer and source fingerprints stable wi
 		write('content/sp99-cs101/worksheet.Rmd', '# Worksheet');
 		execFileSync('git', ['-C', course, 'add', 'worksheet.Rmd']);
 		const first = rRendererIdentity(repo, environment);
-		const firstInputs = contentInputFingerprint(repo, first);
+		const firstInputs = await contentInputFingerprint(repo, first);
 		expect(first).toContain('fontconfig-unverified-v1:');
 		const refreshed = rRendererIdentity(repo, environment);
 		expect(refreshed).toBe(first);
-		expect(contentInputFingerprint(repo, refreshed)).toBe(firstInputs);
+		expect(await contentInputFingerprint(repo, refreshed)).toBe(firstInputs);
 		expect(rRendererIdentity(repo, { ...environment, FONTCONFIG_FILE: 'changed.conf' })).not.toBe(
 			first
 		);
@@ -32,7 +32,7 @@ test('unverified fonts keep refreshed renderer and source fingerprints stable wi
 	}
 });
 
-test('saved dev inputs follow R availability, selection and package versions without restarting', () => {
+test('saved dev inputs follow R availability, selection and package versions without restarting', async () => {
 	const { repo, course, write } = publicationFixture();
 	const executable = path.join(repo, 'Rscript');
 	const environment = { ...process.env, RSCRIPT: executable };
@@ -41,14 +41,15 @@ test('saved dev inputs follow R availability, selection and package versions wit
 		write('content/sp99-cs101/worksheet.Rmd', '# Worksheet');
 		expect(rRendererIdentity(repo, environment)).toBe('unused');
 		execFileSync('git', ['-C', course, 'add', 'worksheet.Rmd']);
-		const inputs = () => contentInputFingerprint(repo, rRendererIdentity(repo, environment));
-		const absent = inputs();
+		const inputs = async () =>
+			await contentInputFingerprint(repo, rRendererIdentity(repo, environment));
+		const absent = await inputs();
 		writeFileSync(
 			executable,
 			'#!/bin/sh\necho "R test; knitr 1; evaluate 1; highr 1; xfun 1; yaml 1"\n',
 			{ mode: 0o755 }
 		);
-		const available = inputs();
+		const available = await inputs();
 		expect(available).not.toBe(absent);
 		expect(rRuntimeVersion(environment)).toContain('knitr 1');
 		writeFileSync(
@@ -56,20 +57,20 @@ test('saved dev inputs follow R availability, selection and package versions wit
 			'#!/bin/sh\necho "R test; knitr 2; evaluate 1; highr 1; xfun 1; yaml 1"\n',
 			{ mode: 0o755 }
 		);
-		expect(inputs()).not.toBe(available);
+		expect(await inputs()).not.toBe(available);
 		expect(rRuntimeVersion(environment)).toContain('knitr 2');
 		expect(rRendererIdentity(repo, { ...environment, RSCRIPT: '/missing-runtime' })).not.toBe(
 			rRendererIdentity(repo, environment)
 		);
 		rmSync(executable);
-		expect(inputs()).toBe(absent);
+		expect(await inputs()).toBe(absent);
 		expect(() => rRuntimeVersion(environment)).toThrow('require R and knitr');
 	} finally {
 		rmSync(repo, { recursive: true, force: true });
 	}
 });
 
-test('refresh catches installed package changes even when the selected executable stays unchanged', () => {
+test('refresh catches installed package changes even when the selected executable stays unchanged', async () => {
 	const { repo, course, write } = publicationFixture();
 	const executable = path.join(repo, 'Rscript');
 	const packages = path.join(repo, 'versions');
@@ -91,7 +92,7 @@ test('refresh catches installed package changes even when the selected executabl
 	}
 });
 
-test('declared initialized courses contribute renderer identity before their gitlink is staged', () => {
+test('declared initialized courses contribute renderer identity before their gitlink is staged', async () => {
 	const { repo, course, write } = publicationFixture();
 	const executable = path.join(repo, 'Rscript');
 	const environment = { ...process.env, RSCRIPT: executable };
@@ -108,7 +109,7 @@ test('declared initialized courses contribute renderer identity before their git
 	}
 });
 
-test('worksheet package and transitive dependency changes invalidate R identity with the same executable', () => {
+test('worksheet package and transitive dependency changes invalidate R identity with the same executable', async () => {
 	const { repo, course, write } = publicationFixture();
 	const executable = path.join(repo, 'Rscript');
 	const packages = path.join(repo, 'versions');

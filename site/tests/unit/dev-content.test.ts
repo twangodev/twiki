@@ -74,7 +74,7 @@ test('the real worker discovers fresh nested Git watchers without parent Git pro
 		path.join(site, 'tooling'),
 		'dir'
 	);
-	const expected = contentRepositories(fixture.repo).map(
+	const expected = (await contentRepositories(fixture.repo)).map(
 		({ directory, gitDirectory, commonDirectory, index, config, worktreeConfig }) => ({
 			directory,
 			gitDirectory,
@@ -86,11 +86,14 @@ test('the real worker discovers fresh nested Git watchers without parent Git pro
 	);
 	const worker = developmentContent(site);
 	const exec = spyOn(childProcess, 'execFileSync');
+	const asynchronous = spyOn(childProcess, 'execFile');
 	try {
 		expect(await worker.repositories(fixture.repo)).toEqual(expected);
 		expect(exec.mock.calls).toHaveLength(0);
+		expect(asynchronous.mock.calls).toHaveLength(0);
 		expect(existsSync(path.join(site, 'build'))).toBe(false);
 		exec.mockRestore();
+		asynchronous.mockRestore();
 		git(fixture.course, 'rm', '--cached', '-f', 'projects');
 		expect((await worker.repositories(fixture.repo)).map((repo) => repo.directory)).toEqual([
 			fixture.repo,
@@ -105,6 +108,7 @@ test('the real worker discovers fresh nested Git watchers without parent Git pro
 		expect(await worker.repositories(fixture.repo)).toEqual([]);
 	} finally {
 		exec.mockRestore();
+		asynchronous.mockRestore();
 		worker.close();
 		rmSync(fixture.repo, { recursive: true, force: true });
 	}

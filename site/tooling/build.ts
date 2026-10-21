@@ -81,7 +81,9 @@ async function runtimeBuild(appOnly: boolean) {
 		const environment = app.applicationEnvironment();
 		const identity = app.applicationCacheIdentity(site, environment);
 		const contentRepo = resolveProject(site).root;
-		const contentInputs = appOnly ? '' : contentInputFingerprint(contentRepo, identity.identity);
+		const contentInputs = appOnly
+			? ''
+			: await contentInputFingerprint(contentRepo, identity.identity);
 		let cached = app.loadApplicationCache(site, identity);
 		if (cached)
 			try {
@@ -187,7 +189,7 @@ async function runtimeBuild(appOnly: boolean) {
 		}
 		if (
 			app.applicationCacheIdentity(site, environment).identity !== identity.identity ||
-			contentInputFingerprint(contentRepo, identity.identity) !== contentInputs
+			(await contentInputFingerprint(contentRepo, identity.identity)) !== contentInputs
 		)
 			throw new Error(
 				'Source or course content changed during the build; refusing mixed snapshots'
@@ -208,7 +210,7 @@ async function runtimeBuild(appOnly: boolean) {
 		);
 		if (
 			app.applicationCacheIdentity(site, environment).identity !== identity.identity ||
-			contentInputFingerprint(contentRepo, identity.identity) !== contentInputs
+			(await contentInputFingerprint(contentRepo, identity.identity)) !== contentInputs
 		)
 			throw new Error(
 				'Source or course content changed during packaging; refusing mixed snapshots'
@@ -240,7 +242,7 @@ async function staticBuild() {
 		VITE_PUBLIC_EDITION: 'true'
 	};
 	const version = applicationVersion(site, environment);
-	const inputs = contentInputFingerprint(project.root, version);
+	const inputs = await contentInputFingerprint(project.root, version);
 	const started = performance.now();
 	const abort = new AbortController();
 	const interrupt = () => abort.abort(new Error('Build interrupted'));
@@ -250,7 +252,7 @@ async function staticBuild() {
 		await command('bun', ['x', 'vite', 'build'], environment, abort.signal);
 		if (
 			applicationVersion(site, environment) !== version ||
-			contentInputFingerprint(project.root, version) !== inputs
+			(await contentInputFingerprint(project.root, version)) !== inputs
 		)
 			throw new Error('Source or content changed during the static build');
 		const output = path.join(site, 'build/.svelte-kit/cloudflare');

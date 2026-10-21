@@ -32,7 +32,10 @@ const git = (root: string, ...args: string[]) =>
 function temporary() {
 	return mkdtempSync(path.join(tmpdir(), 'twiki-project-'));
 }
-function withEnvironment<T>(environment: NodeJS.ProcessEnv, run: () => T): T {
+async function withEnvironment<T>(
+	environment: NodeJS.ProcessEnv,
+	run: () => T | Promise<T>
+): Promise<T> {
 	const names = [
 		'TWIKI_PROJECT_ROOT',
 		'TWIKI_CONFIG_FILE',
@@ -45,7 +48,7 @@ function withEnvironment<T>(environment: NodeJS.ProcessEnv, run: () => T): T {
 			if (environment[name] === undefined) delete process.env[name];
 			else process.env[name] = environment[name];
 		}
-		return run();
+		return await run();
 	} finally {
 		for (const name of names) {
 			if (saved[name] === undefined) delete process.env[name];
@@ -97,7 +100,7 @@ describe('consumer project configuration and discovery', () => {
 			rmSync(root, { recursive: true, force: true });
 		}
 	});
-	test('plain vault defaults are private and independent of staged engine path', () => {
+	test('plain vault defaults are private and independent of staged engine path', async () => {
 		const root = temporary();
 		try {
 			mkdirSync(path.join(root, 'notes'));
@@ -118,7 +121,7 @@ describe('consumer project configuration and discovery', () => {
 			rmSync(root, { recursive: true, force: true });
 		}
 	});
-	test('configuration validates JSON, merges branding, and writes only staged metadata', () => {
+	test('configuration validates JSON, merges branding, and writes only staged metadata', async () => {
 		const root = temporary();
 		try {
 			const vault = path.join(root, 'vault');
@@ -166,7 +169,7 @@ describe('consumer project configuration and discovery', () => {
 			rmSync(root, { recursive: true, force: true });
 		}
 	});
-	test('filesystem discovery includes untracked visible notes and attachments but skips hidden state, secrets and symlinks', () => {
+	test('filesystem discovery includes untracked visible notes and attachments but skips hidden state, secrets and symlinks', async () => {
 		const root = temporary();
 		try {
 			for (const dir of ['folder', '.obsidian', '.twiki', 'node_modules', 'credentials'])
@@ -210,26 +213,26 @@ describe('consumer project configuration and discovery', () => {
 			rmSync(root, { recursive: true, force: true });
 		}
 	});
-	test('plain-vault dev snapshots detect offline edits, additions and removals without Git', () => {
+	test('plain-vault dev snapshots detect offline edits, additions and removals without Git', async () => {
 		const root = temporary();
 		try {
 			writeFileSync(path.join(root, 'index.md'), 'one');
-			withEnvironment({ TWIKI_PROJECT_ROOT: root }, () => {
-				expect(contentRepositories(root)).toEqual([]);
-				const initial = contentInputFingerprint(root, 'pipeline');
+			await withEnvironment({ TWIKI_PROJECT_ROOT: root }, async () => {
+				expect(await contentRepositories(root)).toEqual([]);
+				const initial = await contentInputFingerprint(root, 'pipeline');
 				writeFileSync(path.join(root, 'index.md'), 'two');
-				expect(contentInputFingerprint(root, 'pipeline')).not.toBe(initial);
-				const edit = contentInputFingerprint(root, 'pipeline');
+				expect(await contentInputFingerprint(root, 'pipeline')).not.toBe(initial);
+				const edit = await contentInputFingerprint(root, 'pipeline');
 				writeFileSync(path.join(root, 'added.md'), 'added');
-				expect(contentInputFingerprint(root, 'pipeline')).not.toBe(edit);
+				expect(await contentInputFingerprint(root, 'pipeline')).not.toBe(edit);
 				rmSync(path.join(root, 'added.md'));
-				expect(contentInputFingerprint(root, 'pipeline')).toBe(edit);
+				expect(await contentInputFingerprint(root, 'pipeline')).toBe(edit);
 			});
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
 	});
-	test('portable course fingerprints support custom roots and a course named content', () => {
+	test('portable course fingerprints support custom roots and a course named content', async () => {
 		const root = temporary();
 		try {
 			const content = path.join(root, 'vault');
@@ -251,7 +254,7 @@ describe('consumer project configuration and discovery', () => {
 			rmSync(root, { recursive: true, force: true });
 		}
 	});
-	test('external Git vaults use their own repository for discovery, snapshots and dates', () => {
+	test('external Git vaults use their own repository for discovery, snapshots and dates', async () => {
 		const root = temporary();
 		try {
 			const projectRoot = path.join(root, 'project');
@@ -283,9 +286,11 @@ describe('consumer project configuration and discovery', () => {
 			);
 			const project = resolveProject(projectRoot, projectRoot, { TWIKI_PROJECT_ROOT: projectRoot });
 			expect(discoverSourceFiles(project)).toEqual(['index.md']);
-			withEnvironment({ TWIKI_PROJECT_ROOT: projectRoot }, () => {
-				expect(contentRepositories(projectRoot).map((repo) => repo.directory)).toEqual([vault]);
-				expect(contentInputFingerprint(projectRoot, 'pipeline')).toBeString();
+			await withEnvironment({ TWIKI_PROJECT_ROOT: projectRoot }, async () => {
+				expect((await contentRepositories(projectRoot)).map((repo) => repo.directory)).toEqual([
+					vault
+				]);
+				expect(await contentInputFingerprint(projectRoot, 'pipeline')).toBeString();
 			});
 			expect(
 				buildGitDateMap(projectRoot, path.join(root, 'cache'), project).modified['index.md']
@@ -333,7 +338,7 @@ describe('consumer project configuration and discovery', () => {
 			rmSync(root, { recursive: true, force: true });
 		}
 	});
-	test('legacy Git roots retain tracked-only discovery and declared initialized unindexed courses', () => {
+	test('legacy Git roots retain tracked-only discovery and declared initialized unindexed courses', async () => {
 		const root = temporary();
 		try {
 			const content = path.join(root, 'content');
@@ -355,7 +360,9 @@ describe('consumer project configuration and discovery', () => {
 			expect(project.publication).toBe('policies');
 			expect(discoverSourceFiles(project)).toEqual(['index.md', 'test-course/README.md']);
 			expect(declaredContentCourses(project)).toEqual([{ name: 'test-course', directory: course }]);
-			withEnvironment({}, () => expect(contentRepositories(root)).toHaveLength(2));
+			await withEnvironment({}, async () =>
+				expect(await contentRepositories(root)).toHaveLength(2)
+			);
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}

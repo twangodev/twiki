@@ -62,7 +62,7 @@ async function prepareSnapshot(
 	// starts from a full capture, and every build still finishes with a fresh one.
 	const snapshot = development
 		? (!reuse && validatedInputs?.refresh(project, key, changedInputs)) ||
-			captureContentInputs(repo, key)
+			(await captureContentInputs(repo, key))
 		: undefined;
 	let inputs = snapshot?.fingerprint ?? '';
 	if (development)
@@ -126,7 +126,7 @@ async function prepareSnapshot(
 			}
 			// A missed deletion can fail a candidate pass before validation. Retry
 			// only when fresh inputs changed; genuine errors remain fail-closed.
-			const current = withSourceDiscovery(() => captureContentInputs(repo, key));
+			const current = await withSourceDiscovery(() => captureContentInputs(repo, key));
 			if (current.fingerprint === inputs) {
 				if (failed) throw failure;
 				validatedInputs = current;

@@ -9,7 +9,7 @@ process.on('message', (message: { id: number } & ContentWorkerTask) => {
 	pending = pending.then(async () => {
 		try {
 			if (message.kind === 'repositories') {
-				const repositories = contentRepositories(message.repo).map(
+				const repositories = (await contentRepositories(message.repo)).map(
 					({ directory, gitDirectory, commonDirectory, index, config, worktreeConfig }) => ({
 						directory,
 						gitDirectory,

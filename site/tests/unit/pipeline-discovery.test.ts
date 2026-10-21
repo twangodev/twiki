@@ -25,7 +25,7 @@ function prepareSite(site: string) {
 	symlinkSync(path.resolve(source, '../node_modules'), path.join(site, 'node_modules'), 'dir');
 }
 
-test('post-build validation and repeated reconciliation use fresh discovery snapshots', () => {
+test('post-build validation and repeated reconciliation use fresh discovery snapshots', async () => {
 	const fixture = publicationFixture();
 	fixture.write('content/sp99-other/note.md', '# Other course');
 	fixture.write('content/sp99-other/attachment.bin', 'Unchanged course attachment');
@@ -71,7 +71,7 @@ for (let i = 1; i <= 2; i++)
   assert(fs.existsSync('build/generated/pages/sp99-cs101/notes/during-build-' + i + '.json'));
 assert.equal(JSON.parse(fs.readFileSync('build/generated/pages/sp99-cs101/notes/public.json', 'utf8')).publication.public, false);
 const saved = JSON.parse(fs.readFileSync('build/generated/dev-state.json', 'utf8'));
-assert.equal(saved.inputs, contentInputFingerprint(${JSON.stringify(fixture.repo)}, process.env.TWIKI_PREPARED_CONTENT_KEY));
+assert.equal(saved.inputs, (await contentInputFingerprint(${JSON.stringify(fixture.repo)}, process.env.TWIKI_PREPARED_CONTENT_KEY)));
 assert.equal(saved.outputs, contentOutputFingerprint(process.cwd()));
 // A fresh worker must restore course state only after validating the saved snapshot.
 const restarted = execFileSync('bun', ['-e', ${JSON.stringify(`
@@ -179,7 +179,7 @@ console.log('validated snapshot reconciliation passed');
 	}
 }, 30_000);
 
-test('missed policy untracking rejects candidate Git snapshots before accepting output and recovers', () => {
+test('missed policy untracking rejects candidate Git snapshots before accepting output and recovers', async () => {
 	const fixture = publicationFixture();
 	const site = path.join(fixture.repo, 'site');
 	fixture.write(

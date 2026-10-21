@@ -129,7 +129,7 @@ export class ContentInputSnapshot {
 }
 
 /** Read the complete source catalog and Git state, independent of watcher hints. */
-export function captureContentInputs(repo: string, pipeline: string) {
+export async function captureContentInputs(repo: string, pipeline: string) {
 	const project = resolveProject(process.cwd(), repo);
 	const entries = discoverSourceEntries(project);
 	const observations = new Map<string, string | null>();
@@ -149,7 +149,7 @@ export function captureContentInputs(repo: string, pipeline: string) {
 	}
 	if (project.configFile) observeBytes(project.configFile);
 	observeBytes(path.join(repo, '.gitmodules'), true);
-	const metadata = contentRepositories(repo);
+	const metadata = await contentRepositories(repo);
 	const repositories = metadata.map((repository) => {
 		const { directory, head, tracked, config, worktreeConfig } = repository;
 		observeStat(config);
@@ -162,7 +162,7 @@ export function captureContentInputs(repo: string, pipeline: string) {
 	const recursive =
 		project.discovery === 'git' && contentWithinProject(project) && gitAvailable(repo)
 			? digest(
-					contentGit(
+					await contentGit(
 						'-C',
 						repo,
 						'ls-files',
@@ -186,8 +186,8 @@ export function captureContentInputs(repo: string, pipeline: string) {
 }
 
 /** Public full-validation entry point; never use watcher hints for saved-output reuse. */
-export function contentInputFingerprint(repo: string, pipeline: string) {
-	return captureContentInputs(repo, pipeline).fingerprint;
+export async function contentInputFingerprint(repo: string, pipeline: string) {
+	return (await captureContentInputs(repo, pipeline)).fingerprint;
 }
 
 /** A production build or missing/modified output invalidates the saved dev result. */
