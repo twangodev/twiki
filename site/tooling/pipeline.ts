@@ -184,6 +184,8 @@ async function prepareSnapshot(
 						? initialValidation
 						: freshInputFingerprint(repo, key);
 				try {
+					// Dispatch the gated source capture before blocking this thread on output I/O.
+					await Promise.resolve();
 					outputsCurrent = checkpoint.matchesCurrent();
 				} catch (error) {
 					await validation;

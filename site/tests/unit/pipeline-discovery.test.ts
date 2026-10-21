@@ -339,9 +339,20 @@ import { contentInputFingerprint, contentOutputFingerprint } from './tooling/lib
 import { staticDirectory, courseFilesDirectory, compiledAssetsDirectory } from './tooling/lib/edition-paths.js';
 import { textExportUrl } from './src/lib/text-exports';
 import { OutputCheckpoint } from './tooling/lib/output-checkpoint';
+import { Worker } from 'node:worker_threads';
 let checks = 0;
+let dispatched = false;
+const postMessage = Worker.prototype.postMessage;
+Worker.prototype.postMessage = function (...args) {
+  if (args[0] === 'capture') dispatched = true;
+  return postMessage.apply(this, args);
+};
 const checkOutputs = OutputCheckpoint.prototype.matchesCurrent;
-OutputCheckpoint.prototype.matchesCurrent = function () { checks++; return checkOutputs.call(this); };
+OutputCheckpoint.prototype.matchesCurrent = function () {
+  assert(dispatched, 'fresh source capture must be dispatched before synchronous output validation');
+  checks++;
+  return checkOutputs.call(this);
+};
 // Keep the source worker active while testing output repair in a small fixture.
 Object.defineProperty(OutputCheckpoint.prototype, 'fileCount', { configurable: true, get: () => 32768 });
 const source = ${JSON.stringify(path.join(fixture.course, 'notes/public.md'))};
@@ -358,6 +369,7 @@ console.log = (...args) => { if (String(args[0]).startsWith('content pipeline:')
 await prepareContent(false, undefined, true);
 async function edit(label, expectedPasses, body = original) {
   const before = passes;
+  dispatched = false;
   fs.writeFileSync(source, body + '\\n\\n' + label + '\\n');
   await prepareContent(false, new Set([source]), true);
   assert.equal(passes - before, expectedPasses, label);
