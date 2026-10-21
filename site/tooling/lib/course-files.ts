@@ -11,12 +11,7 @@ import {
 import path from 'node:path';
 import { writeChanged, pruneOutputs } from './output';
 import type { CourseFile } from '../../src/lib/files';
-import {
-	resolveProject,
-	declaredContentCourses,
-	discoverSourceFiles,
-	projectIdentity
-} from './project-config';
+import { resolveProject, declaredContentCourses, discoverSourceFiles } from './project-config';
 import { slugifyFilePath, type FilePath } from './slug';
 import { buildFileIcons } from './file-icons';
 import { buildHistories, type HistoryJob } from './history-pool';
@@ -27,6 +22,7 @@ import { publicationFilter, courseLicenseResolver } from './publishing';
 import { buildRmdPreviews } from './rmd-previews';
 import { setDevRmdPreviews } from './rmd-preview-cache';
 import { browsablePath } from './file-policy';
+import { courseFileState, courseNoteKey } from './course-file-state';
 export { browsablePath, fileHistoryPolicyKey } from './file-policy';
 const inlineImages = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif']);
 export const assetLimit = 25 * 1024 * 1024;
@@ -41,9 +37,6 @@ export function previewText(bytes: Uint8Array): { text: string } | undefined {
 		return;
 	}
 }
-
-type CourseOutput = { files: CourseFile[]; outputs: Set<string>; notes: string };
-const previousBuilds = new Map<string, Map<string, CourseOutput>>();
 
 export async function buildCourseFiles(
 	siteDir: string,
@@ -66,15 +59,12 @@ export async function buildCourseFiles(
 	const courses = new Map(
 		[...new Set([...declared, ...folders])].map((course) => [course, [] as CourseFile[]])
 	);
-	const key = JSON.stringify([siteDir, projectIdentity(project), publicEdition, development]);
-	const previous = previousBuilds.get(key);
+	const state = courseFileState(siteDir, project, publicEdition, development);
+	const previous = state.get();
 	const active = new Set(courses.keys());
 	const outputByCourse = new Map<string, Set<string>>();
 	const noteKeys = new Map(
-		[...courses.keys()].map((course) => [
-			course,
-			JSON.stringify([...noteSlugs].filter((slug) => slug.startsWith(course + '/')).sort())
-		])
+		[...courses.keys()].map((course) => [course, courseNoteKey(course, noteSlugs)])
 	);
 	const fingerprints = new Map<string, string>();
 	const cacheFile = (course: string) =>
@@ -276,8 +266,7 @@ export async function buildCourseFiles(
 					.sort()
 			)
 		);
-	previousBuilds.set(
-		key,
+	state.set(
 		new Map(
 			[...courses].map(([course, files]) => [
 				course,

@@ -6,6 +6,9 @@ import { publicationFixture } from '../publication-fixture';
 
 test('post-build validation and repeated reconciliation use fresh discovery snapshots', () => {
 	const fixture = publicationFixture();
+	fixture.write('content/sp99-other/note.md', '# Other course');
+	fixture.write('content/sp99-other/attachment.bin', 'Unchanged course attachment');
+	execFileSync('git', ['-C', fixture.repo, 'add', 'content/sp99-other']);
 	const source = path.resolve(import.meta.dirname, '../..');
 	const site = path.join(fixture.repo, 'site');
 	mkdirSync(site);
@@ -65,6 +68,36 @@ assert.equal(JSON.parse(fs.readFileSync('build/generated/pages/sp99-cs101/notes/
 const saved = JSON.parse(fs.readFileSync('build/generated/dev-state.json', 'utf8'));
 assert.equal(saved.inputs, contentInputFingerprint(${JSON.stringify(fixture.repo)}, process.env.TWIKI_PREPARED_CONTENT_KEY));
 assert.equal(saved.outputs, contentOutputFingerprint(process.cwd()));
+// A fresh worker must restore course state only after validating the saved snapshot.
+const restarted = execFileSync('bun', ['-e', ${JSON.stringify(`
+import { strict as assert } from 'node:assert';
+import { spyOn } from 'bun:test';
+import * as fs from 'node:fs';
+import { prepareContent } from './tooling/pipeline';
+await prepareContent(true, undefined, true);
+const read = fs.readFileSync;
+const unchanged = ${JSON.stringify(path.join(fixture.repo, 'content/sp99-other/attachment.bin'))};
+let reads = 0;
+const spy = spyOn(fs, 'readFileSync').mockImplementation((file, ...args) => {
+  if (String(file) === unchanged) reads++;
+  return read(file, ...args);
+});
+const note = ${JSON.stringify(path.join(fixture.course, 'notes/public.md'))};
+try {
+  fs.writeFileSync(note, '# First edit after restart');
+  await prepareContent(false, new Set([note]), true);
+  assert.equal(reads, 1, 'only fresh filesystem source validation should read the unchanged attachment');
+} finally { spy.mockRestore(); }
+// An omitted watcher event must still invalidate restored course metadata.
+fs.writeFileSync(unchanged, 'Unreported attachment edit');
+fs.writeFileSync(note, '# Reported alongside an unreported course edit');
+await prepareContent(false, new Set([note]), true);
+const files = JSON.parse(fs.readFileSync('build/generated/assets/_files/index/sp99-other.json', 'utf8'));
+const attachment = files.find(file => file.path === 'attachment.bin');
+assert.equal(fs.readFileSync('build/generated/assets' + attachment.download, 'utf8'), 'Unreported attachment edit');
+`)}], { cwd: process.cwd(), env: process.env, encoding: 'utf8' });
+assert(restarted.includes('reused saved output'));
+assert(restarted.includes('1 changed courses (1 reused)'));
 await prepareContent(true, undefined, true);
 assert(!fs.existsSync('build/generated/expected-404.json'));
 assert(!fs.existsSync('build/generated/expected-missing-id.json'));
