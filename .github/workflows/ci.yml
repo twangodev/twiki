@@ -195,7 +195,7 @@ jobs:
         with:
           context: git
           images: ghcr.io/${{ github.repository_owner }}/twiki-builder
-          flavor: latest=false
+          flavor: latest=true
           tags: type=raw,value=${{ needs.release-please.outputs.tag_name }}
       - uses: docker/build-push-action@v7
         with:
