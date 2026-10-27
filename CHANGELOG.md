@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/twangodev/twiki/compare/v0.7.1...v0.7.2) (2026-10-27)
+
+
+### Bug Fixes
+
+* publish latest builder image tag ([516e1da](https://github.com/twangodev/twiki/commit/516e1dacff6d35458de25355ba9058d8d8a19fc4))
+
 ## [0.7.1](https://github.com/twangodev/twiki/compare/v0.7.0...v0.7.1) (2026-10-27)
 
 
