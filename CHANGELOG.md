@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3](https://github.com/twangodev/twiki/compare/v0.7.2...v0.7.3) (2026-10-27)
+
+
+### Bug Fixes
+
+* update dependencies ([308af32](https://github.com/twangodev/twiki/commit/308af322681b859d6546d898ab001a5c9b57d4d2))
+
 ## [0.7.2](https://github.com/twangodev/twiki/compare/v0.7.1...v0.7.2) (2026-10-27)
 
 
