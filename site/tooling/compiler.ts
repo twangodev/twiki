@@ -11,7 +11,7 @@ import crypto from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 
 import matter from 'gray-matter';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { unified, type Plugin } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';

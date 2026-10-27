@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import type { CourseFile } from '../../src/lib/files';
 import { stageFingerprint } from '../fingerprint';
 import { resolveProject, declaredContentCourses, discoverSourceFiles } from './project-config';
