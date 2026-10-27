@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.4](https://github.com/twangodev/twiki/compare/v0.7.3...v0.7.4) (2026-10-27)
+
+
+### Bug Fixes
+
+* include bunx in builder image ([90b213c](https://github.com/twangodev/twiki/commit/90b213cf01a669e1d2b3c3f74bf061c57d277421))
+
 ## [0.7.3](https://github.com/twangodev/twiki/compare/v0.7.2...v0.7.3) (2026-10-27)
 
 

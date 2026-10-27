@@ -1,6 +1,6 @@
 {
   "name": "@twango/twiki",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "description": "Obsidian-compatible Markdown publishing for Cloudflare and static hosts",
   "type": "module",
   "license": "MIT",
