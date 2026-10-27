@@ -1,26 +1,15 @@
 # Releasing @twango/twiki
 
-The single `ci.yml` workflow handles pull request checks, demo deployment and
-releases. Release Please runs only on pushes to `main` and
-maintains a version/changelog PR using Conventional Commits. Merging that PR
-creates a GitHub release and `v<version>` tag, then the same workflow validates
-the tagged commit and publishes it through npm OIDC. Ordinary pushes only
-update the release PR; they do not publish.
-
-Validation checks the tag, package version, exact commit and ancestry on `main`,
-and waits for the shared CLI, engine, documentation, and build checks. Release
-validation audits dependencies, inspects the package, and smoke-tests both build
-targets and types from the installed npm tarball.
-The publishing job receives those same bytes. Stable versions use `latest`;
-prereleases use `next`.
+The `ci.yml` workflow runs checks, deploys the demo, and handles releases.
+Release Please maintains a version and changelog PR from Conventional Commits.
+Merging that PR creates a GitHub release and tag. After the shared checks pass,
+the workflow publishes the release commit to npm through OIDC and builds the
+Docker image. Stable npm versions use `latest`; prereleases use `next`.
 
 The manifest starts at `0.1.1`; `bootstrap-sha` excludes the imported history
 through that release from the first changelog. Later releases use Release Please's
 normal release discovery. The Node strategy updates the root `package.json`;
 Bun's root lockfile has no package version field to update.
-
-After the frozen install, `bun audit --audit-level high` blocks release validation
-on known high or critical dependency advisories. The gate has no ignored advisories.
 
 ## One-time npm setup
 
@@ -36,7 +25,7 @@ the stable OIDC publication before directing users to an unversioned install.
 Version selection and this initial publication are separate maintainer actions.
 
 Create the GitHub environment `npm`. Restrict its deployment branches/tags to
-`main` (the workflow ref, even when validation checks out a tag) and configure
+`main` (the workflow ref, even when publication checks out a release commit) and configure
 required reviewers if desired. Protect `main`
 and release tags against unauthorized changes.
 
@@ -69,42 +58,15 @@ requiring 2FA and disallowing token-based publishing in the package settings.
 
 1. Merge changes with Conventional Commit messages into `main`.
 2. Review and merge the Release Please PR containing the version and changelog.
-3. Watch `release-please`, `validate` and `publish` in the same Release workflow.
+3. Watch `release-please`, `publish`, and `docker` in the same workflow.
    Confirm the npm version, dist-tag and provenance before updating consumers.
 
 Enable **Allow GitHub Actions to create and approve pull requests** in repository
-Actions settings. Only the Release Please job receives GitHub write permissions;
-only the publishing job receives `id-token: write`. The default `GITHUB_TOKEN`
-is sufficient: publishing continues in the same run rather than relying on a
-second workflow triggered by the generated tag. No PAT or npm token is required.
-Release validation runs after the reviewed release PR merges and the shared
-test job succeeds, before npm publication. If validation or publishing fails, rerun the failed jobs in the
-original workflow run to retain the release outputs; do not move a published tag.
-
-Publishing runs without dependency caches and uses the tarball produced by the
-validation job. GitHub artifact digest verification checks the transfer; publishing does not
-rebuild or execute package lifecycle scripts. No Cloudflare resources are deployed.
-
-## Initial dependency audit
-
-The 0.1.1 frozen engine graph and an independently installed npm tarball passed
-the high/critical audit gate on 2026-10-09. Six underlying advisories remain below
-that threshold. npm also reports affected dependent packages, so its aggregate
-package count is larger than the number of underlying advisories.
-
-| Dependency path | Severity | Advisory |
-| --- | --- | --- |
-| SvelteKit → cookie 0.6.0 | Low | [Cookie field validation](https://github.com/advisories/GHSA-pxg6-pf52-xh8x) |
-| Mermaid/rehype/math → KaTeX 0.16.47 | Low | [Trust bypass after prototype pollution](https://github.com/advisories/GHSA-238p-pmpm-9mq7) |
-| Drizzle tooling → esbuild 0.18.20 | Moderate | [Development server access](https://github.com/advisories/GHSA-67mh-4wv8-2f99) |
-| Satori → fflate 0.7.3 | Moderate | [Malformed ZIP64 denial of service](https://github.com/advisories/GHSA-px8p-9vwx-vf98) |
-| Tailwind typography → postcss-selector-parser 6.0.10 | Moderate | [Selector parsing denial of service](https://github.com/advisories/GHSA-rj75-hqrm-r3gf) |
-| js-yaml → argparse → sprintf-js 1.0.3 | Moderate | [Precision parsing denial of service](https://github.com/advisories/GHSA-hp3w-g68c-fv3c) |
-
-Compatible updates were applied without overrides or advisory suppressions.
-Remaining updates require upstream dependency changes or separate compatibility
-work; sprintf-js had no published fix at the audit date. This inventory does not
-establish that every vulnerable code path is unreachable. Re-audit every release.
+Actions settings. Release Please receives GitHub write permissions, npm
+publishing receives `id-token: write`, and Docker publishing receives
+`packages: write`. The workflow publishes directly from the release commit;
+no PAT or npm token is required. If a publishing job fails, rerun it in the
+original workflow run to retain the release outputs.
 
 New versions may not be installable immediately after a successful publish. npm
 scans packages before exposing them for installation; registry acceptance,
@@ -114,8 +76,8 @@ provenance, and consumer installation are separate verification steps.
 ## Local release tooling
 
 `bun run release:pack` creates and inspects `dist/twiki.tgz` using
-`tooling/release.ts` and `tooling/package.mjs`. In CI, `RELEASE_TAG` and
-`RELEASE_SHA` must match the checked-out commit and package version.
+`tooling/release.ts` and `tooling/package.mjs`. When `RELEASE_TAG` and
+`RELEASE_SHA` are provided, they must match the checked-out commit and package version.
 `bun run release:smoke` installs that archive in a temporary vault, builds both
 targets, and checks the installed engine types. It cleans up the vault afterward.
 

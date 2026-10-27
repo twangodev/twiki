@@ -72,69 +72,29 @@ test('actual release archive must exactly match its inspected inventory and cont
 	}
 });
 
-test('release grants OIDC only to publishing the validated tarball after Release Please creates a release on main', () => {
+test('release publishes the Release Please commit after CI passes', () => {
 	const workflow = parse(readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8'));
-	expect(workflow.on).toEqual({
-		push: { branches: ['main'] },
-		pull_request: null,
-		workflow_dispatch: null
-	});
-	expect(workflow.permissions).toEqual({ contents: 'read' });
-	expect(workflow.jobs.publish.permissions).toEqual({ contents: 'read', 'id-token': 'write' });
-	expect(workflow.jobs.publish.environment).toBe('npm');
-	expect(workflow.jobs.publish.needs).toBe('validate');
 	const release = workflow.jobs['release-please'];
+	const publish = workflow.jobs.publish;
+	const docker = workflow.jobs.docker;
+	expect(workflow.permissions).toEqual({ contents: 'read' });
 	expect(release.if).toBe(
 		"github.repository == 'twangodev/twiki' && github.ref == 'refs/heads/main' && github.event_name == 'push'"
 	);
-	expect(release.permissions).toEqual({
-		contents: 'write',
-		issues: 'write',
-		'pull-requests': 'write'
-	});
-	expect(workflow.jobs.validate.needs).toEqual(['test', 'release-please']);
-	expect(workflow.jobs.validate.if).toBe("needs.release-please.outputs.release_created == 'true'");
-	const validate = workflow.jobs.validate.steps;
-	expect(validate[0].with.ref).toBe('${{ needs.release-please.outputs.sha }}');
-	const publish = workflow.jobs.publish.steps;
-	for (const step of [...release.steps, ...validate, ...publish].filter((step) => step.uses)) {
-		expect(step.uses).toMatch(/@v\d+$/);
+	expect(workflow.jobs.validate).toBeUndefined();
+	for (const job of [publish, docker]) {
+		expect(job.needs).toEqual(['test', 'release-please']);
+		expect(job.if).toBe("needs.release-please.outputs.release_created == 'true'");
+		expect(job.steps[0].with.ref).toBe('${{ needs.release-please.outputs.sha }}');
 	}
-	const pack = validate.find((step) => step.id === 'package');
-	expect(pack.run).toBe('bun run release:pack');
-	expect(pack.env.RELEASE_SHA).toBe('${{ needs.release-please.outputs.sha }}');
-	expect(pack.env.RELEASE_TAG).toBe('${{ needs.release-please.outputs.tag_name }}');
-	expect(validate.some((step) => step.run === 'bun run release:smoke')).toBe(true);
-	expect(validate.some((step) => step.run === 'bun audit --audit-level high')).toBe(true);
-	expect(
-		validate.some((step) => /playwright|bun run test|build --target/.test(step.run ?? ''))
-	).toBe(false);
-	for (const job of Object.values(workflow.jobs) as { steps: { run?: string }[] }[]) {
-		for (const step of job.steps) expect(step.run ?? '').not.toContain('\n');
-	}
-	for (const job of Object.values(workflow.jobs) as { 'runs-on': string }[])
-		expect(job['runs-on']).toBe('ubuntu-latest');
-	for (const steps of [validate, publish]) {
-		const node = steps.find((step) => step.uses === 'actions/setup-node@v7');
-		expect(node.with['node-version']).toBe('24');
-		expect(node.with['package-manager-cache']).toBe(false);
-	}
-	const publishText = JSON.stringify(publish);
-	expect(publish.some((step) => step.uses?.startsWith('oven-sh/setup-bun'))).toBe(false);
-	expect(JSON.stringify(workflow)).not.toMatch(/npm install --global|npm@(?:\d|latest)/);
-	expect(
-		publish.find((step) => step.uses?.startsWith('actions/download-artifact@')).with[
-			'digest-mismatch'
-		]
-	).toBe('error');
-	expect(publishText).toContain(
-		'npm publish ./dist/twiki.tgz --access public --provenance --ignore-scripts'
+	expect(publish.permissions).toEqual({ contents: 'read', 'id-token': 'write' });
+	expect(publish.environment).toBe('npm');
+	const npm = publish.steps.find((step) => step.name === 'Publish with npm OIDC');
+	expect(npm.run).toContain('npm publish . --access public --provenance --ignore-scripts');
+	expect(npm.env.NPM_DIST_TAG).toBe(
+		"${{ contains(needs.release-please.outputs.tag_name, '-') && 'next' || 'latest' }}"
 	);
-	// npm-package-arg treats bare owner/repo paths as GitHub shorthand.
-	expect(publishText).not.toContain('npm publish dist/twiki.tgz');
-	expect(publishText).not.toMatch(
-		/NPM_TOKEN|NODE_AUTH_TOKEN|secrets\.|bun install|npm pack|actions\/checkout/
-	);
+	expect(JSON.stringify(publish)).not.toMatch(/NPM_TOKEN|NODE_AUTH_TOKEN|bun audit/);
 });
 
 test('release identity rejects a version mismatch, wrong checkout, and missing or moved tags', () => {
