@@ -167,7 +167,7 @@ jobs:
           NPM_DIST_TAG: ${{ needs.validate.outputs.dist-tag }}
         run: npm publish ./dist/twiki.tgz --access public --provenance --ignore-scripts --tag "$NPM_DIST_TAG" --registry https://registry.npmjs.org/
 
-  publish-builder:
+  docker:
     needs: [validate, release-please]
     if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
