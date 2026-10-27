@@ -16,5 +16,5 @@ RUN apt-get update \
         r-cran-knitr \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bunx /usr/local/bin/
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
