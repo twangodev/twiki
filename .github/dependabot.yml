@@ -18,3 +18,7 @@ updates:
         applies-to: "version-updates"
         patterns:
           - "*"
+  - package-ecosystem: "docker"
+    directory: "/builder"
+    schedule:
+      interval: "weekly"
