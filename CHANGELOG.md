@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/twangodev/twiki/compare/v0.6.0...v0.7.0) (2026-10-27)
+
+
+### Features
+
+* publish builder image with releases ([494480a](https://github.com/twangodev/twiki/commit/494480afaa14272350600e00e0d6f4c933d948ba))
+
 ## [0.6.0](https://github.com/twangodev/twiki/compare/v0.5.3...v0.6.0) (2026-10-21)
 
 
