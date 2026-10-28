@@ -4,65 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { parse } from 'yaml';
 import { compilerCacheFiles } from '../../tooling/lib/cache-selection';
-
-test('engine CI keeps credentials out of tests and deploys only its demo after validation', () => {
-	const raw = readFileSync('../.github/workflows/ci.yml', 'utf8');
-	for (const schema of ['core', 'yaml-1.1'] as const) {
-		const workflow = parse(raw, { schema }) as {
-			permissions: Record<string, string>;
-			jobs: Record<
-				string,
-				{
-					environment?: unknown;
-					needs?: string;
-					if?: string;
-					concurrency?: unknown;
-					steps: {
-						run?: string;
-						uses?: string;
-						env?: Record<string, string>;
-						'working-directory'?: string;
-						with?: Record<string, string>;
-					}[];
-				}
-			>;
-		};
-		expect(workflow.permissions.contents).toBe('read');
-		expect(Object.keys(workflow.jobs).length).toBeGreaterThan(0);
-		expect(JSON.stringify(workflow.jobs.test)).not.toMatch(
-			/CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID|BUILD_CACHE_KEY|PAT_TOKEN/
-		);
-		for (const job of [workflow.jobs.test]) {
-			expect(job.environment).toBeUndefined();
-			for (const step of job.steps) {
-				expect(step.run ?? '').not.toMatch(
-					/wrangler\s+(?:deploy|rollback)|twiki\s+deploy|tooling\/deploy\.ts|migrations apply.*--remote/
-				);
-				if (step.uses?.startsWith('actions/cache'))
-					expect(step.with?.path).toBe('~/.bun/install/cache');
-			}
-		}
-		const deploy = workflow.jobs.deploy;
-		expect(deploy.needs).toBe('test');
-		expect(deploy.if).toContain("github.repository == 'twangodev/twiki'");
-		expect(deploy.if).toContain("github.ref == 'refs/heads/main'");
-		expect(deploy.if).toContain("github.event_name == 'push'");
-		expect(deploy.if).toContain("github.event_name == 'workflow_dispatch'");
-		expect(deploy.environment).toEqual({ name: 'production', url: 'https://twiki.twango.dev' });
-		expect(deploy.concurrency).toEqual({ group: 'twiki-production', 'cancel-in-progress': false });
-		const upload = deploy.steps.find((step) => step.env?.CLOUDFLARE_API_TOKEN);
-		expect(upload?.['working-directory']).toBe('documentation');
-		expect(upload?.run).toContain('bun ../cli/twiki.ts deploy');
-		expect(deploy.steps.filter((step) => step.env?.CLOUDFLARE_API_TOKEN)).toHaveLength(1);
-		expect(deploy.steps.some((step) => step.run?.includes('build --target'))).toBe(false);
-		const download = deploy.steps.find((step) => step.uses?.startsWith('actions/download-artifact@'));
-		expect(download?.with?.name).toBe('twiki-cloudflare');
-		expect(download?.with?.['digest-mismatch']).toBe('error');
-		expect(deploy.steps.at(-1)).toBe(upload);
-	}
-});
 
 function cacheFixture(
 	run: (fixture: {

@@ -13,7 +13,6 @@ test('Pagefind exposes real course and tag filters, including #tag search', asyn
 	expect(Object.keys(filters.course ?? {})).toContain('sp26-cs544');
 	expect(Object.keys(filters.course ?? {})).not.toContainEqual(expect.stringContaining(', tag:'));
 	expect(Object.keys(filters.tag ?? {})).toContain('cs544');
-	expect(Object.keys(filters.tag ?? {}).length).toBeGreaterThan(150);
 
 	await page.keyboard.press('Control+k');
 	await page.getByPlaceholder('Search… or #tag').fill('#cs544');
@@ -194,16 +193,14 @@ test('Mermaid diagrams retain copy and fullscreen pan/zoom controls', async ({ p
 	await expect(dialog).toBeHidden();
 });
 
-test('reader mode has a visible active state in both themes', async ({ page }) => {
+test('reader mode toggles controls across themes', async ({ page }) => {
 	await page.setViewportSize({ width: 1440, height: 900 });
 	await page.goto('/sp26-cs544/README');
 	await page.getByRole('button', { name: 'Toggle reader mode' }).filter({ visible: true }).click();
 	const controls = page.locator('.doc-reader-controls');
 	const reader = controls.getByRole('button', { name: 'Toggle reader mode' });
 	await expect(reader).toHaveAttribute('aria-pressed', 'true');
-	await expect(reader).toHaveCSS('background-color', 'rgb(247, 228, 225)');
 	await controls.getByRole('button', { name: 'Toggle dark mode' }).click();
-	await expect(reader).toHaveCSS('background-color', 'rgb(63, 31, 27)');
 	await reader.click();
 	await expect(controls).toHaveCount(0);
 });

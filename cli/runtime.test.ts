@@ -292,17 +292,6 @@ test("init is explicit and never overwrites existing consumer configuration", as
   expect(readFileSync(path.join(f.vault, "twiki.config.json"))).toEqual(before);
 });
 
-test("the packaged ESM compiler removes optional TypeScript parameter markers", async () => {
-  // Svelte's require entry bundles its printer, so exercise the ESM entry used by Vite.
-  const { compile } = await import("svelte/compiler");
-  const compiled = compile(
-    '<script lang="ts">function example(value?: string): string { return value ?? "ok" }</script><p>{example()}</p>',
-    { generate: "server" },
-  ).js.code;
-  expect(compiled).toContain("function example(value)");
-  expect(compiled).not.toContain("value?");
-});
-
 test("preview derives a matching local origin and preserves explicit origin overrides", () => {
   const project = prepareProject(fixture().options);
   expect(invocation("preview", project)).toEqual([

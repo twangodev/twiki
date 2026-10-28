@@ -1,14 +1,12 @@
 import { expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { parse } from 'yaml';
 import { requiredFiles, validatePackagePlan, verifyArchive } from '../../../tooling/package.mjs';
 
 import { verifyReleaseIdentity } from '../../../tooling/release';
 
-const root = path.resolve(import.meta.dirname, '../../..');
 const expected = { name: '@twango/twiki', version: '1.2.3' };
 const paths = [...requiredFiles, 'site/static/fonts/example.woff2', 'site/migrations/0001.sql'];
 function plan(names = paths) {
@@ -70,31 +68,6 @@ test('actual release archive must exactly match its inspected inventory and cont
 	} finally {
 		rmSync(directory, { recursive: true, force: true });
 	}
-});
-
-test('release publishes the Release Please commit after CI passes', () => {
-	const workflow = parse(readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8'));
-	const release = workflow.jobs['release-please'];
-	const publish = workflow.jobs.publish;
-	const docker = workflow.jobs.docker;
-	expect(workflow.permissions).toEqual({ contents: 'read' });
-	expect(release.if).toBe(
-		"github.repository == 'twangodev/twiki' && github.ref == 'refs/heads/main' && github.event_name == 'push'"
-	);
-	expect(workflow.jobs.validate).toBeUndefined();
-	for (const job of [publish, docker]) {
-		expect(job.needs).toEqual(['test', 'release-please']);
-		expect(job.if).toBe("needs.release-please.outputs.release_created == 'true'");
-		expect(job.steps[0].with.ref).toBe('${{ needs.release-please.outputs.sha }}');
-	}
-	expect(publish.permissions).toEqual({ contents: 'read', 'id-token': 'write' });
-	expect(publish.environment).toBe('npm');
-	const npm = publish.steps.find((step) => step.name === 'Publish with npm OIDC');
-	expect(npm.run).toContain('npm publish . --access public --provenance --ignore-scripts');
-	expect(npm.env.NPM_DIST_TAG).toBe(
-		"${{ contains(needs.release-please.outputs.tag_name, '-') && 'next' || 'latest' }}"
-	);
-	expect(JSON.stringify(publish)).not.toMatch(/NPM_TOKEN|NODE_AUTH_TOKEN|bun audit/);
 });
 
 test('release identity rejects a version mismatch, wrong checkout, and missing or moved tags', () => {

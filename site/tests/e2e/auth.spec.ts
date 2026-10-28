@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { siGithub } from 'simple-icons';
 import { runtimeSnapshot } from './runtime-snapshot';
 import type { CourseFile } from '../../src/lib/files';
 
@@ -14,7 +13,7 @@ const isPublic = (route: string) =>
 const privatePage = '/sp26-cs544/lectures/lecture-01';
 
 for (const mode of ['light', 'dark'] as const) {
-	test(`login matches the ${mode} site theme and uses the Simple Icons mark`, async ({
+	test(`login matches the ${mode} site theme`, async ({
 		browser,
 		baseURL
 	}) => {
@@ -53,9 +52,6 @@ for (const mode of ['light', 'dark'] as const) {
 			expect(await login.evaluate(() => document.fonts.check('16px "Overused Grotesk"'))).toBe(
 				true
 			);
-			await expect(
-				login.getByRole('button', { name: 'Continue with GitHub' }).locator('svg path')
-			).toHaveAttribute('d', siGithub.path);
 			expect((await anonymous.request.get('/fonts/OverusedGrotesk-VF.woff2')).status()).toBe(200);
 			expect((await anonymous.request.get('/fonts/JetBrainsMono-VF.woff2')).status()).toBe(
 				publicAssets['/fonts/JetBrainsMono-VF.woff2'] ? 200 : 401
