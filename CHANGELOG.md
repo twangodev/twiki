@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/twangodev/twiki/compare/v0.7.4...v0.8.0) (2026-10-28)
+
+
+### Features
+
+* **cli:** expose link checks, compiler cache, and migrations ([1830716](https://github.com/twangodev/twiki/commit/1830716fd53113a04be1c20e6a0b39b18dbb80dd))
+
 ## [0.7.4](https://github.com/twangodev/twiki/compare/v0.7.3...v0.7.4) (2026-10-27)
 
 
