@@ -283,6 +283,21 @@ test("CLI validates explicit targets and keeps tool execution in the prepared ru
   ).toHaveLength(1);
   expect(invocation("preview", project, ["--port=4300"])).not.toContain("4173");
   expect(invocation("deploy", project).slice(-1)).toEqual(["--upload"]);
+  expect(invocation("deploy", project, ["--migrate"]).slice(-2)).toEqual([
+    "--upload",
+    "--migrate",
+  ]);
+  expect(invocation("cache", project, ["restore"]).slice(1)).toEqual([
+    "tooling/cache.ts",
+    "restore",
+  ]);
+  expect(invocation("check", project, ["--links"]).slice(1)).toEqual([
+    "run",
+    "--sequential",
+    "--no-exit-on-error",
+    "check:links",
+    "check:targets",
+  ]);
 });
 test("init is explicit and never overwrites existing consumer configuration", async () => {
   const f = fixture();
@@ -323,7 +338,12 @@ test("preview derives a matching local origin and preserves explicit origin over
   expect(invocation("preview", project, ["--ip=0.0.0.0"])).toContain(
     "ORIGIN:http://127.0.0.1:4173",
   );
-  expect(invocation("preview", project, ["--local-upstream", "custom.example"]).filter(value => value === "--local-upstream")).toHaveLength(1);
+  expect(
+    invocation("preview", project, [
+      "--local-upstream",
+      "custom.example",
+    ]).filter((value) => value === "--local-upstream"),
+  ).toHaveLength(1);
   for (const override of [
     ["--var", "OTHER:yes", "ORIGIN:https://custom.example"],
     ["--var=ORIGIN:https://custom.example"],
@@ -418,11 +438,16 @@ test("custom favicon follows consumer edits and removing the setting restores th
   writeFileSync(path.join(f.engine, "static/favicon.ico"), defaultIcon);
   writeFileSync(path.join(f.vault, "brand.ico"), customIcon);
   const config = path.join(f.vault, "twiki.config.json");
-  writeFileSync(config, JSON.stringify({ version: 1, site: { favicon: "brand.ico" } }));
+  writeFileSync(
+    config,
+    JSON.stringify({ version: 1, site: { favicon: "brand.ico" } }),
+  );
   const result = prepareProject(f.options);
   const staged = path.join(result.workDir, "static/favicon.ico");
   expect(readFileSync(staged)).toEqual(customIcon);
-  expect(readFileSync(path.join(f.engine, "static/favicon.ico"))).toEqual(defaultIcon);
+  expect(readFileSync(path.join(f.engine, "static/favicon.ico"))).toEqual(
+    defaultIcon,
+  );
   const edited = Buffer.from([0, 0, 1, 0, 1, 0, 30]);
   writeFileSync(path.join(f.vault, "brand.ico"), edited);
   prepareProject(f.options);

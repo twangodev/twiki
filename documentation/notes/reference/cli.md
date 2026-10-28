@@ -37,6 +37,22 @@ Check types, links, targets, and diagrams
 Options:
   --project <directory>  Consumer root (default: current directory)
   --config <file>        Explicit JSON configuration
+  --links                Check only wikilink conventions and destinations
+  -h, --help             display help for command
+```
+
+## cache
+
+Restore or save the encrypted compiler cache
+
+```text
+Usage: twiki cache [options] <mode>
+
+Restore or save the encrypted compiler cache
+
+Options:
+  --project <directory>  Consumer root (default: current directory)
+  --config <file>        Explicit JSON configuration
   -h, --help             display help for command
 ```
 
@@ -84,6 +100,7 @@ Upload an existing Cloudflare build
 Options:
   --project <directory>  Consumer root (default: current directory)
   --config <file>        Explicit JSON configuration
+  --migrate              Apply configured D1 migrations before uploading
   -h, --help             display help for command
 ```
 

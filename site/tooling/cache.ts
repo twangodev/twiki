@@ -3,15 +3,18 @@ import {
 	appendFileSync,
 	cpSync,
 	existsSync,
+	lstatSync,
 	mkdirSync,
 	mkdtempSync,
 	readFileSync,
+	realpathSync,
 	rmSync,
+	statSync,
 	writeFileSync
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { compilerCacheFiles } from './lib/cache-selection';
+import { compilerCacheFiles, portableCachePath } from './lib/cache-selection';
 
 const mode = process.argv[2];
 if (mode !== 'restore' && mode !== 'save') throw new Error('Expected restore or save');
@@ -39,7 +42,8 @@ const run = (command: string, args: string[]) =>
 	execFileSync(command, args, {
 		env,
 		input: command === 'gpg' ? secret + '\n' : undefined,
-		stdio: 'pipe'
+		stdio: 'pipe',
+		maxBuffer: 32 * 1024 * 1024
 	});
 const gpg = [
 	'--batch',
@@ -51,36 +55,52 @@ const gpg = [
 	'0'
 ];
 
-try {
-	if (mode === 'restore') {
-		run('gpg', [...gpg, '--status-file', status, '--output', archive, '--decrypt', encrypted]);
-		if (!readFileSync(status, 'utf8').split('\n').includes('[GNUPG:] GOODMDC'))
-			throw new Error('Cache integrity was not verified');
-		const staged = path.join(temporary, 'unpacked');
-		mkdirSync(staged);
-		run('tar', ['-xzf', archive, '-C', staged, '--no-same-owner']);
-		mkdirSync(cache, { recursive: true });
-		cpSync(staged, cache, { recursive: true });
-		console.log('Compiler cache archive restored; each stage validates its own inputs');
-	} else {
-		const files = compilerCacheFiles(cache);
-		const list = path.join(temporary, 'files');
-		writeFileSync(list, files.map((file) => file + '\0').join(''));
-		run('tar', ['-czf', archive, '-C', cache, '--null', '--files-from', list]);
-		run('gpg', [
-			...gpg,
-			'--symmetric',
-			'--cipher-algo',
-			'AES256',
-			'--compress-algo',
-			'none',
-			'--output',
-			encrypted,
-			archive
-		]);
-		if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'ready=true\n');
-		console.log(`Compiler cache encrypted (${files.length} current files)`);
+function restoreCompilerCache() {
+	run('gpg', [...gpg, '--status-file', status, '--output', archive, '--decrypt', encrypted]);
+	if (!readFileSync(status, 'utf8').split('\n').includes('[GNUPG:] GOODMDC'))
+		throw new Error('Cache integrity was not verified');
+	const members = run('tar', ['-tzf', archive]).toString().trimEnd().split('\n');
+	if (!members.every(portableCachePath)) throw new Error('Unsafe cache archive');
+	const staged = path.join(temporary, 'unpacked');
+	mkdirSync(staged);
+	run('tar', ['-xzf', archive, '-C', staged, '--no-same-owner', '--no-same-permissions']);
+	for (const member of members) {
+		const file = path.join(staged, member);
+		if (!lstatSync(file).isFile() || realpathSync(file) !== file)
+			throw new Error('Cache entries must be regular files');
 	}
+	mkdirSync(cache, { recursive: true });
+	cpSync(staged, cache, { recursive: true });
+	console.log('Compiler cache archive restored; each stage validates its own inputs');
+}
+
+function saveCompilerCache() {
+	const files = compilerCacheFiles(cache);
+	if (!files.length) throw new Error('No current compiler cache entries');
+	const list = path.join(temporary, 'files');
+	writeFileSync(list, files.map((file) => file + '\0').join(''));
+	run('tar', ['-czf', archive, '-C', cache, '--null', '--files-from', list]);
+	run('gpg', [
+		...gpg,
+		'--symmetric',
+		'--cipher-algo',
+		'AES256',
+		'--compress-algo',
+		'none',
+		'--output',
+		encrypted,
+		archive
+	]);
+	if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'ready=true\n');
+	const bytes = files.reduce((sum, file) => sum + statSync(path.join(cache, file)).size, 0);
+	console.log(
+		`Compiler cache encrypted (${files.length} current files, ${(bytes / 1024 ** 2).toFixed(1)} MiB before compression)`
+	);
+}
+
+try {
+	if (mode === 'restore') restoreCompilerCache();
+	else saveCompilerCache();
 } catch {
 	console.log(
 		mode === 'restore'

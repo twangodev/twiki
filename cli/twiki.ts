@@ -16,7 +16,19 @@ export function invocation(
   const bin = (name: string) =>
     path.join(project.workDir, "node_modules", ".bin", name);
   if (command === "dev") return [bin("vite"), "dev", ...extra];
-  if (command === "check") return [process.execPath, "run", "check"];
+  if (command === "check")
+    return extra.includes("--links")
+      ? [
+          process.execPath,
+          "run",
+          "--sequential",
+          "--no-exit-on-error",
+          "check:links",
+          "check:targets",
+        ]
+      : [process.execPath, "run", "check"];
+  if (command === "cache")
+    return [process.execPath, "tooling/cache.ts", ...extra];
   if (command === "build") return [process.execPath, "tooling/build.ts"];
   if (command === "preview") {
     if (
@@ -95,15 +107,13 @@ export function invocation(
         : ["--persist-to", "build/.wrangler/state"]),
       ...(option("--port") ? [] : ["--port", port]),
       ...(option("--ip") ? [] : ["--ip", ip]),
-      ...(option("--local-upstream")
-        ? []
-        : ["--local-upstream", origin.host]),
+      ...(option("--local-upstream") ? [] : ["--local-upstream", origin.host]),
       ...(!explicitOrigin ? ["--var", `ORIGIN:${origin.origin}`] : []),
       ...extra,
     ];
   }
   if (command === "deploy")
-    return [process.execPath, "tooling/deploy.ts", "--upload"];
+    return [process.execPath, "tooling/deploy.ts", "--upload", ...extra];
   if (command === "exec") return [process.execPath, ...extra];
   throw new Error("Unsupported engine invocation");
 }

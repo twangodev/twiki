@@ -1,6 +1,11 @@
 import { readFile, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { deploymentError, readDeploymentConfig } from './lib/deployment-config';
+import {
+	deploymentError,
+	readDeploymentConfig,
+	type DeploymentConfig
+} from './lib/deployment-config';
 import {
 	captureAssetInventory,
 	assetPath,
@@ -17,16 +22,34 @@ import {
 import { CloudflareDeploymentAPI, uploadDeployment } from './lib/deployment-upload';
 import { captureAssetHashes, flushAssetHashCache } from './lib/asset-hash-cache';
 
+export async function applyDatabaseMigrations(site: string, config: DeploymentConfig) {
+	for (const database of config.d1_databases)
+		execFileSync(
+			process.execPath,
+			[
+				path.join(site, 'tooling/wrangler.ts'),
+				'd1',
+				'migrations',
+				'apply',
+				database.database_name,
+				'--remote'
+			],
+			{ cwd: site, stdio: 'inherit' }
+		);
+}
+
 /** No implicit network operation: --prepare is offline; --upload is an explicit production mutation. */
 export async function deploymentCLI(args: string[]): Promise<void> {
 	const options = new Map<string, string>();
 	let mode: '--prepare' | '--upload' | undefined;
+	let migrate = false;
 	for (let i = 0; i < args.length; i++) {
 		const argument = args[i];
 		if (argument === '--prepare' || argument === '--upload') {
 			if (mode) deploymentError('select exactly one deployment mode');
 			mode = argument;
-		} else if (
+		} else if (argument === '--migrate' && !migrate) migrate = true;
+		else if (
 			['--output', '--snapshot', '--provenance', '--site', '--worker'].includes(argument) &&
 			args[i + 1] &&
 			!args[i + 1].startsWith('--') &&
@@ -36,6 +59,7 @@ export async function deploymentCLI(args: string[]): Promise<void> {
 		else deploymentError('unsupported CLI arguments');
 	}
 	if (!mode) deploymentError('select --prepare or --upload explicitly');
+	if (migrate && mode !== '--upload') deploymentError('migrations require an explicit upload');
 	const site = path.resolve(options.get('--site') ?? path.resolve(import.meta.dir, '..'));
 	const config = readDeploymentConfig(site);
 	const provenance = await readCurrentDescriptorProvenance(
@@ -89,6 +113,7 @@ export async function deploymentCLI(args: string[]): Promise<void> {
 		accountId,
 		expectedProvenance: provenance,
 		config,
+		applyMigrations: migrate ? () => applyDatabaseMigrations(site, config) : undefined,
 		readModule: (module) => readFile(path.join(workerDirectory, module.filename)),
 		readAsset: (filename) => {
 			if (!assetPath(filename)) deploymentError('invalid asset path');

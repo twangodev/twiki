@@ -50,7 +50,11 @@ test('compiler transport encryption restores selected files and rejects wrong ke
 			'file-history/course/revisions-v1-head.jsonl',
 			'gitdates-v3-course-version-head.json',
 			`social-titles/${'b'.repeat(64)}.png`,
-			'rmd/key/result.json'
+			'rmd/key/result.json',
+			`application/${'f'.repeat(64)}/kit/types/[...slug]/$types.d.ts`,
+			`content/full/bodies/${'f'.repeat(64)}.json`,
+			`search/full/${'f'.repeat(64)}/files/pagefind.js`,
+			'course-files/full/course.json'
 		];
 		for (const file of files) {
 			mkdirSync(path.dirname(path.join(cache, file)), { recursive: true });
@@ -66,6 +70,13 @@ test('compiler transport encryption restores selected files and rejects wrong ke
 			JSON.stringify([files[4]])
 		);
 		writeFileSync(path.join(cache, 'social-titles-current-full.json'), JSON.stringify([files[4]]));
+		for (const [manifest, value] of Object.entries({
+			'application-current.json': { schema: 1, identity: 'f'.repeat(64), files: [files[6]] },
+			'content-files-current-full.json': [files[7]],
+			'search-current-full.json': [files[8]],
+			'course-files-current-full.json': [files[9]]
+		}))
+			writeFileSync(path.join(cache, manifest), JSON.stringify(value));
 		const staleParser = `stage1/ab/${'c'.repeat(64)}.json`;
 		const staleSocial = `social-titles/${'d'.repeat(64)}.png`;
 		const staleHistory = 'file-history/course/obsolete-blame.json';

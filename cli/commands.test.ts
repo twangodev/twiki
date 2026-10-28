@@ -9,12 +9,18 @@ test("Commander owns global options, command help, choices and errors", () => {
   ).toMatchObject({ projectRoot: "vault", configFile: "custom.json" });
   expect(argumentsFor(["build", "--help"]).helpText).toContain("--target");
   expect(argumentsFor(["build", "--help"]).helpText).not.toContain("Commands:");
+  expect(argumentsFor(["check", "--links"]).extra).toEqual(["--links"]);
+  expect(argumentsFor(["cache", "restore"]).extra).toEqual(["restore"]);
+  expect(argumentsFor(["deploy", "--migrate"]).extra).toEqual(["--migrate"]);
   for (const argv of [
     ["unknown"],
     ["build", "--unknown"],
     ["check", "unexpected"],
     ["build", "--target", "other"],
     ["exec"],
+    ["cache"],
+    ["cache", "publish"],
+    ["check", "--migrate"],
   ])
     expect(() => argumentsFor(argv)).toThrow();
 });

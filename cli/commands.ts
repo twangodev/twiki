@@ -1,4 +1,4 @@
-import { Command, Option, CommanderError } from "commander";
+import { Argument, Command, Option, CommanderError } from "commander";
 import { readFileSync } from "node:fs";
 
 export interface CLIArguments {
@@ -31,6 +31,7 @@ export function createCLI(accept: (value: CLIArguments) => void = () => {}) {
   const definitions = [
     ["dev", "Start the development server"],
     ["check", "Check types, links, targets, and diagrams"],
+    ["cache", "Restore or save the encrypted compiler cache"],
     ["build", "Build a Cloudflare Worker or export public static pages"],
     ["preview", "Preview the Cloudflare build locally"],
     ["deploy", "Upload an existing Cloudflare build"],
@@ -55,6 +56,18 @@ export function createCLI(accept: (value: CLIArguments) => void = () => {}) {
       );
     if (name === "prepare")
       command.option("--json", "Print resolved runtime paths as JSON");
+    if (name === "check")
+      command.option(
+        "--links",
+        "Check only wikilink conventions and destinations",
+      );
+    if (name === "cache")
+      command.addArgument(new Argument("<mode>").choices(["restore", "save"]));
+    if (name === "deploy")
+      command.option(
+        "--migrate",
+        "Apply configured D1 migrations before uploading",
+      );
     if (["dev", "preview", "exec"].includes(name)) {
       command
         .allowUnknownOption()
@@ -64,7 +77,8 @@ export function createCLI(accept: (value: CLIArguments) => void = () => {}) {
           "\nPass engine arguments after --, e.g. twiki dev -- --port 5174.",
         );
     }
-    command.action((_options, cmd: Command) => {
+    command.action((...args: unknown[]) => {
+      const cmd = args.at(-1) as Command;
       const options = cmd.optsWithGlobals();
       if (name === "exec" && !cmd.args.length)
         throw new Error("Use twiki exec -- <Bun arguments>");
@@ -74,7 +88,12 @@ export function createCLI(accept: (value: CLIArguments) => void = () => {}) {
         configFile: options.config,
         target: options.target ?? "cloudflare",
         json: options.json ?? false,
-        extra: cmd.args,
+        extra:
+          name === "check" && options.links
+            ? ["--links"]
+            : name === "deploy" && options.migrate
+              ? ["--migrate"]
+              : cmd.args,
       });
     });
   }

@@ -140,6 +140,7 @@ export interface UploadDeploymentOptions extends DeploymentBodyProvider {
 	expectedProvenance: string;
 	config: DeploymentConfig;
 	log?: (message: string) => void;
+	applyMigrations?: () => Promise<void>;
 }
 
 /** Upload requested bodies only. An authenticated cached inventory can supply the complete manifest. */
@@ -191,6 +192,7 @@ export async function uploadDeployment(
 			deploymentError('ambiguous asset hash');
 		byHash.set(asset.hash, [filename, asset]);
 	}
+	await options.applyMigrations?.();
 	const session = await api.request(
 		`${workerPrefix}/assets-upload-session`,
 		jsonRequest('POST', { manifest })

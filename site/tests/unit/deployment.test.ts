@@ -29,6 +29,7 @@ import {
 	uploadDeployment,
 	type DeploymentAPI
 } from '../../tooling/lib/deployment-upload';
+import { applyDatabaseMigrations } from '../../tooling/deploy';
 
 const provenance = sha256('current complete products');
 const accountId = 'a'.repeat(32);
@@ -279,6 +280,71 @@ test('unchanged manifest skips all body access and uses returned completion toke
 		}
 	});
 	expect(calls.some((call) => call.endpoint.includes('/assets/upload?'))).toBe(false);
+});
+
+test('opt-in migrations follow validation and finish before any upload', async () => {
+	const { snapshot, body } = fixture();
+	const { api, calls } = fakeAPI({ jwt: 'completed', buckets: [] });
+	let migrations = 0;
+	const options = {
+		api,
+		accountId,
+		config,
+		expectedProvenance: provenance,
+		readModule: async () => body,
+		readAsset: async () => Buffer.from('unused'),
+		applyMigrations: async () => {
+			migrations++;
+			expect(calls.some((call) => call.init?.method)).toBe(false);
+			throw new Error('Migration failed');
+		}
+	};
+	await expect(uploadDeployment({ ...snapshot, provenance: 'stale' }, options)).rejects.toThrow(
+		'stale'
+	);
+	expect(migrations).toBe(0);
+	await expect(uploadDeployment(snapshot, options)).rejects.toThrow('Migration failed');
+	expect(migrations).toBe(1);
+	expect(calls.some((call) => call.init?.method)).toBe(false);
+	await uploadDeployment(snapshot, {
+		...options,
+		applyMigrations: async () => {
+			migrations++;
+		}
+	});
+	expect(migrations).toBe(2);
+	expect(calls.some((call) => call.init?.method === 'PUT')).toBe(true);
+});
+
+test('configured D1 migrations run sequentially and stop at the first failure', async () => {
+	const site = await mkdtemp(path.join(os.tmpdir(), 'twiki-migration-wrapper-'));
+	try {
+		await mkdir(path.join(site, 'tooling'));
+		await writeFile(
+			path.join(site, 'tooling/wrangler.ts'),
+			`
+			import { appendFileSync } from 'node:fs';
+			const database = process.argv[5];
+			appendFileSync('events', 'start:' + database + '\\n');
+			await new Promise(resolve => setTimeout(resolve, 10));
+			if (database === 'failed') process.exit(1);
+			appendFileSync('events', 'end:' + database + '\\n');
+		`
+		);
+		const databases = (...names: string[]) => ({
+			...config,
+			d1_databases: names.map((database_name) => ({ ...config.d1_databases[0], database_name }))
+		});
+		await applyDatabaseMigrations(site, databases('first', 'second'));
+		expect(await readFile(path.join(site, 'events'), 'utf8')).toBe(
+			'start:first\nend:first\nstart:second\nend:second\n'
+		);
+		await writeFile(path.join(site, 'events'), '');
+		await expect(applyDatabaseMigrations(site, databases('failed', 'second'))).rejects.toThrow();
+		expect(await readFile(path.join(site, 'events'), 'utf8')).toBe('start:failed\n');
+	} finally {
+		await rm(site, { recursive: true, force: true });
+	}
 });
 
 test('invalid requested hashes, absent completion, and corrupt bytes never publish Worker', async () => {

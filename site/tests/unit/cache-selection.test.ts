@@ -41,7 +41,27 @@ test('cache transport selects current parser and both editions of cards without 
 		write('rmd/key/preview.png');
 		write('gitdates-v3-course-version-head.json');
 		write('credentials.env');
+		const identity = 'f'.repeat(64);
+		const app = `application/${identity}/kit/types/[...slug]/$types.d.ts`;
+		write(app);
+		write('application-current.json', { schema: 1, identity, files: [app] });
+		const current: string[] = [app];
+		for (const edition of ['public', 'full']) {
+			const body = `content/${edition}/bodies/${identity}.json`;
+			const search = `search/${edition}/${identity}/files/pagefind.js`;
+			const course = `course-files/${edition}/course.json`;
+			for (const file of [body, search, course, `content-current-${edition}.json`]) write(file);
+			write(`content-files-current-${edition}.json`, [body, `content-current-${edition}.json`]);
+			write(`search-current-${edition}.json`, [search]);
+			write(`course-files-current-${edition}.json`, [course]);
+			current.push(body, search, course);
+		}
+		write(`application/${'0'.repeat(64)}/kit/worker.js`);
+		write('deployment-hashes.json');
 		const selected = compilerCacheFiles(cache);
+		for (const file of current) expect(selected).toContain(file);
+		expect(selected).not.toContain(`application/${'0'.repeat(64)}/kit/worker.js`);
+		expect(selected).not.toContain('deployment-hashes.json');
 		expect(selected).toContain(parse);
 		expect(selected.filter((file) => file === parse)).toHaveLength(1);
 		expect(selected).toContain(publicCard);
