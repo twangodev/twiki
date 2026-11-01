@@ -174,6 +174,11 @@ export async function renderGraph(
 			target: nodeById.get(l.target)!
 		}))
 	};
+	const degrees = new Map<string, number>();
+	for (const { source, target } of graphData.links) {
+		degrees.set(source.id, (degrees.get(source.id) ?? 0) + 1);
+		if (source.id !== target.id) degrees.set(target.id, (degrees.get(target.id) ?? 0) + 1);
+	}
 	const centeredNode = centerCurrentNode && slug !== undefined ? nodeById.get(slug) : undefined;
 	if (centeredNode) {
 		centeredNode.fx = 0;
@@ -211,10 +216,7 @@ export async function renderGraph(
 	};
 
 	function nodeRadius(d: NodeData) {
-		const numLinks = graphData.links.filter(
-			(l) => l.source.id === d.id || l.target.id === d.id
-		).length;
-		return 2 + Math.sqrt(numLinks);
+		return 2 + Math.sqrt(degrees.get(d.id) ?? 0);
 	}
 
 	let hoveredNodeId: string | null = null;
@@ -349,6 +351,8 @@ export async function renderGraph(
 		renderNodes();
 		renderLinks();
 		renderLabels();
+		tweenUntil = performance.now() + 220;
+		requestFrame();
 	}
 
 	tweens.forEach((tween) => tween.stop());
@@ -367,6 +371,14 @@ export async function renderGraph(
 		eventMode: 'static'
 	});
 	graph.appendChild(app.canvas);
+
+	let destroyed = false;
+	let animationFrame = 0;
+	let geometryDirty = true;
+	let tweenUntil = 0;
+	function requestFrame() {
+		if (!destroyed && !animationFrame) animationFrame = requestAnimationFrame(animate);
+	}
 
 	const stage = app.stage;
 	stage.interactive = false;
@@ -415,6 +427,7 @@ export async function renderGraph(
 			.on('pointerleave', () => {
 				updateHoverInfo(null);
 				label.alpha = oldLabelOpacity;
+				requestFrame();
 				if (!dragging) {
 					renderPixiFromD3();
 				}
@@ -459,7 +472,7 @@ export async function renderGraph(
 		select<HTMLCanvasElement, NodeData | undefined>(app.canvas).call(
 			drag<HTMLCanvasElement, NodeData | undefined>()
 				.container(() => app.canvas)
-				.subject(() => graphData.nodes.find((n) => n.id === hoveredNodeId))
+				.subject(() => (hoveredNodeId === null ? undefined : nodeById.get(hoveredNodeId)))
 				.on('start', function dragstarted(event) {
 					if (!event.active) simulation.alphaTarget(1).restart();
 					event.subject.fx = event.subject.x;
@@ -491,8 +504,7 @@ export async function renderGraph(
 
 					// if the time between mousedown and mouseup is short, we consider it a click
 					if (Date.now() - dragStartTime < 500) {
-						const node = graphData.nodes.find((n) => n.id === event.subject.id) as NodeData;
-						navigate(node.id);
+						navigate(event.subject.id);
 					}
 				})
 		);
@@ -530,13 +542,10 @@ export async function renderGraph(
 				// zoom adjusts opacity of labels too
 				const scale = transform.k * opacityScale;
 				const scaleOpacity = Math.max((scale - 1) / 3.75, 0);
-				const activeNodes = nodeRenderData.filter((n) => n.active).flatMap((n) => n.label);
-
-				for (const label of labelsContainer.children) {
-					if (!activeNodes.includes(label)) {
-						label.alpha = scaleOpacity;
-					}
+				for (const node of nodeRenderData) {
+					if (!node.active) node.label.alpha = scaleOpacity;
 				}
+				requestFrame();
 			});
 		select<HTMLCanvasElement, NodeData>(app.canvas).call(zoomController);
 	}
@@ -553,6 +562,8 @@ export async function renderGraph(
 		width = nextWidth;
 		height = nextHeight;
 		app.renderer.resize(width, height);
+		geometryDirty = true;
+		requestFrame();
 		if (enableRadial) {
 			simulation.force('radial', forceRadial((Math.min(width, height) / 2) * 0.8).strength(0.2));
 			simulation.alpha(Math.max(simulation.alpha(), 0.15)).restart();
@@ -563,54 +574,57 @@ export async function renderGraph(
 	resizeObserver.observe(graph);
 
 	function drawFrame(time: number) {
-		for (const n of nodeRenderData) {
-			const { x, y } = n.simulationData;
-			const position = canvasPosition(x, y, width, height);
-			if (!position) continue;
-			n.gfx.position.set(position.x, position.y);
-			if (n.simulationData === centeredNode) {
-				graph.dataset.graphCurrentX = String(position.x);
-				graph.dataset.graphCurrentY = String(position.y);
-			}
-			if (n.label) {
+		tweens.forEach((t) => t.update(time));
+		if (geometryDirty) {
+			for (const n of nodeRenderData) {
+				const { x, y } = n.simulationData;
+				const position = canvasPosition(x, y, width, height);
+				if (!position) continue;
+				n.gfx.position.set(position.x, position.y);
+				if (n.simulationData === centeredNode) {
+					graph.dataset.graphCurrentX = String(position.x);
+					graph.dataset.graphCurrentY = String(position.y);
+				}
 				n.label.position.set(position.x, position.y);
 			}
-		}
 
+			for (const l of linkRenderData) {
+				const linkData = l.simulationData;
+				l.gfx.clear();
+				l.gfx.moveTo(linkData.source.x! + width / 2, linkData.source.y! + height / 2);
+				l.gfx
+					.lineTo(linkData.target.x! + width / 2, linkData.target.y! + height / 2)
+					.stroke({ width: 1, color: 'white' });
+			}
+			geometryDirty = false;
+		}
 		for (const l of linkRenderData) {
-			const linkData = l.simulationData;
-			l.gfx.clear();
-			l.gfx.moveTo(linkData.source.x! + width / 2, linkData.source.y! + height / 2);
-			l.gfx
-				.lineTo(linkData.target.x! + width / 2, linkData.target.y! + height / 2)
-				.stroke({ alpha: l.alpha, width: 1, color: l.color });
+			l.gfx.alpha = l.alpha;
+			l.gfx.tint = l.color;
 		}
-
-		tweens.forEach((t) => t.update(time));
 		app.renderer.render(stage);
 	}
 
-	// Draw once immediately. A backgrounded/throttled tab may defer
-	// requestAnimationFrame, but its graph preview should never remain blank.
+	function animate(time: number) {
+		animationFrame = 0;
+		if (destroyed) return;
+		drawFrame(time);
+		if (time < tweenUntil) requestFrame();
+	}
+
+	simulation.on('tick.render', () => {
+		geometryDirty = true;
+		requestFrame();
+	});
+	// Draw immediately even if animation frames are throttled in a background tab.
 	drawFrame(performance.now());
 	graph.dataset.graphReady = 'true';
 	graph.dataset.graphNodes = String(nodeRenderData.length);
 	graph.dataset.graphLinks = String(linkRenderData.length);
 
-	let stopAnimation = false;
-	let animationFrame = 0;
-	function animate(time: number) {
-		if (stopAnimation) return;
-		drawFrame(time);
-		animationFrame = requestAnimationFrame(animate);
-	}
-
-	animationFrame = requestAnimationFrame(animate);
-	let destroyed = false;
 	return () => {
 		if (destroyed) return;
 		destroyed = true;
-		stopAnimation = true;
 		resizeObserver.disconnect();
 		cancelAnimationFrame(animationFrame);
 		tweens.forEach((t) => t.stop());
