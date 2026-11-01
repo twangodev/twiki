@@ -220,35 +220,26 @@ export async function renderGraph(
 	}
 
 	let hoveredNodeId: string | null = null;
-	let hoveredNeighbours: Set<string> = new Set();
 	const linkRenderData: LinkRenderData[] = [];
 	const nodeRenderData: NodeRenderData[] = [];
+	const nodeRenderById = new Map<string, NodeRenderData>();
+	const incidentLinks = new Map<string, LinkRenderData[]>();
+	let activeLinks: LinkRenderData[] = [];
+	let activeNodes: NodeRenderData[] = [];
 	function updateHoverInfo(newHoveredId: string | null) {
 		hoveredNodeId = newHoveredId;
-
-		if (newHoveredId === null) {
-			hoveredNeighbours = new Set();
-			for (const n of nodeRenderData) {
-				n.active = false;
-			}
-
-			for (const l of linkRenderData) {
-				l.active = false;
-			}
-		} else {
-			hoveredNeighbours = new Set();
-			for (const l of linkRenderData) {
-				const linkData = l.simulationData;
-				if (linkData.source.id === newHoveredId || linkData.target.id === newHoveredId) {
-					hoveredNeighbours.add(linkData.source.id);
-					hoveredNeighbours.add(linkData.target.id);
+		for (const link of activeLinks) link.active = false;
+		for (const node of activeNodes) node.active = false;
+		activeLinks = newHoveredId === null ? [] : (incidentLinks.get(newHoveredId) ?? []);
+		activeNodes = [];
+		for (const link of activeLinks) {
+			link.active = true;
+			for (const endpoint of [link.simulationData.source, link.simulationData.target]) {
+				const node = nodeRenderById.get(endpoint.id)!;
+				if (!node.active) {
+					node.active = true;
+					activeNodes.push(node);
 				}
-
-				l.active = linkData.source.id === newHoveredId || linkData.target.id === newHoveredId;
-			}
-
-			for (const n of nodeRenderData) {
-				n.active = hoveredNeighbours.has(n.simulationData.id);
 			}
 		}
 	}
@@ -256,93 +247,85 @@ export async function renderGraph(
 	let dragStartTime = 0;
 	let dragging = false;
 
-	function renderLinks() {
-		tweens.get('link')?.stop();
-		const tweenGroup = new TweenGroup();
-
-		for (const l of linkRenderData) {
-			let alpha = 1;
-
-			// if we are hovering over a node, we want to highlight the immediate neighbours
-			// with full alpha and the rest with default alpha
-			if (hoveredNodeId) {
-				alpha = l.active ? 1 : 0.2;
-			}
-
-			l.color = l.active ? computedStyleMap['--gray'] : computedStyleMap['--lightgray'];
-			tweenGroup.add(new Tweened<LinkRenderData>(l).to({ alpha }, 200));
-		}
-
-		tweenGroup.getAll().forEach((tw) => tw.start());
-		tweens.set('link', {
-			update: tweenGroup.update.bind(tweenGroup),
+	function animateChanges(key: string, duration: number, update: (progress: number) => void) {
+		tweens.get(key)?.stop();
+		const group = new TweenGroup();
+		const progress = { value: 0 };
+		group.add(
+			new Tweened(progress).to({ value: 1 }, duration).onUpdate(() => update(progress.value))
+		);
+		group.getAll().forEach((tween) => tween.start());
+		tweens.set(key, {
+			update: group.update.bind(group),
 			stop() {
-				tweenGroup.getAll().forEach((tw) => tw.stop());
+				group.getAll().forEach((tween) => tween.stop());
 			}
 		});
 	}
 
-	function renderLabels() {
-		tweens.get('label')?.stop();
-		const tweenGroup = new TweenGroup();
-
-		const defaultScale = 1 / scale;
-		const activeScale = defaultScale * 1.1;
-		for (const n of nodeRenderData) {
-			const nodeId = n.simulationData.id;
-
-			if (hoveredNodeId === nodeId) {
-				tweenGroup.add(
-					new Tweened<Text>(n.label).to(
-						{
-							alpha: 1,
-							scale: { x: activeScale, y: activeScale }
-						},
-						100
-					)
-				);
-			} else {
-				tweenGroup.add(
-					new Tweened<Text>(n.label).to(
-						{
-							alpha: n.label.alpha,
-							scale: { x: defaultScale, y: defaultScale }
-						},
-						100
-					)
-				);
+	function renderLinks() {
+		const changes: { link: LinkRenderData; start: number; end: number }[] = [];
+		for (const link of linkRenderData) {
+			const end = hoveredNodeId ? (link.active ? 1 : 0.2) : 1;
+			const color = link.active ? computedStyleMap['--gray'] : computedStyleMap['--lightgray'];
+			if (link.color !== color) {
+				link.color = color;
+				link.gfx.tint = color;
 			}
+			if (link.alpha !== end) changes.push({ link, start: link.alpha, end });
 		}
+		animateChanges('link', 200, (progress) => {
+			for (const { link, start, end } of changes) {
+				link.alpha = start + (end - start) * progress;
+				link.gfx.alpha = link.alpha;
+			}
+		});
+	}
 
-		tweenGroup.getAll().forEach((tw) => tw.start());
-		tweens.set('label', {
-			update: tweenGroup.update.bind(tweenGroup),
-			stop() {
-				tweenGroup.getAll().forEach((tw) => tw.stop());
+	const scaledLabels = new Set<NodeRenderData>();
+	function renderLabels() {
+		const defaultScale = 1 / scale;
+		const hovered = hoveredNodeId === null ? undefined : nodeRenderById.get(hoveredNodeId);
+		const candidates = new Set(scaledLabels);
+		if (hovered) candidates.add(hovered);
+		scaledLabels.clear();
+		if (hovered) scaledLabels.add(hovered);
+		const changes = [...candidates].map((node) => {
+			const label = node.label;
+			const targetScale = node === hovered ? defaultScale * 1.1 : defaultScale;
+			if (label.scale.x !== targetScale || label.scale.y !== targetScale) scaledLabels.add(node);
+			return {
+				label,
+				startAlpha: label.alpha,
+				endAlpha: node === hovered ? 1 : label.alpha,
+				startX: label.scale.x,
+				startY: label.scale.y,
+				targetScale,
+				animateAlpha: node === hovered
+			};
+		});
+		animateChanges('label', 100, (progress) => {
+			for (const change of changes) {
+				if (change.animateAlpha) {
+					change.label.alpha = change.startAlpha + (change.endAlpha - change.startAlpha) * progress;
+				}
+				change.label.scale.set(
+					change.startX + (change.targetScale - change.startX) * progress,
+					change.startY + (change.targetScale - change.startY) * progress
+				);
 			}
 		});
 	}
 
 	function renderNodes() {
-		tweens.get('hover')?.stop();
-
-		const tweenGroup = new TweenGroup();
-		for (const n of nodeRenderData) {
-			let alpha = 1;
-
-			// if we are hovering over a node, we want to highlight the immediate neighbours
-			if (hoveredNodeId !== null && focusOnHover) {
-				alpha = n.active ? 1 : 0.2;
-			}
-
-			tweenGroup.add(new Tweened<Graphics>(n.gfx, tweenGroup).to({ alpha }, 200));
+		const changes: { node: NodeRenderData; start: number; end: number }[] = [];
+		for (const node of nodeRenderData) {
+			const end = hoveredNodeId !== null && focusOnHover && !node.active ? 0.2 : 1;
+			if (node.gfx.alpha !== end) changes.push({ node, start: node.gfx.alpha, end });
 		}
-
-		tweenGroup.getAll().forEach((tw) => tw.start());
-		tweens.set('hover', {
-			update: tweenGroup.update.bind(tweenGroup),
-			stop() {
-				tweenGroup.getAll().forEach((tw) => tw.stop());
+		animateChanges('hover', 200, (progress) => {
+			for (const { node, start, end } of changes) {
+				node.gfx.alpha = start + (end - start) * progress;
 			}
 		});
 	}
@@ -450,10 +433,15 @@ export async function renderGraph(
 		};
 
 		nodeRenderData.push(nodeRenderDatum);
+		nodeRenderById.set(nodeId, nodeRenderDatum);
 	}
 
 	for (const l of graphData.links) {
-		const gfx = new Graphics({ interactive: false, eventMode: 'none' });
+		const gfx = new Graphics({
+			interactive: false,
+			eventMode: 'none',
+			tint: computedStyleMap['--lightgray']
+		});
 		linkContainer.addChild(gfx);
 
 		const linkRenderDatum: LinkRenderData = {
@@ -465,6 +453,11 @@ export async function renderGraph(
 		};
 
 		linkRenderData.push(linkRenderDatum);
+		for (const id of new Set([l.source.id, l.target.id])) {
+			const links = incidentLinks.get(id);
+			if (links) links.push(linkRenderDatum);
+			else incidentLinks.set(id, [linkRenderDatum]);
+		}
 	}
 
 	let currentTransform = zoomIdentity;
@@ -597,10 +590,6 @@ export async function renderGraph(
 					.stroke({ width: 1, color: 'white' });
 			}
 			geometryDirty = false;
-		}
-		for (const l of linkRenderData) {
-			l.gfx.alpha = l.alpha;
-			l.gfx.tint = l.color;
 		}
 		app.renderer.render(stage);
 	}
