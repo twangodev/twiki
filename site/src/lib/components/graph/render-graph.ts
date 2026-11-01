@@ -40,7 +40,7 @@ import {
 } from 'd3-force';
 import { select } from 'd3-selection';
 import { zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom';
-import { Application, Circle, Container, Graphics, Text } from 'pixi.js';
+import { Application, Circle, Container, Graphics, GraphicsContext, Text } from 'pixi.js';
 import { getVisited, type GraphConfig, type GraphData } from './graph-data';
 import { canvasPosition, orderedGraphElements } from './graph-model';
 
@@ -436,8 +436,13 @@ export async function renderGraph(
 		nodeRenderById.set(nodeId, nodeRenderDatum);
 	}
 
+	const linkContext = new GraphicsContext()
+		.moveTo(0, 0)
+		.lineTo(1, 0)
+		.stroke({ width: 1, color: 'white' });
 	for (const l of graphData.links) {
 		const gfx = new Graphics({
+			context: linkContext,
 			interactive: false,
 			eventMode: 'none',
 			tint: computedStyleMap['--lightgray']
@@ -582,12 +587,14 @@ export async function renderGraph(
 			}
 
 			for (const l of linkRenderData) {
-				const linkData = l.simulationData;
-				l.gfx.clear();
-				l.gfx.moveTo(linkData.source.x! + width / 2, linkData.source.y! + height / 2);
-				l.gfx
-					.lineTo(linkData.target.x! + width / 2, linkData.target.y! + height / 2)
-					.stroke({ width: 1, color: 'white' });
+				const { source, target } = l.simulationData;
+				const dx = target.x! - source.x!;
+				const dy = target.y! - source.y!;
+				const length = Math.hypot(dx, dy);
+				l.gfx.renderable = length > 0;
+				l.gfx.position.set(source.x! + width / 2, source.y! + height / 2);
+				l.gfx.rotation = Math.atan2(dy, dx);
+				l.gfx.scale.set(length, 1);
 			}
 			geometryDirty = false;
 		}
@@ -625,5 +632,6 @@ export async function renderGraph(
 		// the other graph is alive corrupts its atlas. Remove this app's canvas,
 		// children and renderer without releasing resources shared by its peer.
 		app.destroy({ removeView: true, releaseGlobalResources: false }, { children: true });
+		linkContext.destroy();
 	};
 }
