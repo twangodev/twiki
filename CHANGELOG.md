@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.1](https://github.com/twangodev/twiki/compare/v0.8.0...v0.8.1) (2026-11-02)
+
+
+### Performance Improvements
+
+* **graph:** avoid redundant layout and render work ([92a054a](https://github.com/twangodev/twiki/commit/92a054a63fc5b79a3f7d6e7af904f973a87582a0))
+* **graph:** reuse line geometry while nodes move ([6527e7a](https://github.com/twangodev/twiki/commit/6527e7a3c6dc24b0e4d70ca7ec79cc7ebb84be8d))
+* **graph:** share hover animations across graph elements ([c6d71a4](https://github.com/twangodev/twiki/commit/c6d71a415c62ea1b5df0860cddbbbdcd46299c5d))
+
 ## [0.8.0](https://github.com/twangodev/twiki/compare/v0.7.4...v0.8.0) (2026-10-28)
 
 
