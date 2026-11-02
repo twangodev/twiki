@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
   workflow_dispatch:
 
@@ -106,7 +106,7 @@ jobs:
 
   publish:
     needs: [test, release-please]
-    if: needs.release-please.outputs.release_created == 'true'
+    if: github.repository == 'twangodev/twiki' && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: npm
@@ -132,7 +132,7 @@ jobs:
 
   docker:
     needs: [test, release-please]
-    if: needs.release-please.outputs.release_created == 'true'
+    if: github.repository == 'twangodev/twiki' && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
