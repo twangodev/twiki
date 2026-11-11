@@ -34,7 +34,7 @@ jobs:
         working-directory: documentation
       - name: Preserve the validated Cloudflare build
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        run: tar -cf "$RUNNER_TEMP/twiki-cloudflare.tar" -C documentation/.twiki/site build/.svelte-kit
+        run: tar -cf "$RUNNER_TEMP/twiki-cloudflare.tar" -C documentation/build/twiki/site build/.svelte-kit
       - uses: actions/upload-artifact@v7
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         with:
@@ -73,7 +73,7 @@ jobs:
           path: ${{ runner.temp }}/twiki-cloudflare
           digest-mismatch: error
       - name: Restore the validated Cloudflare build
-        run: tar -xf "$RUNNER_TEMP/twiki-cloudflare/twiki-cloudflare.tar" -C documentation/.twiki/site
+        run: tar -xf "$RUNNER_TEMP/twiki-cloudflare/twiki-cloudflare.tar" -C documentation/build/twiki/site
       - name: Deploy the validated build
         working-directory: documentation
         env:

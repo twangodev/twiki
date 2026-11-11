@@ -19,7 +19,7 @@ bunx twiki init
 bunx twiki dev
 ```
 
-Twiki keeps generated files in `.twiki/`. Add that directory to `.gitignore`. Source notes stay in your vault; the installed engine stays read-only.
+Twiki keeps generated files in `build/twiki/`. Add `/build/` to `.gitignore`. Upgrading from an older version starts with fresh generated state; once old Twiki processes have stopped, the previous `.twiki/` directory can be removed. Source notes stay in your vault; the installed engine stays read-only.
 
 For a public site, set `publication` to `public` in the configuration. See [[guides/static-hosting|Static hosting]] or [[guides/cloudflare|Cloudflare deployment]] for the next step. [[reference/configuration|Configuration reference]] explains each field.
 

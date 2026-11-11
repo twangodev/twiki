@@ -81,7 +81,7 @@ afterEach(() => {
 test("stage code into a consumer-owned runtime and keep installation, vault and dependency caches isolated", () => {
   const f = fixture();
   const result = prepareProject(f.options);
-  expect(result.workDir).toBe(path.join(f.vault, ".twiki/site"));
+  expect(result.workDir).toBe(path.join(f.vault, "build/twiki/site"));
   expect(result.env.TWIKI_DEPENDENCY_DIR).toBe(
     path.join(result.workDir, "node_modules"),
   );
@@ -114,7 +114,7 @@ test("stage code into a consumer-owned runtime and keep installation, vault and 
   expect(readFileSync(path.join(f.vault, "README.md"), "utf8")).toBe(
     "vault must stay byte-preserved",
   );
-  expect(readdirSync(f.vault).sort()).toEqual([".twiki", "README.md"]);
+  expect(readdirSync(f.vault).sort()).toEqual(["README.md", "build"]);
 });
 test("source upgrades remove retired owned files while preserving generated products and consumer branding", () => {
   const f = fixture();
@@ -223,7 +223,8 @@ test("symlinked writable directories are rejected without modifying their target
   const outside = path.join(f.root, "outside");
   mkdirSync(outside);
   writeFileSync(path.join(outside, "keep"), "unchanged");
-  symlinkSync(outside, path.join(f.vault, ".twiki"), "dir");
+  mkdirSync(path.join(f.vault, "build"));
+  symlinkSync(outside, path.join(f.vault, "build/twiki"), "dir");
   expect(() => prepareProject(f.options)).toThrow("symlinks");
   expect(readdirSync(outside)).toEqual(["keep"]);
 });
@@ -231,7 +232,7 @@ test("invalid configuration fails before staging; a partial failure releases its
   const f = fixture();
   writeFileSync(path.join(f.vault, "twiki.config.json"), '{"version":2}');
   expect(() => prepareProject(f.options)).toThrow();
-  expect(existsSync(path.join(f.vault, ".twiki"))).toBe(false);
+  expect(existsSync(path.join(f.vault, "build/twiki"))).toBe(false);
   rmSync(path.join(f.vault, "twiki.config.json"));
   expect(() =>
     prepareProject({
@@ -241,8 +242,8 @@ test("invalid configuration fails before staging; a partial failure releases its
       },
     }),
   ).toThrow();
-  expect(existsSync(path.join(f.vault, ".twiki/prepare.lock"))).toBe(false);
-  expect(prepareProject(f.options).workDir).toContain(".twiki/site");
+  expect(existsSync(path.join(f.vault, "build/twiki/prepare.lock"))).toBe(false);
+  expect(prepareProject(f.options).workDir).toContain("build/twiki/site");
 });
 test("output is published only from a completed runtime and never replaces an arbitrary directory", () => {
   const f = fixture();

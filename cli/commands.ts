@@ -35,7 +35,7 @@ export function createCLI(accept: (value: CLIArguments) => void = () => {}) {
     ["build", "Build a Cloudflare Worker or export public static pages"],
     ["preview", "Preview the Cloudflare build locally"],
     ["deploy", "Upload an existing Cloudflare build"],
-    ["prepare", "Prepare the consumer-owned .twiki/site runtime"],
+    ["prepare", "Prepare the consumer-owned build/twiki/site runtime"],
     ["exec", "Run Bun tooling in the prepared runtime"],
     ["init", "Create twiki.config.json without overwriting an existing file"],
   ];

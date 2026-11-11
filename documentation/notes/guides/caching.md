@@ -4,7 +4,7 @@ title: Builds and caching
 
 # Builds and caching
 
-Twiki stages engine code in `<vault>/.twiki/site`. Dependencies install from the shipped frozen lockfile into a separate runtime-owned `node_modules`, so unrelated vault dependencies cannot change the compiler.
+Twiki stages engine code in `<vault>/build/twiki/site`. Dependencies install from the shipped frozen lockfile into a separate runtime-owned `node_modules`, so unrelated vault dependencies cannot change the compiler.
 
 Repeated preparation reuses that installation. Compiler, application, search, worksheet and Worker caches live in the consumer's generated state. Cache validity depends on the engine, configuration, renderer and relevant content inputs; changed notes should invalidate their dependents without forcing every unrelated note to render again.
 
@@ -21,7 +21,7 @@ bunx twiki exec -- tooling/cache.ts save
 
 Encrypted cache transport requires `BUILD_CACHE_KEY`; do not cache private compilation products in plaintext. A missing or invalid cache must recover through a normal build. Treat caches as an optimization, never the only copy of notes or a replacement for validation.
 
-Use official `actions/cache/restore` and `actions/cache/save` steps to transfer `.twiki/site/build/generated/compiler-cache.gpg`. Set `BUILD_CACHE_KEY` for the engine's restore and save commands.
+Use official `actions/cache/restore` and `actions/cache/save` steps to transfer `build/twiki/site/build/generated/compiler-cache.gpg`. Set `BUILD_CACHE_KEY` for the engine's restore and save commands.
 
 Compiler archives retain parser, social-image, history and worksheet inputs. Application and search products are rebuilt in CI; local builds continue to reuse valid products from consumer-owned state.
 

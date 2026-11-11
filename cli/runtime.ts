@@ -237,7 +237,7 @@ export function prepareProject(options: PrepareOptions = {}): PreparedProject {
       options.projectRoot ?? environment.TWIKI_PROJECT_ROOT ?? process.cwd(),
     ),
   );
-  const state = path.join(projectRoot, ".twiki");
+  const state = path.join(projectRoot, "build", "twiki");
   const workDir = path.join(state, "site");
   const requested = options.configFile ?? environment.TWIKI_CONFIG_FILE;
   const configFile = requested

@@ -159,3 +159,7 @@ vite.config.ts.timestamp-*
 
 # Generated release history for the documentation build
 documentation/notes/reference/releases.md
+
+# Consumer-generated Twiki state
+/build/
+/documentation/build/

@@ -106,12 +106,12 @@ Options:
 
 ## prepare
 
-Prepare the consumer-owned .twiki/site runtime
+Prepare the consumer-owned build/twiki/site runtime
 
 ```text
 Usage: twiki prepare [options]
 
-Prepare the consumer-owned .twiki/site runtime
+Prepare the consumer-owned build/twiki/site runtime
 
 Options:
   --project <directory>  Consumer root (default: current directory)

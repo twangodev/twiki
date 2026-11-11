@@ -246,7 +246,7 @@ export function prepareApplicationStatic(site: string, destination: string) {
 				if (entry.isFile())
 					files.push(path.relative(site, path.join(entry.parentPath, entry.name)));
 	}
-	// Packaged runtimes often live under a Git-ignored .twiki directory; an empty
+	// Packaged runtimes often live under a Git-ignored build/twiki directory; an empty
 	// git inventory there does not mean the engine's maintained fonts disappeared.
 	files.push('static/.gitignore', 'static/favicon.ico');
 	const fonts = path.join(site, 'static/fonts');
