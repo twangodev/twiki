@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/twangodev/twiki/compare/v0.8.1...v0.8.2) (2026-11-12)
+
+
+### Bug Fixes
+
+* move generated runtime state under build/twiki ([03ae3de](https://github.com/twangodev/twiki/commit/03ae3de35867bc1061228509a039f4c0d5329621))
+
 ## [0.8.1](https://github.com/twangodev/twiki/compare/v0.8.0...v0.8.1) (2026-11-02)
 
 
